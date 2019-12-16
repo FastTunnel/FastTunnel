@@ -8,7 +8,7 @@ namespace FastTunnel.Core.Logger
     {
         public void Debug(string msg)
         {
-            Console.WriteLine(string.Format("Debug - {0}", msg));
+            Console.WriteLine(string.Format("Debu - {0}", msg));
         }
 
         public void Error(string msg)

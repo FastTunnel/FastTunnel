@@ -104,9 +104,9 @@ namespace FastTunnel.Core.Server
                 _logger.Debug($"Host: {domain}");
 
                 WebInfo web;
-                if (WebList.TryGetValue(domain, out web))
+                if (!WebList.TryGetValue(domain, out web))
                 {
-                    _logger.Error($"客户端不存在:{domain}");
+                    _logger.Error($"客户端不存在:'{domain}'");
                     return;
                 }
 
@@ -162,17 +162,17 @@ namespace FastTunnel.Core.Server
                     {
                         foreach (var item in requet.WebList)
                         {
-                            var key = $"{item.SubDomain }.{serverSettings.Domain}";
+                            var key = $"{item.SubDomain}.{serverSettings.Domain}".Trim();
                             if (WebList.ContainsKey(key))
                             {
-                                _logger.Debug($"renew domain {key}");
+                                _logger.Debug($"renew domain '{key}'");
 
                                 WebList.Remove(key);
                                 WebList.Add(key, new WebInfo { Socket = client, WebConfig = item });
                             }
                             else
                             {
-                                _logger.Debug($"new domain {key}");
+                                _logger.Debug($"new domain '{key}'");
                                 WebList.Add(key, new WebInfo { Socket = client, WebConfig = item });
                             }
                         }
