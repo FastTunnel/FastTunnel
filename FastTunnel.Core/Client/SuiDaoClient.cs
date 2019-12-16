@@ -36,10 +36,9 @@ namespace FastTunnel.Core.Client
             // 登录
             connecter.Send(new Message<LogInRequest> { MessageType = MessageType.C_LogIn, Content = new LogInRequest { WebList = _clientConfig.Webs } });
 
-            _logger.Info("登录成功");
-            Thread th = new Thread(ReceiveServer);
-            th.IsBackground = true;
-            th.Start(connecter.Client);
+            _logger.Debug("登录成功");
+            ReceiveServer(connecter.Client);
+            _logger.Debug("客户端退出");
         }
 
         private void ReceiveServer(object obj)
@@ -51,6 +50,12 @@ namespace FastTunnel.Core.Client
             while (true)
             {
                 int n = client.Receive(buffer);
+                if (n == 0)
+                {
+                    client.Close();
+                    break;
+                }
+
                 string words = Encoding.UTF8.GetString(buffer, 0, n);
                 if (!string.IsNullOrEmpty(lastBuffer))
                 {

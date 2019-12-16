@@ -50,7 +50,6 @@ namespace FastTunnel.Core.Server
             _logger.Debug($"监听HTTP -> {serverSettings.BindAddr}:{serverSettings.ProxyPort_HTTP}");
         }
 
-
         //接收消息
         void ReceiveCustomer(object o)
         {
@@ -105,9 +104,10 @@ namespace FastTunnel.Core.Server
                 _logger.Debug($"Host: {domain}");
 
                 WebInfo web;
-                if (!WebList.TryGetValue(domain, out web))
+                if (WebList.TryGetValue(domain, out web))
                 {
-                    throw new ClienOffLineException("客户端不存在");
+                    _logger.Error($"客户端不存在:{domain}");
+                    return;
                 }
 
                 var msgid = Guid.NewGuid().ToString();
@@ -165,11 +165,14 @@ namespace FastTunnel.Core.Server
                             var key = $"{item.SubDomain }.{serverSettings.Domain}";
                             if (WebList.ContainsKey(key))
                             {
+                                _logger.Debug($"renew domain {key}");
+
                                 WebList.Remove(key);
                                 WebList.Add(key, new WebInfo { Socket = client, WebConfig = item });
                             }
                             else
                             {
+                                _logger.Debug($"new domain {key}");
                                 WebList.Add(key, new WebInfo { Socket = client, WebConfig = item });
                             }
                         }

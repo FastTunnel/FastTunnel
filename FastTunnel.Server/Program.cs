@@ -31,10 +31,14 @@ namespace FastTunnel.Server
 
         private static void Run(Appsettings settings)
         {
-            var server = new FastTunnelServer(settings.ServerSettings, new ConsoleLogger());
+            var logger = new ConsoleLogger();
+            var server = new FastTunnelServer(settings.ServerSettings, logger);
             server.Run();
 
-            Console.ReadLine();
+            while (true)
+            {
+                Thread.Sleep(10000 * 60);
+            }
         }
     }
 }
