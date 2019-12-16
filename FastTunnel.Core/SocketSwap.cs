@@ -44,18 +44,18 @@ namespace FastTunnel.Core
         private void swapCallback(object state)
         {
             var chanel = state as Channel;
+            byte[] result = new byte[1024];
+
             while (true)
             {
                 try
                 {
-                    byte[] result = new byte[1024];
+                    if (!chanel.Receive.Connected)
+                        break;
                     int num = chanel.Receive.Receive(result, result.Length, SocketFlags.None);
+
                     if (num == 0)
                     {
-                        if (chanel.Send.Connected)
-                        {
-                            chanel.Send.Close();
-                        }
                         if (chanel.Receive.Connected)
                         {
                             chanel.Receive.Close();
@@ -63,19 +63,18 @@ namespace FastTunnel.Core
                         break;
                     }
 
+                    if (!chanel.Send.Connected)
+                        break;
                     chanel.Send.Send(result, num, SocketFlags.None);
-                }
-                catch (SocketException)
-                {
-                    if (chanel.Send.Connected)
-                        chanel.Send.Close();
-                    if (chanel.Receive.Connected)
-                        chanel.Receive.Close();
-                    break;
                 }
                 catch (Exception)
                 {
-                    throw;
+                    if (chanel.Receive.Connected)
+                        chanel.Receive.Close();
+
+                    if (chanel.Send.Connected)
+                        chanel.Send.Close();
+                    break;
                 }
             }
         }
