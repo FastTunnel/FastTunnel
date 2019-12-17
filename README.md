@@ -1,5 +1,8 @@
 # FastTunnel
-
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
+![Gitter](https://badges.gitter.im/JoinChat.svg)
+[![Build status](https://github.com/anjoy8/blog.core/workflows/.NET%20Core/badge.svg)]()
+[![License](https://img.shields.io/badge/license-Apache%202-green.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 - FastTunnel是一款内网络代理工具，能够快速进行内网穿透。其核心原理是通过http代理，所以使用的前提条件是
 1. 必须有一台公网的服务器。
 2. 拥有自己的域名。
