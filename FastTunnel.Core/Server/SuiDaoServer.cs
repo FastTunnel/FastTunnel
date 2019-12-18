@@ -132,7 +132,7 @@ namespace FastTunnel.Core.Server
             }
             catch (Exception ex)
             {
-                throw;
+                _logger.Error(ex);
             }
         }
 
