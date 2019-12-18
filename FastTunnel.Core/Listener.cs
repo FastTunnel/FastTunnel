@@ -14,7 +14,6 @@ namespace FastTunnel.Core
         Action<Socket> handler;
         Socket socket;
 
-
         public Listener(string ip, int port, Action<Socket> acceptCustomerHandler)
         {
             this._ip = ip;

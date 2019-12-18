@@ -70,16 +70,16 @@ namespace FastTunnel.Core.Client
                 {
                     foreach (var item in msgs)
                     {
-                        if (!string.IsNullOrEmpty(item))
+                        if (string.IsNullOrEmpty(item))
+                            continue;
+
+                        if (item.EndsWith("}"))
                         {
-                            if (item.EndsWith("}"))
-                            {
-                                HandleServerRequest(item);
-                            }
-                            else
-                            {
-                                lastBuffer = item;
-                            }
+                            HandleServerRequest(item);
+                        }
+                        else
+                        {
+                            lastBuffer = item;
                         }
                     }
                 }
@@ -98,33 +98,33 @@ namespace FastTunnel.Core.Client
             try
             {
                 Msg = JsonConvert.DeserializeObject<Message<object>>(words);
+                _logger.Info($"收到服务端指令 {Msg.MessageType}");
+
+                switch (Msg.MessageType)
+                {
+                    case MessageType.C_Heart:
+                        break;
+                    case MessageType.S_NewCustomer:
+                        var request = (Msg.Content as JObject).ToObject<NewCustomerRequest>();
+                        var connecter = new Connecter(_clientConfig.Common.ServerAddr, _clientConfig.Common.ServerPort);
+                        connecter.Connect();
+                        connecter.Send(new Message<string> { MessageType = MessageType.C_NewRequest, Content = request.MsgId });
+
+                        var localConnecter = new Connecter(request.WebConfig.LocalIp, request.WebConfig.LocalPort);
+                        localConnecter.Connect();
+
+                        new SocketSwap(connecter.Client, localConnecter.Client).StartSwap();
+                        break;
+                    case MessageType.C_NewRequest:
+                    case MessageType.C_LogIn:
+                    default:
+                        throw new Exception("参数异常");
+                }
             }
             catch (Exception ex)
             {
-                throw;
-            }
-
-            _logger.Info($"收到服务端指令 {Msg.MessageType}");
-
-            switch (Msg.MessageType)
-            {
-                case MessageType.C_Heart:
-                    break;
-                case MessageType.S_NewCustomer:
-                    var request = (Msg.Content as JObject).ToObject<NewCustomerRequest>();
-                    var connecter = new Connecter(_clientConfig.Common.ServerAddr, _clientConfig.Common.ServerPort);
-                    connecter.Connect();
-                    connecter.Send(new Message<string> { MessageType = MessageType.C_NewRequest, Content = request.MsgId });
-
-                    var localConnecter = new Connecter(request.WebConfig.LocalIp, request.WebConfig.LocalPort);
-                    localConnecter.Connect();
-
-                    new SocketSwap(connecter.Client, localConnecter.Client).StartSwap();
-                    break;
-                case MessageType.C_NewRequest:
-                case MessageType.C_LogIn:
-                default:
-                    throw new Exception("参数异常");
+                _logger.Error(ex);
+                _logger.Error(words);
             }
         }
     }

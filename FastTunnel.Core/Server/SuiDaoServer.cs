@@ -91,8 +91,8 @@ namespace FastTunnel.Core.Server
                 var collection = Regex.Matches(words, pattern);
                 if (collection.Count == 0)
                 {
-                    // TODO:
-                    throw new Exception("不支持使用ip直接访问");
+                    _logger.Error($"Host异常：{words}");
+                    return;
                 }
                 else
                 {

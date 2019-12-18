@@ -6,6 +6,11 @@ namespace FastTunnel.Core.Logger
 {
     public class ConsoleLogger : ILogger
     {
+        public void Error(object msg)
+        {
+            Console.WriteLine(string.Format("Erro - {0}", msg?.ToString()));
+        }
+
         public void Debug(string msg)
         {
             Console.WriteLine(string.Format("Debu - {0}", msg));
