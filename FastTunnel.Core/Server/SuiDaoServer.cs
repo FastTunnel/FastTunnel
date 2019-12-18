@@ -110,6 +110,13 @@ namespace FastTunnel.Core.Server
                     return;
                 }
 
+                if (!web.Socket.Connected)
+                {
+                    _logger.Error($"客户端已下线:'{domain}'");
+                    WebList.Remove(domain);
+                    return;
+                }
+
                 var msgid = Guid.NewGuid().ToString();
 
                 byte[] bytes = new byte[count];
