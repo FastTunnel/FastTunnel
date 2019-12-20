@@ -7,26 +7,26 @@ using System.Threading;
 
 namespace FastTunnel.Core
 {
-    public class Listener
+    public class Listener<T>
     {
         private string _ip;
         private int _port;
-        Action<Socket> handler;
+        Action<Socket, T> handler;
         Socket socket;
+        T _data;
 
-        public Listener(string ip, int port, Action<Socket> acceptCustomerHandler)
+        public Listener(string ip, int port, Action<Socket, T> acceptCustomerHandler, T data)
         {
+            _data = data;
             this._ip = ip;
             this._port = port;
             handler = acceptCustomerHandler;
-
 
             IPAddress ipa = IPAddress.Parse(_ip);
             IPEndPoint ipe = new IPEndPoint(ipa, _port);
 
             socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             socket.Bind(ipe);
-
         }
 
         public void Listen()
@@ -50,7 +50,7 @@ namespace FastTunnel.Core
         private void ReceiveCustomer(object state)
         {
             var client = state as Socket;
-            handler.Invoke(client);
+            handler.Invoke(client, _data);
         }
     }
 }

@@ -34,7 +34,7 @@ namespace FastTunnel.Core.Client
             connecter.Connect();
 
             // 登录
-            connecter.Send(new Message<LogInRequest> { MessageType = MessageType.C_LogIn, Content = new LogInRequest { WebList = _clientConfig.Webs } });
+            connecter.Send(new Message<LogInRequest> { MessageType = MessageType.C_LogIn, Content = new LogInRequest { ClientConfig = _clientConfig } });
 
             _logger.Debug("登录成功");
             ReceiveServer(connecter.Client);
@@ -108,14 +108,25 @@ namespace FastTunnel.Core.Client
                         var request = (Msg.Content as JObject).ToObject<NewCustomerRequest>();
                         var connecter = new Connecter(_clientConfig.Common.ServerAddr, _clientConfig.Common.ServerPort);
                         connecter.Connect();
-                        connecter.Send(new Message<string> { MessageType = MessageType.C_NewRequest, Content = request.MsgId });
+                        connecter.Send(new Message<string> { MessageType = MessageType.C_SwapMsg, Content = request.MsgId });
 
                         var localConnecter = new Connecter(request.WebConfig.LocalIp, request.WebConfig.LocalPort);
                         localConnecter.Connect();
 
                         new SocketSwap(connecter.Client, localConnecter.Client).StartSwap();
                         break;
-                    case MessageType.C_NewRequest:
+                    case MessageType.S_NewSSH:
+                        var request_ssh = (Msg.Content as JObject).ToObject<NewSSHRequest>();
+                        var connecter_ssh = new Connecter(_clientConfig.Common.ServerAddr, _clientConfig.Common.ServerPort);
+                        connecter_ssh.Connect();
+                        connecter_ssh.Send(new Message<string> { MessageType = MessageType.C_SwapMsg, Content = request_ssh.MsgId });
+
+                        var localConnecter_ssh = new Connecter(request_ssh.SSHConfig.LocalIp, request_ssh.SSHConfig.LocalPort);
+                        localConnecter_ssh.Connect();
+
+                        new SocketSwap(connecter_ssh.Client, localConnecter_ssh.Client).StartSwap();
+                        break;
+                    case MessageType.C_SwapMsg:
                     case MessageType.C_LogIn:
                     default:
                         throw new Exception("参数异常");

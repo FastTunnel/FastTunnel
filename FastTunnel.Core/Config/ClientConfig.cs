@@ -10,6 +10,8 @@ namespace FastTunnel.Core.Config
         public ServerCommon Common { get; set; }
 
         public IEnumerable<WebConfig> Webs { get; set; }
+
+        public IEnumerable<SSHConfig> SSH { get; set; }
     }
 
     public class ServerCommon

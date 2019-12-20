@@ -18,6 +18,7 @@ namespace FastTunnel.Core.Server
     public class FastTunnelServer
     {
         Dictionary<string, WebInfo> WebList = new Dictionary<string, WebInfo>();
+        Dictionary<int, SSHInfo<SSHHandlerArg>> SSHList = new Dictionary<int, SSHInfo<SSHHandlerArg>>();
         Dictionary<string, NewRequest> newRequest = new Dictionary<string, NewRequest>();
 
         private ServerConfig serverSettings;
@@ -37,23 +38,22 @@ namespace FastTunnel.Core.Server
 
         private void ListenFastTunnelClient()
         {
-            var listener = new Listener(serverSettings.BindAddr, serverSettings.BindPort, ReceiveClient);
+            var listener = new Listener<object>(serverSettings.BindAddr, serverSettings.BindPort, ReceiveClient, null);
             listener.Listen();
             _logger.Debug($"监听客户端 -> {serverSettings.BindAddr}:{serverSettings.BindPort}");
         }
 
         private void ListenCustomer()
         {
-            var listener = new Listener(serverSettings.BindAddr, serverSettings.ProxyPort_HTTP, ReceiveCustomer);
+            var listener = new Listener<object>(serverSettings.BindAddr, serverSettings.ProxyPort_HTTP, ReceiveCustomer, null);
             listener.Listen();
 
             _logger.Debug($"监听HTTP -> {serverSettings.BindAddr}:{serverSettings.ProxyPort_HTTP}");
         }
 
         //接收消息
-        void ReceiveCustomer(object o)
+        void ReceiveCustomer(Socket client, object _)
         {
-            Socket client = o as Socket;
             _logger.Debug("新的HTTP请求");
 
             try
@@ -132,13 +132,12 @@ namespace FastTunnel.Core.Server
             }
             catch (Exception ex)
             {
-                throw;
+                _logger.Error(ex);
             }
         }
 
-        private void ReceiveClient(object obj)
+        private void ReceiveClient(Socket client, object _)
         {
-            Socket client = obj as Socket;
             //定义byte数组存放从客户端接收过来的数据
             byte[] buffer = new byte[1024 * 1024];
 
@@ -156,7 +155,7 @@ namespace FastTunnel.Core.Server
                 return;
             }
 
-            //将字节转换成字符串
+            // 将字节转换成字符串
             string words = Encoding.UTF8.GetString(buffer, 0, length);
             var msg = JsonConvert.DeserializeObject<Message<object>>(words);
 
@@ -165,9 +164,9 @@ namespace FastTunnel.Core.Server
             {
                 case MessageType.C_LogIn:
                     var requet = (msg.Content as JObject).ToObject<LogInRequest>();
-                    if (requet.WebList != null && requet.WebList.Count() > 0)
+                    if (requet.ClientConfig.Webs != null && requet.ClientConfig.Webs.Count() > 0)
                     {
-                        foreach (var item in requet.WebList)
+                        foreach (var item in requet.ClientConfig.Webs)
                         {
                             var key = $"{item.SubDomain}.{serverSettings.Domain}".Trim();
                             if (WebList.ContainsKey(key))
@@ -184,32 +183,69 @@ namespace FastTunnel.Core.Server
                             }
                         }
                     }
+
+                    if (requet.ClientConfig.SSH != null && requet.ClientConfig.SSH.Count() > 0)
+                    {
+                        foreach (var item in requet.ClientConfig.SSH)
+                        {
+                            if (SSHList.ContainsKey(item.RemotePort))
+                                SSHList.Remove(item.RemotePort);
+
+                            try
+                            {
+                                var ls = new Listener<SSHHandlerArg>("0.0.0.0", item.RemotePort, SSHHandler, new SSHHandlerArg { LocalClient = client, SSHConfig = item });
+                                ls.Listen();
+
+                                // listen success
+                                SSHList.Add(item.RemotePort, new SSHInfo<SSHHandlerArg> { Listener = ls, Socket = client, SSHConfig = item });
+                                _logger.Debug($"SSH proxy success on {item.RemotePort} -> {item.LocalIp}:{item.LocalPort}");
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.Error($"SSH proxy error on {item.RemotePort} -> {item.LocalIp}:{item.LocalPort}");
+                                _logger.Error(ex);
+                                continue;
+                            }
+                        }
+                    }
                     break;
                 case MessageType.C_Heart:
                     break;
-                case MessageType.C_NewRequest:
+                case MessageType.C_SwapMsg:
                     var msgId = (msg.Content as string);
                     NewRequest request;
-                    if (newRequest.TryGetValue(msgId, out request))
+
+                    if (!string.IsNullOrEmpty(msgId) && newRequest.TryGetValue(msgId, out request))
                     {
                         // Join
                         Task.Run(() =>
                         {
                             (new SocketSwap(request.CustomerClient, client))
-                                .BeforeSwap(() => { client.Send(request.Buffer); })
+                                .BeforeSwap(() => { if (request.Buffer != null) client.Send(request.Buffer); })
                                 .StartSwap();
                         });
                     }
                     else
                     {
                         // 未找到，关闭连接
-                        throw new Exception($"未找到请求:{msgId}");
+                        _logger.Error($"未找到请求:{msgId}");
                     }
                     break;
                 case MessageType.S_NewCustomer:
                 default:
                     throw new Exception("参数异常");
             }
+        }
+
+        private void SSHHandler(Socket client, SSHHandlerArg local)
+        {
+            var msgid = Guid.NewGuid().ToString();
+            local.LocalClient.Send(new Message<NewSSHRequest> { MessageType = MessageType.S_NewSSH, Content = new NewSSHRequest { MsgId = msgid, SSHConfig = local.SSHConfig } });
+
+            newRequest.Add(msgid, new NewRequest
+            {
+                CustomerClient = client,
+            });
         }
     }
 }
