@@ -58,11 +58,11 @@ ssh -oPort=12701 root@x.x.x.x
 
 ## mstsc远程桌面Windows主机(ip:192.168.0.101)
 ### 被控制端设置
-- 打开cmd输入指令 `sysdm.cpl` 在弹出的对话框中选中允许远程连接此计算机
-
+- 打开cmd输入指令 `sysdm.cpl` 在弹出的对话框中选中允许远程连接此计算机  
+![img1](images/setallow.png)
 ### 控制端设置
-- 打开cmd输入指令 `mstsc`，打开远程对话框，在对话框的计算机输入框，输入 `x.x.x.x:12701` 然后指定用户名密码即可远程内网的windows主机
-
+- 打开cmd输入指令 `mstsc`，打开远程对话框，在对话框的计算机输入框，输入 `x.x.x.x:12701` 然后指定用户名密码即可远程内网的windows主机  
+![img1](images/remote.png)
 # 参与开发/PR
 - 安装 `vs2019`
 - 安装 `dotnetcore runtime&sdk 3.1` 或以上版本
