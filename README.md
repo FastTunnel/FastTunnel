@@ -3,6 +3,7 @@
 [![Gitter](https://badges.gitter.im/SpringHgui/community.svg)](https://gitter.im/SpringHgui/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 [![Build status](https://github.com/anjoy8/blog.core/workflows/.NET%20Core/badge.svg)](https://github.com/SpringHgui/FastTunnel/actions)
 [![License](https://img.shields.io/badge/license-Apache%202-green.svg)](https://www.apache.org/licenses/LICENSE-2.0)
+[![CircleCI](https://circleci.com/gh/gothinkster/aspnetcore-realworld-example-app.svg?style=svg)](https://circleci.com/gh/SpringHgui/FastTunnel)
 - FastTunnel是一款内网络代理工具，能够快速进行内网穿透。其核心原理是通过http代理，所以使用的前提条件是
 1. 必须有一台公网的服务器。
 2. 拥有自己的域名。
