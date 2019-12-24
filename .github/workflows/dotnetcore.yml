@@ -1,6 +1,6 @@
 name: .NET Core
 
-on: [pull_request]
+on: [push]
 
 jobs:
   build:
