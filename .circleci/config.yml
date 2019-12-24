@@ -5,9 +5,10 @@ orbs:
 
 jobs:
   build:
-    executor:
-      name: win/vs2019
-      shell: powershell.exe
+    docker:
+      - image: mcr.microsoft.com/dotnet/core/sdk:3.0
+    environment:
+      DOTNET_ROLL_FORWARD_ON_NO_CANDIDATE_FX: 2
     steps:
       - checkout
       - run:
