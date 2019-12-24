@@ -13,7 +13,7 @@ jobs:
       - checkout
       - run:
           name: "Install project dependencies"
-          command: dotnet.exe restore
+          command: dotnet restore
       - run:
           name: "Run Build step"
-          command: dotnet.exe publish -c Release -r win10-x64
+          command: dotnet publish -c Release -r win10-x64
