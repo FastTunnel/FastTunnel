@@ -9,13 +9,13 @@
 2. 拥有自己的域名。
 - 使用 .net core编写，可运行于windows、mac、linux等平台。
 
-## 已实现功能
+## Feature
 
 - 通过自定义域名访问部署于内网的 web 服务
 - 远程内网主机 linux/windows/mac
 # 快速使用
 
-## 测试服务器
+## 测试服务器 （请勿滥用）
 ```
 ip `154.202.58.219`
 ```
@@ -84,6 +84,8 @@ ssh -oPort=12701 root@x.x.x.x
 - 安装 `vs2019`
 - 安装 `dotnetcore runtime&sdk 3.1` 或以上版本
 
+# Dev Plan
+- 客户端心跳
 
 # License
 Apache License 2.0
