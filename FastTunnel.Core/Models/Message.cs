@@ -21,5 +21,12 @@ namespace FastTunnel.Core.Models
         // server use below
         S_NewCustomer,
         S_NewSSH,
+
+        // twoway
+        Info,
+
+        Debug,
+
+        Error
     }
 }

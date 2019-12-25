@@ -10,6 +10,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using FastTunnel.Core.Extensions;
 
 namespace FastTunnel.Core.Client
 {
@@ -63,7 +64,6 @@ namespace FastTunnel.Core.Client
                     lastBuffer = null;
                 }
 
-                _logger.Info($"收到服务端 {words}");
                 var msgs = words.Split("\n");
 
                 try
@@ -98,8 +98,6 @@ namespace FastTunnel.Core.Client
             try
             {
                 Msg = JsonConvert.DeserializeObject<Message<object>>(words);
-                _logger.Info($"收到服务端指令 {Msg.MessageType}");
-
                 switch (Msg.MessageType)
                 {
                     case MessageType.C_Heart:
@@ -128,6 +126,18 @@ namespace FastTunnel.Core.Client
                         break;
                     case MessageType.C_SwapMsg:
                     case MessageType.C_LogIn:
+                    case MessageType.Info:
+                        var info = Msg.Content.ToJson();
+                        _logger.Info(info);
+                        break;
+                    case MessageType.Debug:
+                        var debug = Msg.Content.ToJson();
+                        _logger.Debug(debug);
+                        break;
+                    case MessageType.Error:
+                        var err = Msg.Content.ToJson();
+                        _logger.Error(err);
+                        break;
                     default:
                         throw new Exception("参数异常");
                 }

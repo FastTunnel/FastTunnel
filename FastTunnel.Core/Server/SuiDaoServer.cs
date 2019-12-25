@@ -168,19 +168,21 @@ namespace FastTunnel.Core.Server
                     {
                         foreach (var item in requet.ClientConfig.Webs)
                         {
-                            var key = $"{item.SubDomain}.{serverSettings.Domain}".Trim();
-                            if (WebList.ContainsKey(key))
+                            var hostName = $"{item.SubDomain}.{serverSettings.Domain}".Trim();
+                            if (WebList.ContainsKey(hostName))
                             {
-                                _logger.Debug($"renew domain '{key}'");
+                                _logger.Debug($"renew domain '{hostName}'");
 
-                                WebList.Remove(key);
-                                WebList.Add(key, new WebInfo { Socket = client, WebConfig = item });
+                                WebList.Remove(hostName);
+                                WebList.Add(hostName, new WebInfo { Socket = client, WebConfig = item });
                             }
                             else
                             {
-                                _logger.Debug($"new domain '{key}'");
-                                WebList.Add(key, new WebInfo { Socket = client, WebConfig = item });
+                                _logger.Debug($"new domain '{hostName}'");
+                                WebList.Add(hostName, new WebInfo { Socket = client, WebConfig = item });
                             }
+
+                            client.Send(new Message<string> { MessageType = MessageType.Info, Content = $"TunnelForWeb is OK: you can visit {item.LocalIp}:{item.LocalPort} from http://{hostName}:{serverSettings.ProxyPort_HTTP}" });
                         }
                     }
 
@@ -206,6 +208,8 @@ namespace FastTunnel.Core.Server
                                 _logger.Error(ex);
                                 continue;
                             }
+
+                            client.Send(new Message<string> { MessageType = MessageType.Info, Content = $"Tunnel For ProxyPort is OK: {requet.ClientConfig.Common.ServerAddr}:{item.RemotePort}->{item.LocalIp}:{item.LocalPort}" });
                         }
                     }
                     break;
@@ -229,6 +233,7 @@ namespace FastTunnel.Core.Server
                     {
                         // 未找到，关闭连接
                         _logger.Error($"未找到请求:{msgId}");
+                        client.Send(new Message<string> { MessageType = MessageType.Error, Content = $"未找到请求:{msgId}" });
                     }
                     break;
                 case MessageType.S_NewCustomer:
