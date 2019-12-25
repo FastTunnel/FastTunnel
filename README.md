@@ -1,19 +1,18 @@
 # FastTunnel
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](https://github.com/SpringHgui/frp/pulls)
-[![Gitter](https://badges.gitter.im/SpringHgui/community.svg)](https://gitter.im/SpringHgui/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 [![Build status](https://github.com/anjoy8/blog.core/workflows/.NET%20Core/badge.svg)](https://github.com/SpringHgui/FastTunnel/actions)
 [![License](https://img.shields.io/badge/license-Apache%202-green.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![CircleCI](https://circleci.com/gh/gothinkster/aspnetcore-realworld-example-app.svg?style=svg)](https://circleci.com/gh/SpringHgui/FastTunnel)
-- FastTunnel是一款内网络代理工具，能够快速进行内网穿透。其核心原理是通过http代理，所以使用的前提条件是
-1. 必须有一台公网的服务器。
-2. 拥有自己的域名。
-- 使用 .net core编写，可运行于windows、mac、linux等平台。
+- FastTunnel是一款跨平台网络代理工具，能够快速进行内网穿透。既然是代理，所以使用的时应具备
+1. 拥有一台公网的服务器
+2. 拥有自己的域名（如果使用域名穿透访问web则需要）  
+  
+***如果上面两个都没有，您还可以使用下面的测试服务器。***
 
-## Feature
-
-- 通过自定义域名访问部署于内网的 web 服务
-- 远程内网主机 linux/windows/mac
-# 快速使用
+## 功能特色
+1. 用自定义域名访问内网web服务（常用于微信开发）
+2. 远程内网计算机 Windows/Linux/Mac
+# 快速开始
 
 ## 测试服务器 （请勿滥用）
 ```
@@ -38,12 +37,12 @@ nginx反向代理已开启，web穿透可不加端口号1270即可直接访问�
 4. 分别修改客户端和服务端的配置文件 `appsettings.json`。
 5. 在程序根目录下执行 `dotnet FastTunnel.Client.dll`(客户端)，`dotnet FastTunnel.Server.dll`（服务端）。
 
-#  通过自定义域名配置访问
+## 1. 用自定义域名访问内网web服务
 - 例如你拥有一个服务器，公网ip地址为 `110.110.110.110` ,同时你有一个顶级域名为 `test.cc` 的域名，你希望访问 `test.test.cc`可以访问内网的一个网站。
 - 你需要新增一个域名地址的DNS解析，类型为`A`，名称为 `*` , ipv4地址为 `110.110.110.110` ,这样 `*.test.cc`的域名均会指向`110.110.110.110`的服务器，由于`FastTunnel`默认监听的http端口为1270，所以要访问`http://test.test.cc:1270`
 - 如果不希望每次访问都带上端口号，可以通过`nginx`转发实现。
 
-# 远程内网计算机 Windows/Linux/Mac
+## 2. 远程内网计算机 Windows/Linux/Mac
 
 客户端配置如下，内网有两台主机，ip如下:
 ```
