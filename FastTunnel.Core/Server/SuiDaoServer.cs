@@ -38,14 +38,14 @@ namespace FastTunnel.Core.Server
 
         private void ListenFastTunnelClient()
         {
-            var listener = new Listener<object>(serverSettings.BindAddr, serverSettings.BindPort, ReceiveClient, null);
+            var listener = new Listener<object>(serverSettings.BindAddr, serverSettings.BindPort, _logger, ReceiveClient, null);
             listener.Listen();
             _logger.Debug($"监听客户端 -> {serverSettings.BindAddr}:{serverSettings.BindPort}");
         }
 
         private void ListenCustomer()
         {
-            var listener = new Listener<object>(serverSettings.BindAddr, serverSettings.ProxyPort_HTTP, ReceiveCustomer, null);
+            var listener = new Listener<object>(serverSettings.BindAddr, serverSettings.ProxyPort_HTTP, _logger, ReceiveCustomer, null);
             listener.Listen();
 
             _logger.Debug($"监听HTTP -> {serverSettings.BindAddr}:{serverSettings.ProxyPort_HTTP}");
@@ -190,26 +190,44 @@ namespace FastTunnel.Core.Server
                     {
                         foreach (var item in requet.ClientConfig.SSH)
                         {
-                            if (SSHList.ContainsKey(item.RemotePort))
-                                SSHList.Remove(item.RemotePort);
-
                             try
                             {
-                                var ls = new Listener<SSHHandlerArg>("0.0.0.0", item.RemotePort, SSHHandler, new SSHHandlerArg { LocalClient = client, SSHConfig = item });
+                                if (item.RemotePort.Equals(serverSettings.BindPort))
+                                {
+                                    _logger.Error($"RemotePort can not be same with BindPort: {item.RemotePort}");
+                                    continue;
+                                }
+
+                                if (item.RemotePort.Equals(serverSettings.ProxyPort_HTTP))
+                                {
+                                    _logger.Error($"RemotePort can not be same with ProxyPort_HTTP: {item.RemotePort}");
+                                    continue;
+                                }
+
+                                SSHInfo<SSHHandlerArg> old;
+                                if (SSHList.TryGetValue(item.RemotePort, out old))
+                                {
+                                    _logger.Debug($"Remove Listener {old.Listener.IP}:{old.Listener.Port}");
+                                    old.Listener.ShutdownAndClose();
+                                    SSHList.Remove(item.RemotePort);
+                                }
+
+                                var ls = new Listener<SSHHandlerArg>("0.0.0.0", item.RemotePort, _logger, SSHHandler, new SSHHandlerArg { LocalClient = client, SSHConfig = item });
                                 ls.Listen();
 
                                 // listen success
                                 SSHList.Add(item.RemotePort, new SSHInfo<SSHHandlerArg> { Listener = ls, Socket = client, SSHConfig = item });
-                                _logger.Debug($"SSH proxy success on {item.RemotePort} -> {item.LocalIp}:{item.LocalPort}");
+                                _logger.Debug($"SSH proxy success: {item.RemotePort} -> {item.LocalIp}:{item.LocalPort}");
                             }
                             catch (Exception ex)
                             {
-                                _logger.Error($"SSH proxy error on {item.RemotePort} -> {item.LocalIp}:{item.LocalPort}");
+                                _logger.Error($"SSH proxy error: {item.RemotePort} -> {item.LocalIp}:{item.LocalPort}");
                                 _logger.Error(ex);
+                                client.Send(new Message<string> { MessageType = MessageType.Error, Content = ex.Message });
                                 continue;
                             }
 
-                            client.Send(new Message<string> { MessageType = MessageType.Info, Content = $"Tunnel For ProxyPort is OK: {requet.ClientConfig.Common.ServerAddr}:{item.RemotePort}->{item.LocalIp}:{item.LocalPort}" });
+                            client.Send(new Message<string> { MessageType = MessageType.Info, Content = $"TunnelForSSH is OK: {requet.ClientConfig.Common.ServerAddr}:{item.RemotePort}->{item.LocalIp}:{item.LocalPort}" });
                         }
                     }
                     break;

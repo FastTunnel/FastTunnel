@@ -58,7 +58,14 @@ namespace FastTunnel.Core
                     {
                         if (chanel.Receive.Connected)
                         {
-                            chanel.Receive.Close();
+                            try
+                            {
+                                chanel.Receive.Shutdown(SocketShutdown.Both);
+                            }
+                            finally
+                            {
+                                chanel.Receive.Close();
+                            }
                         }
                         break;
                     }
@@ -70,10 +77,30 @@ namespace FastTunnel.Core
                 catch (Exception)
                 {
                     if (chanel.Receive.Connected)
-                        chanel.Receive.Close();
+                    {
+                        try
+                        {
+                            chanel.Receive.Shutdown(SocketShutdown.Both);
+                        }
+                        finally
+                        {
+                            chanel.Receive.Close();
+                        }
+
+                    }
 
                     if (chanel.Send.Connected)
-                        chanel.Send.Close();
+                    {
+                        try
+                        {
+                            chanel.Send.Shutdown(SocketShutdown.Both);
+                        }
+                        finally
+                        {
+                            chanel.Send.Close();
+                        }
+                    }
+
                     break;
                 }
             }
