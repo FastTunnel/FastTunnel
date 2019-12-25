@@ -15,6 +15,22 @@
 - 远程内网主机 linux/windows/mac
 # 快速使用
 
+## 测试服务器
+```
+ip `154.202.58.219`
+```
+```
+已开端口号，括号内容为本端口的测试用途  
+1270(httpProxy) 1271(bindPort) 1273(ssh) 1274(ssh) 1275(ssh)
+```
+```
+域名解析
+A *.ft.suidao.io
+```
+```
+本服务器已运行 `FastTunnel.Server` 本地可以直接运行客户端连接  
+nginx反向代理尚未开启，web穿透仍需要加端口号1270访问
+```
 ## 配置服务端和客户端程序
 1. 分别在服务端和客户端PC上安装[.net core runtime]([url](https://dotnet.microsoft.com/download?missing_runtime=true)) 运行时（`v3.1`及以上版本），根据不同操作系统选择对应的运行时安装程序。
 2. 在命令行输入 `dotnet -v` 检查运行时安装是否成功。
