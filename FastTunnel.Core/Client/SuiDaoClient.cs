@@ -134,7 +134,7 @@ namespace FastTunnel.Core.Client
 
             // 心跳开始
             timer_heart.Start();
-            //timer_timeout.Start();
+            timer_timeout.Start();
 
             th = new Thread(ReceiveServer);
             th.Start(_client.Socket);
