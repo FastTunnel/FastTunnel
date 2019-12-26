@@ -15,7 +15,7 @@ namespace FastTunnel.Core.Models
     {
         // client use below
         C_LogIn,
-        C_Heart,
+        Heart,
         C_SwapMsg,
 
         // server use below

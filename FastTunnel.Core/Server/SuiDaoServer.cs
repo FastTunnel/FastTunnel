@@ -71,8 +71,9 @@ namespace FastTunnel.Core.Server
                         return;
                     }
                 }
-                catch (SocketException)
+                catch (SocketException ex)
                 {
+                    _logger.Error(ex);
                     if (client.Connected)
                         client.Close();
                     return;
@@ -142,121 +143,127 @@ namespace FastTunnel.Core.Server
             byte[] buffer = new byte[1024 * 1024];
 
             int length;
-            try
+
+            while (true)
             {
-                length = client.Receive(buffer);
-            }
-            catch (Exception ex)
-            {
-                if (client.Connected)
+                try
                 {
-                    client.Close();
+                    length = client.Receive(buffer);
                 }
-                return;
-            }
-
-            // 将字节转换成字符串
-            string words = Encoding.UTF8.GetString(buffer, 0, length);
-            var msg = JsonConvert.DeserializeObject<Message<object>>(words);
-
-            _logger.Debug($"收到客户端指令：{msg.MessageType}");
-            switch (msg.MessageType)
-            {
-                case MessageType.C_LogIn:
-                    var requet = (msg.Content as JObject).ToObject<LogInRequest>();
-                    if (requet.ClientConfig.Webs != null && requet.ClientConfig.Webs.Count() > 0)
+                catch (Exception ex)
+                {
+                    _logger.Error(ex);
+                    if (client.Connected)
                     {
-                        foreach (var item in requet.ClientConfig.Webs)
-                        {
-                            var hostName = $"{item.SubDomain}.{serverSettings.Domain}".Trim();
-                            if (WebList.ContainsKey(hostName))
-                            {
-                                _logger.Debug($"renew domain '{hostName}'");
-
-                                WebList.Remove(hostName);
-                                WebList.Add(hostName, new WebInfo { Socket = client, WebConfig = item });
-                            }
-                            else
-                            {
-                                _logger.Debug($"new domain '{hostName}'");
-                                WebList.Add(hostName, new WebInfo { Socket = client, WebConfig = item });
-                            }
-
-                            client.Send(new Message<string> { MessageType = MessageType.Info, Content = $"TunnelForWeb is OK: you can visit {item.LocalIp}:{item.LocalPort} from http://{hostName}:{serverSettings.ProxyPort_HTTP}" });
-                        }
+                        client.Close();
                     }
+                    return;
+                }
 
-                    if (requet.ClientConfig.SSH != null && requet.ClientConfig.SSH.Count() > 0)
-                    {
-                        foreach (var item in requet.ClientConfig.SSH)
+                // 将字节转换成字符串
+                string words = Encoding.UTF8.GetString(buffer, 0, length);
+                var msg = JsonConvert.DeserializeObject<Message<object>>(words);
+
+                _logger.Debug($"收到客户端指令：{msg.MessageType}");
+                switch (msg.MessageType)
+                {
+                    case MessageType.C_LogIn:
+                        var requet = (msg.Content as JObject).ToObject<LogInRequest>();
+                        if (requet.ClientConfig.Webs != null && requet.ClientConfig.Webs.Count() > 0)
                         {
-                            try
+                            foreach (var item in requet.ClientConfig.Webs)
                             {
-                                if (item.RemotePort.Equals(serverSettings.BindPort))
+                                var hostName = $"{item.SubDomain}.{serverSettings.Domain}".Trim();
+                                if (WebList.ContainsKey(hostName))
                                 {
-                                    _logger.Error($"RemotePort can not be same with BindPort: {item.RemotePort}");
+                                    _logger.Debug($"renew domain '{hostName}'");
+
+                                    WebList.Remove(hostName);
+                                    WebList.Add(hostName, new WebInfo { Socket = client, WebConfig = item });
+                                }
+                                else
+                                {
+                                    _logger.Debug($"new domain '{hostName}'");
+                                    WebList.Add(hostName, new WebInfo { Socket = client, WebConfig = item });
+                                }
+
+                                client.Send(new Message<string> { MessageType = MessageType.Info, Content = $"TunnelForWeb is OK: you can visit {item.LocalIp}:{item.LocalPort} from http://{hostName}:{serverSettings.ProxyPort_HTTP}" });
+                            }
+                        }
+
+                        if (requet.ClientConfig.SSH != null && requet.ClientConfig.SSH.Count() > 0)
+                        {
+                            foreach (var item in requet.ClientConfig.SSH)
+                            {
+                                try
+                                {
+                                    if (item.RemotePort.Equals(serverSettings.BindPort))
+                                    {
+                                        _logger.Error($"RemotePort can not be same with BindPort: {item.RemotePort}");
+                                        continue;
+                                    }
+
+                                    if (item.RemotePort.Equals(serverSettings.ProxyPort_HTTP))
+                                    {
+                                        _logger.Error($"RemotePort can not be same with ProxyPort_HTTP: {item.RemotePort}");
+                                        continue;
+                                    }
+
+                                    SSHInfo<SSHHandlerArg> old;
+                                    if (SSHList.TryGetValue(item.RemotePort, out old))
+                                    {
+                                        _logger.Debug($"Remove Listener {old.Listener.IP}:{old.Listener.Port}");
+                                        old.Listener.ShutdownAndClose();
+                                        SSHList.Remove(item.RemotePort);
+                                    }
+
+                                    var ls = new Listener<SSHHandlerArg>("0.0.0.0", item.RemotePort, _logger, SSHHandler, new SSHHandlerArg { LocalClient = client, SSHConfig = item });
+                                    ls.Listen();
+
+                                    // listen success
+                                    SSHList.Add(item.RemotePort, new SSHInfo<SSHHandlerArg> { Listener = ls, Socket = client, SSHConfig = item });
+                                    _logger.Debug($"SSH proxy success: {item.RemotePort} -> {item.LocalIp}:{item.LocalPort}");
+                                }
+                                catch (Exception ex)
+                                {
+                                    _logger.Error($"SSH proxy error: {item.RemotePort} -> {item.LocalIp}:{item.LocalPort}");
+                                    _logger.Error(ex);
+                                    client.Send(new Message<string> { MessageType = MessageType.Error, Content = ex.Message });
                                     continue;
                                 }
 
-                                if (item.RemotePort.Equals(serverSettings.ProxyPort_HTTP))
-                                {
-                                    _logger.Error($"RemotePort can not be same with ProxyPort_HTTP: {item.RemotePort}");
-                                    continue;
-                                }
-
-                                SSHInfo<SSHHandlerArg> old;
-                                if (SSHList.TryGetValue(item.RemotePort, out old))
-                                {
-                                    _logger.Debug($"Remove Listener {old.Listener.IP}:{old.Listener.Port}");
-                                    old.Listener.ShutdownAndClose();
-                                    SSHList.Remove(item.RemotePort);
-                                }
-
-                                var ls = new Listener<SSHHandlerArg>("0.0.0.0", item.RemotePort, _logger, SSHHandler, new SSHHandlerArg { LocalClient = client, SSHConfig = item });
-                                ls.Listen();
-
-                                // listen success
-                                SSHList.Add(item.RemotePort, new SSHInfo<SSHHandlerArg> { Listener = ls, Socket = client, SSHConfig = item });
-                                _logger.Debug($"SSH proxy success: {item.RemotePort} -> {item.LocalIp}:{item.LocalPort}");
+                                client.Send(new Message<string> { MessageType = MessageType.Info, Content = $"TunnelForSSH is OK: {requet.ClientConfig.Common.ServerAddr}:{item.RemotePort}->{item.LocalIp}:{item.LocalPort}" });
                             }
-                            catch (Exception ex)
-                            {
-                                _logger.Error($"SSH proxy error: {item.RemotePort} -> {item.LocalIp}:{item.LocalPort}");
-                                _logger.Error(ex);
-                                client.Send(new Message<string> { MessageType = MessageType.Error, Content = ex.Message });
-                                continue;
-                            }
-
-                            client.Send(new Message<string> { MessageType = MessageType.Info, Content = $"TunnelForSSH is OK: {requet.ClientConfig.Common.ServerAddr}:{item.RemotePort}->{item.LocalIp}:{item.LocalPort}" });
                         }
-                    }
-                    break;
-                case MessageType.C_Heart:
-                    break;
-                case MessageType.C_SwapMsg:
-                    var msgId = (msg.Content as string);
-                    NewRequest request;
+                        break;
+                    case MessageType.Heart:
+                        client.Send(new Message<string>() { MessageType = MessageType.Heart, Content = null });
+                        break;
+                    case MessageType.C_SwapMsg:
+                        var msgId = (msg.Content as string);
+                        NewRequest request;
 
-                    if (!string.IsNullOrEmpty(msgId) && newRequest.TryGetValue(msgId, out request))
-                    {
-                        // Join
-                        Task.Run(() =>
+                        if (!string.IsNullOrEmpty(msgId) && newRequest.TryGetValue(msgId, out request))
                         {
-                            (new SocketSwap(request.CustomerClient, client))
-                                .BeforeSwap(() => { if (request.Buffer != null) client.Send(request.Buffer); })
-                                .StartSwap();
-                        });
-                    }
-                    else
-                    {
-                        // 未找到，关闭连接
-                        _logger.Error($"未找到请求:{msgId}");
-                        client.Send(new Message<string> { MessageType = MessageType.Error, Content = $"未找到请求:{msgId}" });
-                    }
-                    break;
-                case MessageType.S_NewCustomer:
-                default:
-                    throw new Exception("参数异常");
+                            // Join
+                            Task.Run(() =>
+                            {
+                                (new SocketSwap(request.CustomerClient, client))
+                                    .BeforeSwap(() => { if (request.Buffer != null) client.Send(request.Buffer); })
+                                    .StartSwap();
+                            });
+                        }
+                        else
+                        {
+                            // 未找到，关闭连接
+                            _logger.Error($"未找到请求:{msgId}");
+                            client.Send(new Message<string> { MessageType = MessageType.Error, Content = $"未找到请求:{msgId}" });
+                        }
+                        break;
+                    case MessageType.S_NewCustomer:
+                    default:
+                        throw new Exception("参数异常");
+                }
             }
         }
 

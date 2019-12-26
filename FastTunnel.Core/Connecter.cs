@@ -13,14 +13,15 @@ namespace FastTunnel.Core
         private string _ip;
         private int _port;
 
-        public Socket Client { get; set; }
+        public Socket Socket { get; set; }
 
         public Connecter(string v1, int v2)
         {
             this._ip = v1;
             this._port = v2;
 
-            Client = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            Socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            Socket.SendTimeout = 2000;
         }
 
         public void Connect()
@@ -28,12 +29,12 @@ namespace FastTunnel.Core
             IPAddress ip = IPAddress.Parse(_ip);
             IPEndPoint point = new IPEndPoint(ip, _port);
 
-            Client.Connect(point);
+            Socket.Connect(point);
         }
 
         private void Send(string msg)
         {
-            Client.Send(Encoding.UTF8.GetBytes(msg));
+            Socket.Send(Encoding.UTF8.GetBytes(msg));
         }
 
         public void Send<T>(Message<T> msg)

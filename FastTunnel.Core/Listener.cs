@@ -50,13 +50,10 @@ namespace FastTunnel.Core
                         var client = _socket.Accept();
 
                         string point = client.RemoteEndPoint.ToString();
-                        Console.WriteLine($"收到请求 {point}");
-
                         ThreadPool.QueueUserWorkItem(ReceiveCustomer, client);
                     }
                     catch (SocketException ex)
                     {
-                        _logerr.Error(ex.Message);
                         break;
                     }
                     catch (Exception ex)
@@ -79,12 +76,15 @@ namespace FastTunnel.Core
         {
             try
             {
-                ls.Shutdown(SocketShutdown.Both);
+                if (ls.Connected)
+                {
+                    ls.Shutdown(SocketShutdown.Both);
+                }
             }
             finally
             {
                 ls.Close();
-                _logerr.Debug("Listener cloed");
+                _logerr.Debug("Listener closed");
             }
         }
     }

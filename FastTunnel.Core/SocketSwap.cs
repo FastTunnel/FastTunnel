@@ -74,7 +74,7 @@ namespace FastTunnel.Core
                         break;
                     chanel.Send.Send(result, num, SocketFlags.None);
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
                     if (chanel.Receive.Connected)
                     {

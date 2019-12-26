@@ -33,6 +33,11 @@ namespace FastTunnel.Client
         {
             var FastTunnelClient = new FastTunnelClient(settings.ClientSettings, new ConsoleLogger());
             FastTunnelClient.Login();
+
+            while (true)
+            {
+                Thread.Sleep(10000 * 60);
+            }
         }
     }
 }

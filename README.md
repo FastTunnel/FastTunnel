@@ -84,8 +84,5 @@ ssh -oPort=12701 root@x.x.x.x
 - 安装 `vs2019`
 - 安装 `dotnetcore runtime&sdk 3.1` 或以上版本
 
-# Dev Plan
-- 客户端心跳
-
 # License
 Apache License 2.0
