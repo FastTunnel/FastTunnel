@@ -6,3 +6,4 @@ obj
 /FastTunnel.Client/Properties/PublishProfiles/*.user
 /FastTunnel.Server/Properties/PublishProfiles/*.user
 /FastTunnel.Client/Properties/PublishProfiles/*.pubxml
+publish
