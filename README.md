@@ -30,7 +30,7 @@ A *.ft.suidao.io
 nginx反向代理已开启，web穿透可不加端口号1270即可直接访问。
 ```
 ## 快速使用
-1. 在 [releases](https://github.com/SpringHgui/FastTunnel/releases) 页面下载对应的程序到。
+1. 在 [releases](https://github.com/SpringHgui/FastTunnel/releases) 页面下载对应的程序
 2. 分别修改配置文件`appsettings.json`
 3. 服务端运行FastTunnel.Server.exe(windows)，其他平台安装dotnetcore运行时，执行 dotnet FastTunnel.Server.dll
 4. 客户端运行FastTunnel.Cient.exe(windows)，其他平台同安装dotnetcore运行时，执行 dotnet FastTunnel.Client.dll
