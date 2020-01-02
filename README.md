@@ -1,4 +1,4 @@
-<p align="center"><img src="images/logo.png" width="200" align=center /></p>
+<p align="center"><img src="images/logo.png" width="150" align=center /></p>
 
 # FastTunnel
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](https://github.com/SpringHgui/frp/pulls)
