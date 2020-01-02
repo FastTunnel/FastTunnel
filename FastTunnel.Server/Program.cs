@@ -11,34 +11,72 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using NLog.Extensions.Logging;
+using Microsoft.Extensions.Logging;
+using NLog;
+using FastTunnel.Core.Config;
+using FastTunnel.Core.Host;
 
 namespace FastTunnel.Server
 {
     class Program
     {
+        static Appsettings appsettings;
+
         static void Main(string[] args)
         {
             Console.WriteLine("Server Start!");
+            var logger = LogManager.GetCurrentClassLogger();
 
-            var conf = new ConfigurationBuilder()
-              .SetBasePath(Directory.GetCurrentDirectory())
-              .AddJsonFile("appsettings.json", true, true)
-              .Build();
+            try
+            {
+                var servicesProvider = new Host().Config(Config).Build();
+                Run(servicesProvider);
 
-            var settings = conf.Get<Appsettings>();
-            Run(settings);
+                while (true)
+                {
+                    Thread.Sleep(10000 * 60);
+                }
+            }
+            catch (Exception ex)
+            {
+                // NLog: catch any exception and log it.
+                logger.Error(ex, "Stopped program because of exception");
+                throw;
+            }
+            finally
+            {
+                // Ensure to flush and stop internal timers/threads before application-exit (Avoid segmentation fault on Linux)
+                LogManager.Shutdown();
+            }
         }
 
-        private static void Run(Appsettings settings)
+        private static ServerConfig implementationFactory(IServiceProvider arg)
         {
-            var logger = new ConsoleLogger();
-            var server = new FastTunnelServer(settings.ServerSettings, logger);
-            server.Run();
-
-            while (true)
+            if (appsettings == null)
             {
-                Thread.Sleep(10000 * 60);
+                var conf = new ConfigurationBuilder()
+                  .SetBasePath(Directory.GetCurrentDirectory())
+                  .AddJsonFile("appsettings.json", true, true)
+                  .Build();
+
+                appsettings = conf.Get<Appsettings>();
             }
+
+            return appsettings.ServerSettings;
+        }
+
+        private static void Config(ServiceCollection service)
+        {
+            service.AddTransient<FastTunnelServer>()
+                .AddSingleton<ServerConfig>(implementationFactory);
+        }
+
+        private static void Run(IServiceProvider servicesProvider)
+        {
+            var server = servicesProvider.GetRequiredService<FastTunnelServer>();
+            server.Run();
         }
     }
 }

@@ -1,16 +1,18 @@
 ﻿using FastTunnel.Core.Logger;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using FastTunnel.Core.Extensions;
 
 namespace FastTunnel.Core
 {
     public class Listener<T>
     {
-        ILogger _logerr;
+        ILogger<object> _logerr;
 
         public string IP { get; set; }
 
@@ -21,7 +23,7 @@ namespace FastTunnel.Core
         T _data;
 
 
-        public Listener(string ip, int port, ILogger logerr, Action<Socket, T> acceptCustomerHandler, T data)
+        public Listener(string ip, int port, ILogger<object> logerr, Action<Socket, T> acceptCustomerHandler, T data)
         {
             _logerr = logerr;
             _data = data;
@@ -58,7 +60,7 @@ namespace FastTunnel.Core
                     }
                     catch (Exception ex)
                     {
-                        _logerr.Error(ex);
+                        _logerr.LogError(ex);
                         throw;
                     }
                 }
@@ -84,7 +86,7 @@ namespace FastTunnel.Core
             finally
             {
                 ls.Close();
-                _logerr.Debug("Listener closed");
+                _logerr.LogDebug("Listener closed");
             }
         }
     }

@@ -10,6 +10,9 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using NLog;
+using FastTunnel.Core.Host;
+using FastTunnel.Core.Config;
 
 namespace FastTunnel.Client
 {
@@ -18,26 +21,58 @@ namespace FastTunnel.Client
         static void Main(string[] args)
         {
             Console.WriteLine("Client Start!");
+            var logger = LogManager.GetCurrentClassLogger();
 
-            var conf = new ConfigurationBuilder()
-              .SetBasePath(Directory.GetCurrentDirectory())
-              .AddJsonFile("appsettings.json", true, true)
-              .Build();
+            try
+            {
+                var servicesProvider = new Host().Config(Config).Build();
+                
+                Run(servicesProvider);
 
-            var settings = conf.Get<Appsettings>();
-
-            Run(settings);
+                while (true)
+                {
+                    Thread.Sleep(10000 * 60);
+                }
+            }
+            catch (Exception ex)
+            {
+                // NLog: catch any exception and log it.
+                logger.Error(ex, "Stopped program because of exception");
+                throw;
+            }
+            finally
+            {
+                // Ensure to flush and stop internal timers/threads before application-exit (Avoid segmentation fault on Linux)
+                LogManager.Shutdown();
+            }
         }
 
-        private static void Run(Appsettings settings)
+        private static void Run(IServiceProvider servicesProvider)
         {
-            var FastTunnelClient = new FastTunnelClient(settings.ClientSettings, new ConsoleLogger());
-            FastTunnelClient.Login();
+            var client = servicesProvider.GetRequiredService<FastTunnelClient>();
+            client.Login();
 
             while (true)
             {
                 Thread.Sleep(10000 * 60);
             }
+        }
+
+        private static void Config(ServiceCollection service)
+        {
+            service.AddTransient<FastTunnelClient>()
+                 .AddSingleton<ClientConfig>(implementationFactory);
+        }
+
+        private static ClientConfig implementationFactory(IServiceProvider arg)
+        {
+            var conf = new ConfigurationBuilder()
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile("appsettings.json", true, true)
+            .Build();
+
+            var settings = conf.Get<Appsettings>();
+            return settings.ClientSettings;
         }
     }
 }

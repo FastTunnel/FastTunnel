@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using FastTunnel.Core.Extensions;
 using System.Timers;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 
 namespace FastTunnel.Core.Client
 {
@@ -21,7 +22,7 @@ namespace FastTunnel.Core.Client
 
         Connecter _client;
 
-        ILogger _logger;
+        ILogger<FastTunnelClient> _logger;
 
         System.Timers.Timer timer_timeout;
         System.Timers.Timer timer_heart;
@@ -30,7 +31,7 @@ namespace FastTunnel.Core.Client
         DateTime lastHeart;
         Thread th;
 
-        public FastTunnelClient(ClientConfig clientConfig, ILogger logger)
+        public FastTunnelClient(ClientConfig clientConfig, ILogger<FastTunnelClient> logger)
         {
             _logger = logger;
             _clientConfig = clientConfig;
@@ -60,7 +61,7 @@ namespace FastTunnel.Core.Client
             var span = (DateTime.Now - lastHeart).TotalMilliseconds;
             if (span > timer.Interval)
             {
-                _logger.Debug($"上次心跳时间为{span}ms前");
+                _logger.LogDebug($"上次心跳时间为{span}ms前");
 
                 // 重新登录
                 reConnect();
@@ -81,7 +82,7 @@ namespace FastTunnel.Core.Client
             }
             catch (Exception ex)
             {
-                _logger.Error(ex.Message);
+                _logger.LogError(ex.Message);
             }
         }
 
@@ -99,18 +100,18 @@ namespace FastTunnel.Core.Client
             }
             catch (Exception ex)
             {
-                _logger.Error(ex);
+                _logger.LogError(ex);
             }
             finally
             {
                 _client.Socket.Close();
-                _logger.Debug("已退出登录\n");
+                _logger.LogDebug("已退出登录\n");
             }
         }
 
         public void Login()
         {
-            _logger.Debug("登录中...");
+            _logger.LogDebug("登录中...");
 
             //连接到的目标IP
             try
@@ -120,7 +121,7 @@ namespace FastTunnel.Core.Client
             }
             catch (Exception ex)
             {
-                _logger.Error(ex.Message);
+                _logger.LogError(ex.Message);
                 _client.Socket.Close();
 
                 Thread.Sleep(5000);
@@ -130,7 +131,7 @@ namespace FastTunnel.Core.Client
 
             // 登录
             _client.Send(new Message<LogInRequest> { MessageType = MessageType.C_LogIn, Content = new LogInRequest { ClientConfig = _clientConfig } });
-            _logger.Debug("登录成功");
+            _logger.LogDebug("登录成功");
 
             // 心跳开始
             timer_heart.Start();
@@ -192,7 +193,7 @@ namespace FastTunnel.Core.Client
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error(ex.Message);
+                    _logger.LogError(ex.Message);
                     continue;
                 }
             }
@@ -234,15 +235,15 @@ namespace FastTunnel.Core.Client
                         break;
                     case MessageType.Info:
                         var info = Msg.Content.ToJson();
-                        _logger.Info(info);
+                        _logger.LogInformation(info);
                         break;
-                    case MessageType.Debug:
-                        var debug = Msg.Content.ToJson();
-                        _logger.Debug(debug);
+                    case MessageType.LogDebug:
+                        var LogDebug = Msg.Content.ToJson();
+                        _logger.LogDebug(LogDebug);
                         break;
                     case MessageType.Error:
                         var err = Msg.Content.ToJson();
-                        _logger.Error(err);
+                        _logger.LogError(err);
                         break;
                     case MessageType.C_SwapMsg:
                     case MessageType.C_LogIn:
@@ -252,8 +253,8 @@ namespace FastTunnel.Core.Client
             }
             catch (Exception ex)
             {
-                _logger.Error(ex);
-                _logger.Error(words);
+                _logger.LogError(ex);
+                _logger.LogError(words);
             }
         }
     }

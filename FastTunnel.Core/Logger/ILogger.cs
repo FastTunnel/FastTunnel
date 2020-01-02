@@ -12,7 +12,7 @@ namespace FastTunnel.Core.Logger
 
         void Warning(string msg);
 
-        void Debug(string msg);
+        void LogDebug(string msg);
 
         void Info(string msg);
     }

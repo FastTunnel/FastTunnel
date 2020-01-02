@@ -12,6 +12,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace FastTunnel.Core.Server
 {
@@ -22,9 +23,9 @@ namespace FastTunnel.Core.Server
         Dictionary<string, NewRequest> newRequest = new Dictionary<string, NewRequest>();
 
         private ServerConfig serverSettings;
-        ILogger _logger;
+        ILogger<FastTunnelServer> _logger;
 
-        public FastTunnelServer(ServerConfig serverSettings, ILogger logger)
+        public FastTunnelServer(ServerConfig serverSettings, ILogger<FastTunnelServer> logger)
         {
             _logger = logger;
             this.serverSettings = serverSettings;
@@ -40,7 +41,7 @@ namespace FastTunnel.Core.Server
         {
             var listener = new Listener<object>(serverSettings.BindAddr, serverSettings.BindPort, _logger, ReceiveClient, null);
             listener.Listen();
-            _logger.Debug($"监听客户端 -> {serverSettings.BindAddr}:{serverSettings.BindPort}");
+            _logger.LogDebug($"监听客户端 -> {serverSettings.BindAddr}:{serverSettings.BindPort}");
         }
 
         private void ListenCustomer()
@@ -48,13 +49,13 @@ namespace FastTunnel.Core.Server
             var listener = new Listener<object>(serverSettings.BindAddr, serverSettings.ProxyPort_HTTP, _logger, ReceiveCustomer, null);
             listener.Listen();
 
-            _logger.Debug($"监听HTTP -> {serverSettings.BindAddr}:{serverSettings.ProxyPort_HTTP}");
+            _logger.LogDebug($"监听HTTP -> {serverSettings.BindAddr}:{serverSettings.ProxyPort_HTTP}");
         }
 
         //接收消息
         void ReceiveCustomer(Socket client, object _)
         {
-            _logger.Debug("新的HTTP请求");
+            _logger.LogDebug("新的HTTP请求");
 
             try
             {
@@ -73,7 +74,7 @@ namespace FastTunnel.Core.Server
                 }
                 catch (SocketException ex)
                 {
-                    _logger.Error(ex);
+                    _logger.LogError(ex.Message);
                     if (client.Connected)
                         client.Close();
                     return;
@@ -92,7 +93,7 @@ namespace FastTunnel.Core.Server
                 var collection = Regex.Matches(words, pattern);
                 if (collection.Count == 0)
                 {
-                    _logger.Error($"Host异常：{words}");
+                    _logger.LogError($"Host异常：{words}");
                     return;
                 }
                 else
@@ -102,18 +103,18 @@ namespace FastTunnel.Core.Server
 
                 var domain = Host.Split(":")[1].Trim();
 
-                _logger.Debug($"Host: {domain}");
+                _logger.LogDebug($"Host: {domain}");
 
                 WebInfo web;
                 if (!WebList.TryGetValue(domain, out web))
                 {
-                    _logger.Error($"客户端不存在:'{domain}'");
+                    _logger.LogError($"客户端不存在:'{domain}'");
                     return;
                 }
 
                 if (!web.Socket.Connected)
                 {
-                    _logger.Error($"客户端已下线:'{domain}'");
+                    _logger.LogError($"客户端已下线:'{domain}'");
                     WebList.Remove(domain);
                     return;
                 }
@@ -133,7 +134,7 @@ namespace FastTunnel.Core.Server
             }
             catch (Exception ex)
             {
-                _logger.Error(ex);
+                _logger.LogError(ex);
             }
         }
 
@@ -150,7 +151,7 @@ namespace FastTunnel.Core.Server
             }
             catch (Exception ex)
             {
-                _logger.Error(ex);
+                _logger.LogError(ex);
                 if (client.Connected)
                 {
                     client.Close();
@@ -162,7 +163,7 @@ namespace FastTunnel.Core.Server
             string words = Encoding.UTF8.GetString(buffer, 0, length);
             var msg = JsonConvert.DeserializeObject<Message<object>>(words);
 
-            _logger.Debug($"收到客户端指令：{msg.MessageType}");
+            _logger.LogDebug($"收到客户端指令：{msg.MessageType}");
             switch (msg.MessageType)
             {
                 case MessageType.C_LogIn:
@@ -188,7 +189,7 @@ namespace FastTunnel.Core.Server
                     else
                     {
                         // 未找到，关闭连接
-                        _logger.Error($"未找到请求:{msgId}");
+                        _logger.LogError($"未找到请求:{msgId}");
                         client.Send(new Message<string> { MessageType = MessageType.Error, Content = $"未找到请求:{msgId}" });
                     }
                     break;
@@ -208,14 +209,14 @@ namespace FastTunnel.Core.Server
                     var hostName = $"{item.SubDomain}.{serverSettings.Domain}".Trim();
                     if (WebList.ContainsKey(hostName))
                     {
-                        _logger.Debug($"renew domain '{hostName}'");
+                        _logger.LogDebug($"renew domain '{hostName}'");
 
                         WebList.Remove(hostName);
                         WebList.Add(hostName, new WebInfo { Socket = client, WebConfig = item });
                     }
                     else
                     {
-                        _logger.Debug($"new domain '{hostName}'");
+                        _logger.LogDebug($"new domain '{hostName}'");
                         WebList.Add(hostName, new WebInfo { Socket = client, WebConfig = item });
                     }
 
@@ -231,20 +232,20 @@ namespace FastTunnel.Core.Server
                     {
                         if (item.RemotePort.Equals(serverSettings.BindPort))
                         {
-                            _logger.Error($"RemotePort can not be same with BindPort: {item.RemotePort}");
+                            _logger.LogError($"RemotePort can not be same with BindPort: {item.RemotePort}");
                             continue;
                         }
 
                         if (item.RemotePort.Equals(serverSettings.ProxyPort_HTTP))
                         {
-                            _logger.Error($"RemotePort can not be same with ProxyPort_HTTP: {item.RemotePort}");
+                            _logger.LogError($"RemotePort can not be same with ProxyPort_HTTP: {item.RemotePort}");
                             continue;
                         }
 
                         SSHInfo<SSHHandlerArg> old;
                         if (SSHList.TryGetValue(item.RemotePort, out old))
                         {
-                            _logger.Debug($"Remove Listener {old.Listener.IP}:{old.Listener.Port}");
+                            _logger.LogDebug($"Remove Listener {old.Listener.IP}:{old.Listener.Port}");
                             old.Listener.ShutdownAndClose();
                             SSHList.Remove(item.RemotePort);
                         }
@@ -254,12 +255,12 @@ namespace FastTunnel.Core.Server
 
                         // listen success
                         SSHList.Add(item.RemotePort, new SSHInfo<SSHHandlerArg> { Listener = ls, Socket = client, SSHConfig = item });
-                        _logger.Debug($"SSH proxy success: {item.RemotePort} -> {item.LocalIp}:{item.LocalPort}");
+                        _logger.LogDebug($"SSH proxy success: {item.RemotePort} -> {item.LocalIp}:{item.LocalPort}");
                     }
                     catch (Exception ex)
                     {
-                        _logger.Error($"SSH proxy error: {item.RemotePort} -> {item.LocalIp}:{item.LocalPort}");
-                        _logger.Error(ex);
+                        _logger.LogError($"SSH proxy error: {item.RemotePort} -> {item.LocalIp}:{item.LocalPort}");
+                        _logger.LogError(ex.Message);
                         client.Send(new Message<string> { MessageType = MessageType.Error, Content = ex.Message });
                         continue;
                     }

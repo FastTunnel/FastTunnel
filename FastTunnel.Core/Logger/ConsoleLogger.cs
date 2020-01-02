@@ -11,7 +11,7 @@ namespace FastTunnel.Core.Logger
             Console.WriteLine(string.Format("Erro - {0}", msg?.ToString()));
         }
 
-        public void Debug(string msg)
+        public void LogDebug(string msg)
         {
             Console.WriteLine(string.Format("Debu - {0}", msg));
         }

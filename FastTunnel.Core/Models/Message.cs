@@ -25,7 +25,7 @@ namespace FastTunnel.Core.Models
         // twoway
         Info,
 
-        Debug,
+        LogDebug,
 
         Error
     }
