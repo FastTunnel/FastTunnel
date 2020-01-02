@@ -33,11 +33,6 @@ namespace FastTunnel.Server
             {
                 var servicesProvider = new Host().Config(Config).Build();
                 Run(servicesProvider);
-
-                while (true)
-                {
-                    Thread.Sleep(10000 * 60);
-                }
             }
             catch (Exception ex)
             {
@@ -77,6 +72,11 @@ namespace FastTunnel.Server
         {
             var server = servicesProvider.GetRequiredService<FastTunnelServer>();
             server.Run();
+
+            while (true)
+            {
+                Thread.Sleep(10000 * 60);
+            }
         }
     }
 }
