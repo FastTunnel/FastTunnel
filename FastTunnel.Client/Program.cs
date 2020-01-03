@@ -20,13 +20,12 @@ namespace FastTunnel.Client
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Client Start!");
             var logger = LogManager.GetCurrentClassLogger();
 
             try
             {
                 var servicesProvider = new Host().Config(Config).Build();
-                
+
                 Run(servicesProvider);
 
                 while (true)

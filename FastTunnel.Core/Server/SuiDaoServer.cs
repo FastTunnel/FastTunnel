@@ -33,6 +33,7 @@ namespace FastTunnel.Core.Server
 
         public void Run()
         {
+            _logger.LogDebug("FastTunnel Server Start");
             ListenFastTunnelClient();
             ListenCustomer();
         }

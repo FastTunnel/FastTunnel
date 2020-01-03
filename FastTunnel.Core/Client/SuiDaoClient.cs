@@ -111,6 +111,7 @@ namespace FastTunnel.Core.Client
 
         public void Login()
         {
+            _logger.LogDebug("FastTunnel Client Start");
             _logger.LogDebug("登录中...");
 
             //连接到的目标IP
