@@ -3,7 +3,6 @@ using Newtonsoft.Json.Linq;
 using FastTunnel.Core.Config;
 using FastTunnel.Core.Exceptions;
 using FastTunnel.Core.Extensions;
-using FastTunnel.Core.Logger;
 using FastTunnel.Core.Models;
 using System;
 using System.Collections.Generic;

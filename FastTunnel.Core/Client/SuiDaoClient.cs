@@ -1,7 +1,6 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using FastTunnel.Core.Config;
-using FastTunnel.Core.Logger;
 using FastTunnel.Core.Models;
 using System;
 using System.Collections.Generic;
