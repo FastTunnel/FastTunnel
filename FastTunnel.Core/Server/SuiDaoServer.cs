@@ -79,8 +79,9 @@ namespace FastTunnel.Core.Server
                         client.Close();
                     return;
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
+                    _logger.LogError(ex);
                     throw;
                 }
 
@@ -256,6 +257,8 @@ namespace FastTunnel.Core.Server
                         // listen success
                         SSHList.Add(item.RemotePort, new SSHInfo<SSHHandlerArg> { Listener = ls, Socket = client, SSHConfig = item });
                         _logger.LogDebug($"SSH proxy success: {item.RemotePort} -> {item.LocalIp}:{item.LocalPort}");
+
+                        client.Send(new Message<string> { MessageType = MessageType.Info, Content = $"TunnelForSSH is OK: {requet.ClientConfig.Common.ServerAddr}:{item.RemotePort}->{item.LocalIp}:{item.LocalPort}" });
                     }
                     catch (Exception ex)
                     {
@@ -264,8 +267,6 @@ namespace FastTunnel.Core.Server
                         client.Send(new Message<string> { MessageType = MessageType.Error, Content = ex.Message });
                         continue;
                     }
-
-                    client.Send(new Message<string> { MessageType = MessageType.Info, Content = $"TunnelForSSH is OK: {requet.ClientConfig.Common.ServerAddr}:{item.RemotePort}->{item.LocalIp}:{item.LocalPort}" });
                 }
             }
 

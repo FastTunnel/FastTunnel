@@ -70,7 +70,14 @@ namespace FastTunnel.Core
         private void ReceiveCustomer(object state)
         {
             var client = state as Socket;
-            handler.Invoke(client, _data);
+            try
+            {
+                handler.Invoke(client, _data);
+            }
+            catch (Exception ex)
+            {
+                _logerr.LogError(ex);
+            }
         }
 
         public void ShutdownAndClose()
