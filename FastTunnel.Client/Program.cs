@@ -2,7 +2,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using FastTunnel.Core;
 using FastTunnel.Core.Client;
-using FastTunnel.Core.Logger;
 using System;
 using System.IO;
 using System.Net;
@@ -20,7 +19,9 @@ namespace FastTunnel.Client
     {
         static void Main(string[] args)
         {
+            LogManager.LoadConfiguration("Nlog.config");
             var logger = LogManager.GetCurrentClassLogger();
+            logger.Debug("===== Sevice Start =====");
 
             try
             {

@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Configuration;
 using FastTunnel.Core;
-using FastTunnel.Core.Logger;
 using FastTunnel.Core.Server;
 using System;
 using System.Collections.Generic;
@@ -26,8 +25,9 @@ namespace FastTunnel.Server
 
         static void Main(string[] args)
         {
-            Console.WriteLine("Server Start!");
+            LogManager.LoadConfiguration("Nlog.config");
             var logger = LogManager.GetCurrentClassLogger();
+            logger.Debug("===== Sevice Start =====");
 
             try
             {
@@ -37,8 +37,8 @@ namespace FastTunnel.Server
             catch (Exception ex)
             {
                 // NLog: catch any exception and log it.
-                logger.Error(ex, "Stopped program because of exception");
-                throw;
+                logger.Error(ex);
+                Console.WriteLine(ex);
             }
             finally
             {
