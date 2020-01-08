@@ -110,6 +110,7 @@ namespace FastTunnel.Core.Server
                 if (!WebList.TryGetValue(domain, out web))
                 {
                     _logger.LogError($"客户端不存在:'{domain}'");
+                    _logger.LogDebug(words);
                     return;
                 }
 
