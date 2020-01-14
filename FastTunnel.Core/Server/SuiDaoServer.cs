@@ -144,16 +144,29 @@ namespace FastTunnel.Core.Server
         {
             //定义byte数组存放从客户端接收过来的数据
             byte[] buffer = new byte[1024 * 1024];
-
             int length;
 
             try
             {
                 length = client.Receive(buffer);
+                if (length == 0)
+                {
+                    try
+                    {
+                        client.Shutdown(SocketShutdown.Both);
+                    }
+                    catch
+                    {
+                        client.Close();
+                    }
+
+                    // 递归结束
+                    return;
+                }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                _logger.LogError(ex);
+                _logger.LogError($"client 退出登录");
                 if (client.Connected)
                 {
                     client.Close();
@@ -169,7 +182,7 @@ namespace FastTunnel.Core.Server
             switch (msg.MessageType)
             {
                 case MessageType.C_LogIn:
-                    HandleTunnelClient(client, msg);
+                    HandleLogin(client, msg);
                     break;
                 case MessageType.Heart:
                     client.Send(new Message<string>() { MessageType = MessageType.Heart, Content = null });
@@ -197,11 +210,14 @@ namespace FastTunnel.Core.Server
                     break;
                 case MessageType.S_NewCustomer:
                 default:
-                    throw new Exception("参数异常");
+                    throw new Exception($"参数异常, 不支持消息类型 {msg.MessageType}");
             }
+
+            // 递归调用
+            ReceiveClient(client, _);
         }
 
-        private void HandleTunnelClient(Socket client, Message<object> msg)
+        private void HandleLogin(Socket client, Message<object> msg)
         {
             var requet = (msg.Content as JObject).ToObject<LogInRequest>();
             if (requet.ClientConfig.Webs != null && requet.ClientConfig.Webs.Count() > 0)
@@ -269,11 +285,6 @@ namespace FastTunnel.Core.Server
                         continue;
                     }
                 }
-            }
-
-            while (true)
-            {
-                ReceiveClient(client, null);
             }
         }
 

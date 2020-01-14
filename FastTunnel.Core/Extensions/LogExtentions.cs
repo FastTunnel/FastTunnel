@@ -7,7 +7,7 @@ namespace FastTunnel.Core.Extensions
 {
     public static class LogExtentions
     {
-        public static void LogError(this ILogger logger, object ex)
+        public static void LogError(this ILogger logger, Exception ex)
         {
             logger.LogError(ex.ToString());
         }
