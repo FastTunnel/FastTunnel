@@ -176,16 +176,33 @@ namespace FastTunnel.Core.Server
 
             // 将字节转换成字符串
             string words = Encoding.UTF8.GetString(buffer, 0, length);
-            var msg = JsonConvert.DeserializeObject<Message<object>>(words);
+            Message<object> msg;
+
+            try
+            {
+                msg = JsonConvert.DeserializeObject<Message<object>>(words);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex);
+                _logger.LogDebug($"收到客户端 words：{words}");
+                throw;
+            }
 
             _logger.LogDebug($"收到客户端指令：{msg.MessageType}");
             switch (msg.MessageType)
             {
                 case MessageType.C_LogIn:
                     HandleLogin(client, msg);
+
+                    // 递归调用
+                    ReceiveClient(client, _);
                     break;
                 case MessageType.Heart:
                     client.Send(new Message<string>() { MessageType = MessageType.Heart, Content = null });
+
+                    // 递归调用
+                    ReceiveClient(client, _);
                     break;
                 case MessageType.C_SwapMsg:
                     var msgId = (msg.Content as string);
@@ -207,14 +224,12 @@ namespace FastTunnel.Core.Server
                         _logger.LogError($"未找到请求:{msgId}");
                         client.Send(new Message<string> { MessageType = MessageType.Error, Content = $"未找到请求:{msgId}" });
                     }
+
                     break;
                 case MessageType.S_NewCustomer:
                 default:
                     throw new Exception($"参数异常, 不支持消息类型 {msg.MessageType}");
             }
-
-            // 递归调用
-            ReceiveClient(client, _);
         }
 
         private void HandleLogin(Socket client, Message<object> msg)
