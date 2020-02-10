@@ -176,19 +176,45 @@ namespace FastTunnel.Core.Server
 
             // 将字节转换成字符串
             string words = Encoding.UTF8.GetString(buffer, 0, length);
-            Message<object> msg;
 
             try
             {
-                msg = JsonConvert.DeserializeObject<Message<object>>(words);
+                HandleWords(words, client);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex);
-                _logger.LogDebug($"收到客户端 words：{words}");
+                _logger.LogError($"收到客户端 words：{words}");
                 throw;
             }
+        }
 
+        private void HandleWords(string words, Socket client)
+        {
+            // 读到两个或多个指令
+            var index = words.IndexOf("}{");
+            if (index > 0)
+            {
+                var sub_words = words.Substring(0, index + 1);
+                var left = words.Substring(index + 1);
+
+                handle(sub_words, client);
+                HandleWords(left, client);
+            }
+            else
+            {
+                handle(words, client);
+            }
+        }
+
+        private void handle(string words, Socket client)
+        {
+            Message<object> msg = JsonConvert.DeserializeObject<Message<object>>(words);
+            HandleMsg(client, msg);
+        }
+
+        private void HandleMsg(Socket client, Message<object> msg)
+        {
             _logger.LogDebug($"收到客户端指令：{msg.MessageType}");
             switch (msg.MessageType)
             {
@@ -196,13 +222,13 @@ namespace FastTunnel.Core.Server
                     HandleLogin(client, msg);
 
                     // 递归调用
-                    ReceiveClient(client, _);
+                    ReceiveClient(client, null);
                     break;
                 case MessageType.Heart:
                     client.Send(new Message<string>() { MessageType = MessageType.Heart, Content = null });
 
                     // 递归调用
-                    ReceiveClient(client, _);
+                    ReceiveClient(client, null);
                     break;
                 case MessageType.C_SwapMsg:
                     var msgId = (msg.Content as string);
