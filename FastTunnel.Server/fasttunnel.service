@@ -2,7 +2,8 @@
 Description=fasttunnel
 [Service]
 Type=simple
-WorkingDirectory=/root/fasttunnel/ # 根据自己的目录进行修改，设置为程序根目录
+#path where fasttunnel.server.dll 
+WorkingDirectory=/root/fasttunnel/ 
 #Restart=on-failure
 #RestartSec=10
 ExecStart=/usr/share/dotnet/dotnet FastTunnel.Server.dll
