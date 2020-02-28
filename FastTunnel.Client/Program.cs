@@ -21,7 +21,7 @@ namespace FastTunnel.Client
         {
             LogManager.LoadConfiguration("Nlog.config");
             var logger = LogManager.GetCurrentClassLogger();
-            logger.Debug("===== Sevice Start =====");
+            logger.Debug("===== FastTunnel Client Start =====");
 
             try
             {
