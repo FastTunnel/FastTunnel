@@ -42,8 +42,8 @@ nginx反向代理已开启，web穿透可不加端口号1270即可直接访问�
 - 例如你拥有一个服务器，公网ip地址为 `110.110.110.110` ,同时你有一个顶级域名为 `test.cc` 的域名，你希望访问 `test.test.cc`可以访问内网的一个网站。
 - 你需要新增一个域名地址的DNS解析，类型为`A`，名称为 `*` , ipv4地址为 `110.110.110.110` ,这样 `*.test.cc`的域名均会指向`110.110.110.110`的服务器，由于`FastTunnel`默认监听的http端口为1270，所以要访问`http://test.test.cc:1270`
 - 如果不希望每次访问都带上端口号，可以通过`nginx`转发实现。
-- 如果服务端配置的域名为 ft.suidao.io, 则通过子域名test.ft.suidao.io访问在本地的站点，IIS配置如下：
-![img1](images/setallow.png)
+- 如果服务端配置的域名为`ft.suidao.io`, 则通过子域名`test.ft.suidao.io`访问在本地的站点，IIS配置如下：
+![img1](images/iis-web.png)
 
 ## 2. 远程内网计算机 Windows/Linux/Mac
 
