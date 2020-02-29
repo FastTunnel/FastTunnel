@@ -84,10 +84,7 @@ namespace FastTunnel.Core
         {
             try
             {
-                if (ls.Connected)
-                {
-                    ls.Shutdown(SocketShutdown.Both);
-                }
+                ls.Shutdown(SocketShutdown.Both);
             }
             finally
             {
