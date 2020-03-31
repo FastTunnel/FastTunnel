@@ -316,7 +316,7 @@ namespace FastTunnel.Core.Server
                         SSHList.Add(item.RemotePort, new SSHInfo<SSHHandlerArg> { Listener = ls, Socket = client, SSHConfig = item });
                         _logger.LogDebug($"SSH proxy success: {item.RemotePort} -> {item.LocalIp}:{item.LocalPort}");
 
-                        client.Send(new Message<string> { MessageType = MessageType.Info, Content = $"TunnelForSSH is OK: {requet.ClientConfig.Common.ServerAddr}:{item.RemotePort}->{item.LocalIp}:{item.LocalPort}" });
+                        client.Send(new Message<string> { MessageType = MessageType.Info, Content = $"TunnelForSSH is OK: {requet.ClientConfig.Common.ip}:{item.RemotePort}->{item.LocalIp}:{item.LocalPort}" });
                     }
                     catch (Exception ex)
                     {

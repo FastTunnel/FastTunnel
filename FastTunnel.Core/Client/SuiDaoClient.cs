@@ -120,7 +120,7 @@ namespace FastTunnel.Core.Client
             //连接到的目标IP
             try
             {
-                _client = new Connecter(_clientConfig.Common.ServerAddr, _clientConfig.Common.ServerPort);
+                _client = new Connecter(_clientConfig.Common.ip, _clientConfig.Common.bind_port);
                 _client.Connect();
             }
             catch (Exception ex)
@@ -217,7 +217,7 @@ namespace FastTunnel.Core.Client
                         break;
                     case MessageType.S_NewCustomer:
                         var request = (Msg.Content as JObject).ToObject<NewCustomerRequest>();
-                        var connecter = new Connecter(_clientConfig.Common.ServerAddr, _clientConfig.Common.ServerPort);
+                        var connecter = new Connecter(_clientConfig.Common.ip, _clientConfig.Common.bind_port);
                         connecter.Connect();
                         connecter.Send(new Message<string> { MessageType = MessageType.C_SwapMsg, Content = request.MsgId });
 
@@ -228,7 +228,7 @@ namespace FastTunnel.Core.Client
                         break;
                     case MessageType.S_NewSSH:
                         var request_ssh = (Msg.Content as JObject).ToObject<NewSSHRequest>();
-                        var connecter_ssh = new Connecter(_clientConfig.Common.ServerAddr, _clientConfig.Common.ServerPort);
+                        var connecter_ssh = new Connecter(_clientConfig.Common.ip, _clientConfig.Common.bind_port);
                         connecter_ssh.Connect();
                         connecter_ssh.Send(new Message<string> { MessageType = MessageType.C_SwapMsg, Content = request_ssh.MsgId });
 
