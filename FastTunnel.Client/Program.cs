@@ -50,6 +50,8 @@ namespace FastTunnel.Client
         private static void Run(IServiceProvider servicesProvider)
         {
             var client = servicesProvider.GetRequiredService<FastTunnelClient>();
+            var config = servicesProvider.GetRequiredService<ClientConfig>();
+            client.SetConfig(config);
             client.Login();
 
             while (true)

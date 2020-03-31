@@ -7,18 +7,10 @@ namespace FastTunnel.Core.Config
 {
     public class ClientConfig
     {
-        public ServerCommon Common { get; set; }
+        public FastTunnelServer Common { get; set; }
 
         public IEnumerable<WebConfig> Webs { get; set; }
 
         public IEnumerable<SSHConfig> SSH { get; set; }
-    }
-
-    public class ServerCommon
-    {
-        public string ServerAddr { get; set; }
-
-
-        public int ServerPort { get; set; }
     }
 }

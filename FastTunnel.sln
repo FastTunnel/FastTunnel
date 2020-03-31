@@ -9,6 +9,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FastTunnel.Core", "FastTunn
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FastTunnel.Server", "FastTunnel.Server\FastTunnel.Server.csproj", "{DEF2E322-9075-4C3F-9967-7EAF0EE28CEB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SuiDao.Client", "SuiDao.Client\SuiDao.Client.csproj", "{23E6C767-3927-4281-9C1D-C0A724D869A9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{DEF2E322-9075-4C3F-9967-7EAF0EE28CEB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DEF2E322-9075-4C3F-9967-7EAF0EE28CEB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DEF2E322-9075-4C3F-9967-7EAF0EE28CEB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{23E6C767-3927-4281-9C1D-C0A724D869A9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{23E6C767-3927-4281-9C1D-C0A724D869A9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{23E6C767-3927-4281-9C1D-C0A724D869A9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{23E6C767-3927-4281-9C1D-C0A724D869A9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

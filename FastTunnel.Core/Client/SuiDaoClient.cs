@@ -30,10 +30,9 @@ namespace FastTunnel.Core.Client
         DateTime lastHeart;
         Thread th;
 
-        public FastTunnelClient(ClientConfig clientConfig, ILogger<FastTunnelClient> logger)
+        public FastTunnelClient(ILogger<FastTunnelClient> logger)
         {
             _logger = logger;
-            _clientConfig = clientConfig;
 
             initailTimer();
         }
@@ -106,6 +105,11 @@ namespace FastTunnel.Core.Client
                 _client.Socket.Close();
                 _logger.LogDebug("已退出登录\n");
             }
+        }
+
+        public void SetConfig(ClientConfig config)
+        {
+            _clientConfig = config;
         }
 
         public void Login()
