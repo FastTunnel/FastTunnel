@@ -17,7 +17,7 @@ namespace FastTunnel.Core.Core
 {
     public class FastTunnelClient
     {
-        ClientConfig _clientConfig;
+        SuiDaoServer _serverConfig;
 
         Connecter _client;
 
@@ -86,8 +86,10 @@ namespace FastTunnel.Core.Core
             }
         }
 
-        public void Login(Func<Connecter> fun)
+        public void Login(Func<Connecter> fun, SuiDaoServer serverConfig)
         {
+            _serverConfig = serverConfig;
+
             login = fun;
             _client = login.Invoke();
             LogSuccess(_client.Socket);
@@ -114,11 +116,6 @@ namespace FastTunnel.Core.Core
                 _client.Socket.Close();
                 _logger.LogDebug("已退出登录\n");
             }
-        }
-
-        public void SetConfig(ClientConfig config)
-        {
-            _clientConfig = config;
         }
 
         private void LogSuccess(Socket socket)
@@ -205,7 +202,7 @@ namespace FastTunnel.Core.Core
                         break;
                     case MessageType.S_NewCustomer:
                         var request = (Msg.Content as JObject).ToObject<NewCustomerRequest>();
-                        var connecter = new Connecter(_clientConfig.Common.ServerAddr, _clientConfig.Common.ServerPort);
+                        var connecter = new Connecter(_serverConfig.ServerAddr, _serverConfig.ServerPort);
                         connecter.Connect();
                         connecter.Send(new Message<string> { MessageType = MessageType.C_SwapMsg, Content = request.MsgId });
 
@@ -216,7 +213,7 @@ namespace FastTunnel.Core.Core
                         break;
                     case MessageType.S_NewSSH:
                         var request_ssh = (Msg.Content as JObject).ToObject<NewSSHRequest>();
-                        var connecter_ssh = new Connecter(_clientConfig.Common.ServerAddr, _clientConfig.Common.ServerPort);
+                        var connecter_ssh = new Connecter(_serverConfig.ServerAddr, _serverConfig.ServerPort);
                         connecter_ssh.Connect();
                         connecter_ssh.Send(new Message<string> { MessageType = MessageType.C_SwapMsg, Content = request_ssh.MsgId });
 

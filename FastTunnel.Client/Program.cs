@@ -52,7 +52,6 @@ namespace FastTunnel.Client
         {
             var client = servicesProvider.GetRequiredService<FastTunnelClient>();
             var config = servicesProvider.GetRequiredService<ClientConfig>();
-            client.SetConfig(config);
 
             client.Login(() =>
             {
@@ -82,7 +81,7 @@ namespace FastTunnel.Client
                 });
 
                 return _client;
-            });
+            }, config.Common);
 
             while (true)
             {

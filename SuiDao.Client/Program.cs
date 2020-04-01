@@ -30,11 +30,7 @@ namespace SuiDao.Client
             while (true)
             {
                 Console.Write("请输入登录密钥：");
-#if DEBUG
-                key = "87e931d242884ecaa9c51a5a09a00eef";
-#else
-                 key = Console.ReadLine();
-#endif
+                key = Console.ReadLine();
 
                 if (string.IsNullOrEmpty(key))
                 {
@@ -76,10 +72,13 @@ namespace SuiDao.Client
             var jobj = JObject.Parse(res);
             if ((bool)jobj["success"] == true)
             {
+                var server = jobj["data"].ToObject<SuiDaoServerConfig>();
+
                 var client = servicesProvider.GetRequiredService<FastTunnelClient>();
+
                 client.Login(() =>
                 {
-                    var server = jobj["data"].ToObject<SuiDaoServerConfig>();
+
                     Connecter _client = null;
 
                     try
@@ -99,7 +98,7 @@ namespace SuiDao.Client
                     _client.Send(new Message<LogInByKeyRequest> { MessageType = MessageType.C_LogIn, Content = new LogInByKeyRequest { key = key } });
 
                     return _client;
-                });
+                }, new SuiDaoServer { ServerAddr = server.ip, ServerPort = server.bind_port });
 
 
             }
