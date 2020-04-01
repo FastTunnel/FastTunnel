@@ -12,8 +12,9 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using FastTunnel.Core.Handlers;
 
-namespace FastTunnel.Core.Server
+namespace FastTunnel.Core.Core
 {
     public class FastTunnelServer
     {
@@ -21,13 +22,15 @@ namespace FastTunnel.Core.Server
         Dictionary<int, SSHInfo<SSHHandlerArg>> SSHList = new Dictionary<int, SSHInfo<SSHHandlerArg>>();
         Dictionary<string, NewRequest> newRequest = new Dictionary<string, NewRequest>();
 
-        private ServerConfig serverSettings;
+        private ServerConfig _serverSettings;
         ILogger<FastTunnelServer> _logger;
+        ILoginHandler _loginHandler;
 
-        public FastTunnelServer(ServerConfig serverSettings, ILogger<FastTunnelServer> logger)
+        public FastTunnelServer(ServerConfig settings, ILogger<FastTunnelServer> logger, ILoginHandler loginHandler)
         {
+            _serverSettings = settings;
             _logger = logger;
-            this.serverSettings = serverSettings;
+            _loginHandler = loginHandler;
         }
 
         public void Run()
@@ -39,17 +42,17 @@ namespace FastTunnel.Core.Server
 
         private void ListenFastTunnelClient()
         {
-            var listener = new Listener<object>(serverSettings.BindAddr, serverSettings.BindPort, _logger, ReceiveClient, null);
+            var listener = new Listener<object>(_serverSettings.BindAddr, _serverSettings.BindPort, _logger, ReceiveClient, null);
             listener.Listen();
-            _logger.LogDebug($"监听客户端 -> {serverSettings.BindAddr}:{serverSettings.BindPort}");
+            _logger.LogDebug($"监听客户端 -> {_serverSettings.BindAddr}:{_serverSettings.BindPort}");
         }
 
         private void ListenCustomer()
         {
-            var listener = new Listener<object>(serverSettings.BindAddr, serverSettings.ProxyPort_HTTP, _logger, ReceiveCustomer, null);
+            var listener = new Listener<object>(_serverSettings.BindAddr, _serverSettings.ProxyPort_HTTP, _logger, ReceiveCustomer, null);
             listener.Listen();
 
-            _logger.LogDebug($"监听HTTP -> {serverSettings.BindAddr}:{serverSettings.ProxyPort_HTTP}");
+            _logger.LogDebug($"监听HTTP -> {_serverSettings.BindAddr}:{_serverSettings.ProxyPort_HTTP}");
         }
 
         //接收消息
@@ -185,7 +188,9 @@ namespace FastTunnel.Core.Server
             {
                 _logger.LogError(ex);
                 _logger.LogError($"收到客户端 words：{words}");
-                throw;
+
+                // throw;
+                client.Send(new Message<string>() { MessageType = MessageType.Error, Content = ex.Message });
             }
         }
 
@@ -209,17 +214,17 @@ namespace FastTunnel.Core.Server
 
         private void handle(string words, Socket client)
         {
-            Message<object> msg = JsonConvert.DeserializeObject<Message<object>>(words);
+            Message<JObject> msg = JsonConvert.DeserializeObject<Message<JObject>>(words);
             HandleMsg(client, msg);
         }
 
-        private void HandleMsg(Socket client, Message<object> msg)
+        private void HandleMsg(Socket client, Message<JObject> msg)
         {
             _logger.LogDebug($"收到客户端指令：{msg.MessageType}");
             switch (msg.MessageType)
             {
                 case MessageType.C_LogIn:
-                    HandleLogin(client, msg);
+                    HandleLogin(client, _loginHandler.GetConfig(msg.Content));
 
                     // 递归调用
                     ReceiveClient(client, null);
@@ -231,7 +236,7 @@ namespace FastTunnel.Core.Server
                     ReceiveClient(client, null);
                     break;
                 case MessageType.C_SwapMsg:
-                    var msgId = (msg.Content as string);
+                    var msgId = msg.Content.ToObject<string>();
                     NewRequest request;
 
                     if (!string.IsNullOrEmpty(msgId) && newRequest.TryGetValue(msgId, out request))
@@ -258,14 +263,13 @@ namespace FastTunnel.Core.Server
             }
         }
 
-        private void HandleLogin(Socket client, Message<object> msg)
+        private void HandleLogin(Socket client, LogInRequest requet)
         {
-            var requet = (msg.Content as JObject).ToObject<LogInRequest>();
-            if (requet.ClientConfig.Webs != null && requet.ClientConfig.Webs.Count() > 0)
+            if (requet.Webs != null && requet.Webs.Count() > 0)
             {
-                foreach (var item in requet.ClientConfig.Webs)
+                foreach (var item in requet.Webs)
                 {
-                    var hostName = $"{item.SubDomain}.{serverSettings.Domain}".Trim();
+                    var hostName = $"{item.SubDomain}.{_serverSettings.Domain}".Trim();
                     if (WebList.ContainsKey(hostName))
                     {
                         _logger.LogDebug($"renew domain '{hostName}'");
@@ -279,23 +283,25 @@ namespace FastTunnel.Core.Server
                         WebList.Add(hostName, new WebInfo { Socket = client, WebConfig = item });
                     }
 
-                    client.Send(new Message<string> { MessageType = MessageType.Info, Content = $"TunnelForWeb is OK: you can visit {item.LocalIp}:{item.LocalPort} from http://{hostName}:{serverSettings.ProxyPort_HTTP}" });
+                    client.Send(new Message<string> { MessageType = MessageType.Info, Content = $"TunnelForWeb is OK: you can visit {item.LocalIp}:{item.LocalPort} from http://{hostName}:{_serverSettings.ProxyPort_HTTP}" });
                 }
+
+                client.Send(new Message<string> { MessageType = MessageType.Info, Content = "web隧道已建立完毕" });
             }
 
-            if (requet.ClientConfig.SSH != null && requet.ClientConfig.SSH.Count() > 0)
+            if (requet.SSH != null && requet.SSH.Count() > 0)
             {
-                foreach (var item in requet.ClientConfig.SSH)
+                foreach (var item in requet.SSH)
                 {
                     try
                     {
-                        if (item.RemotePort.Equals(serverSettings.BindPort))
+                        if (item.RemotePort.Equals(_serverSettings.BindPort))
                         {
                             _logger.LogError($"RemotePort can not be same with BindPort: {item.RemotePort}");
                             continue;
                         }
 
-                        if (item.RemotePort.Equals(serverSettings.ProxyPort_HTTP))
+                        if (item.RemotePort.Equals(_serverSettings.ProxyPort_HTTP))
                         {
                             _logger.LogError($"RemotePort can not be same with ProxyPort_HTTP: {item.RemotePort}");
                             continue;
@@ -316,7 +322,7 @@ namespace FastTunnel.Core.Server
                         SSHList.Add(item.RemotePort, new SSHInfo<SSHHandlerArg> { Listener = ls, Socket = client, SSHConfig = item });
                         _logger.LogDebug($"SSH proxy success: {item.RemotePort} -> {item.LocalIp}:{item.LocalPort}");
 
-                        client.Send(new Message<string> { MessageType = MessageType.Info, Content = $"TunnelForSSH is OK: {requet.ClientConfig.Common.ip}:{item.RemotePort}->{item.LocalIp}:{item.LocalPort}" });
+                        client.Send(new Message<string> { MessageType = MessageType.Info, Content = $"TunnelForSSH is OK: [ServerAddr]:{item.RemotePort}->{item.LocalIp}:{item.LocalPort}" });
                     }
                     catch (Exception ex)
                     {
@@ -326,6 +332,8 @@ namespace FastTunnel.Core.Server
                         continue;
                     }
                 }
+
+                client.Send(new Message<string> { MessageType = MessageType.Info, Content = "远程桌面隧道已建立完毕" });
             }
         }
 

@@ -1,5 +1,4 @@
-﻿using FastTunnel.Core.Client;
-using FastTunnel.Core.Config;
+﻿using FastTunnel.Core.Config;
 using System;
 using System.Collections.Generic;
 using System.Linq;

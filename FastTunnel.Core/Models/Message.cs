@@ -27,6 +27,6 @@ namespace FastTunnel.Core.Models
 
         LogDebug,
 
-        Error
+        Error,
     }
 }

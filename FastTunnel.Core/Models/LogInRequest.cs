@@ -7,6 +7,8 @@ namespace FastTunnel.Core.Models
 {
     public class LogInRequest
     {
-        public ClientConfig ClientConfig { get; set; }
+        public IEnumerable<WebConfig> Webs { get; set; }
+
+        public IEnumerable<SSHConfig> SSH { get; set; }
     }
 }

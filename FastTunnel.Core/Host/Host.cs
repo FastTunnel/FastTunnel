@@ -1,5 +1,4 @@
 ﻿using FastTunnel.Core.Config;
-using FastTunnel.Core.Server;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;

@@ -1,11 +1,13 @@
 ﻿using FastTunnel.Core;
-using FastTunnel.Core.Client;
+using FastTunnel.Core.Config;
+using FastTunnel.Core.Core;
 using FastTunnel.Core.Host;
 using FastTunnel.Core.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NLog;
+using SuiDao.Client.Models;
 using System;
 using System.Net.Sockets;
 using System.Threading;
@@ -14,6 +16,10 @@ namespace SuiDao.Client
 {
     class Program
     {
+        /// <summary>
+        /// suidao.io 客户端
+        /// </summary>
+        /// <param name="args"></param>
         static void Main(string[] args)
         {
             LogManager.LoadConfiguration("Nlog.config");
@@ -65,45 +71,42 @@ namespace SuiDao.Client
 
         private static void Run(IServiceProvider servicesProvider, ILogger _logger, string key)
         {
-            var client = servicesProvider.GetRequiredService<FastTunnelClient>();
-
             // https://localhost:5002
             var res = HttpHelper.PostAsJson("https://api1.suidao.io/api/Client/GetServerByKey", $"{{ \"key\":\"{key}\"}}").Result;
             var jobj = JObject.Parse(res);
             if ((bool)jobj["success"] == true)
             {
-                var server = jobj["data"].ToObject<FastTunnelServer>();
+                var client = servicesProvider.GetRequiredService<FastTunnelClient>();
+                client.Login(() =>
+                {
+                    var server = jobj["data"].ToObject<SuiDaoServerConfig>();
+                    Connecter _client = null;
+
+                    try
+                    {
+                        _client = new Connecter(server.ip, server.bind_port);
+
+                        _client.Connect();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error(ex.Message);
+                        _client.Socket.Close();
+                        throw;
+                    }
+
+                    // 登录
+                    _client.Send(new Message<LogInByKeyRequest> { MessageType = MessageType.C_LogIn, Content = new LogInByKeyRequest { key = key } });
+
+                    return _client;
+                });
+
 
             }
             else
             {
-
+                Console.WriteLine(jobj["errorMsg"].ToString());
             }
-
-            //client.Login(() =>
-            //{
-            //    //连接到的目标IP
-            //    Connecter _client = null;
-
-            //    try
-            //    {
-            //        _client = new Connecter(config.Common.ServerAddr, config.Common.ServerPort);
-            //        _client.Connect();
-            //    }
-            //    catch (Exception ex)
-            //    {
-            //        _logger.Error(ex.Message);
-            //        _client.Socket.Close();
-
-            //        Thread.Sleep(5000);
-            //        Login();
-            //        return;
-            //    }
-
-            //    // 登录
-            //    _client.Send(new Message<LogInRequest> { MessageType = MessageType.LOGIN_ERVERYONE, Content = new LogInRequest { ClientConfig = config } });
-
-            //});
         }
 
         private static void Config(ServiceCollection service)

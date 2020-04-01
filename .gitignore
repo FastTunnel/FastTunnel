@@ -7,3 +7,6 @@ obj
 /FastTunnel.Server/Properties/PublishProfiles/*.user
 /FastTunnel.Client/Properties/PublishProfiles/*.pubxml
 publish
+/SuiDao.Client/Properties/PublishProfiles/*.user
+/SuiDao.Client/*.user
+/SuiDao.Client/Properties/PublishProfiles/FolderProfile.pubxml

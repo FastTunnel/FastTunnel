@@ -9,7 +9,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FastTunnel.Core", "FastTunn
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FastTunnel.Server", "FastTunnel.Server\FastTunnel.Server.csproj", "{DEF2E322-9075-4C3F-9967-7EAF0EE28CEB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SuiDao.Client", "SuiDao.Client\SuiDao.Client.csproj", "{23E6C767-3927-4281-9C1D-C0A724D869A9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SuiDao.Client", "SuiDao.Client\SuiDao.Client.csproj", "{23E6C767-3927-4281-9C1D-C0A724D869A9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SuiDao.Server", "SuiDao.Server\SuiDao.Server.csproj", "{9DA66955-1497-42BA-B345-3C4D2F3E37A9}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "suidao.io", "suidao.io", "{024D84DC-BA2E-4CBC-8D9B-0187C0C09AE1}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "FastTunnel", "FastTunnel", "{051B4BB3-621D-4386-BA67-BB8896FDB29E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,9 +39,20 @@ Global
 		{23E6C767-3927-4281-9C1D-C0A724D869A9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{23E6C767-3927-4281-9C1D-C0A724D869A9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{23E6C767-3927-4281-9C1D-C0A724D869A9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9DA66955-1497-42BA-B345-3C4D2F3E37A9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9DA66955-1497-42BA-B345-3C4D2F3E37A9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9DA66955-1497-42BA-B345-3C4D2F3E37A9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9DA66955-1497-42BA-B345-3C4D2F3E37A9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{29DA74AE-FFBD-4A24-82B9-B5675593B63A} = {051B4BB3-621D-4386-BA67-BB8896FDB29E}
+		{C8ADFEB1-59DB-4CE3-8D04-5B547107BCCB} = {051B4BB3-621D-4386-BA67-BB8896FDB29E}
+		{DEF2E322-9075-4C3F-9967-7EAF0EE28CEB} = {051B4BB3-621D-4386-BA67-BB8896FDB29E}
+		{23E6C767-3927-4281-9C1D-C0A724D869A9} = {024D84DC-BA2E-4CBC-8D9B-0187C0C09AE1}
+		{9DA66955-1497-42BA-B345-3C4D2F3E37A9} = {024D84DC-BA2E-4CBC-8D9B-0187C0C09AE1}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {3D9C6B44-6706-4EE8-9043-802BBE474A2E}

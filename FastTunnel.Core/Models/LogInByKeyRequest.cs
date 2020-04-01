@@ -4,10 +4,8 @@ using System.Text;
 
 namespace FastTunnel.Core.Models
 {
-    public class FastTunnelServer
+    public class LogInByKeyRequest
     {
-        public string ip { get; set; }
-
-        public int bind_port { get; set; }
+        public string key { get; set; }
     }
 }

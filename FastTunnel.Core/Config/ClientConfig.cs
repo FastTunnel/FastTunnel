@@ -7,10 +7,17 @@ namespace FastTunnel.Core.Config
 {
     public class ClientConfig
     {
-        public FastTunnelServer Common { get; set; }
+        public SuiDaoServer Common { get; set; }
 
         public IEnumerable<WebConfig> Webs { get; set; }
 
         public IEnumerable<SSHConfig> SSH { get; set; }
+    }
+
+    public class SuiDaoServer
+    {
+        public string ServerAddr { get; set; }
+
+        public int ServerPort { get; set; }
     }
 }

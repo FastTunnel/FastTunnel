@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using FastTunnel.Core;
-using FastTunnel.Core.Client;
 using System;
 using System.IO;
 using System.Net;
@@ -12,6 +11,8 @@ using System.Threading.Tasks;
 using NLog;
 using FastTunnel.Core.Host;
 using FastTunnel.Core.Config;
+using FastTunnel.Core.Core;
+using FastTunnel.Core.Models;
 
 namespace FastTunnel.Client
 {
@@ -52,7 +53,36 @@ namespace FastTunnel.Client
             var client = servicesProvider.GetRequiredService<FastTunnelClient>();
             var config = servicesProvider.GetRequiredService<ClientConfig>();
             client.SetConfig(config);
-            client.Login();
+
+            client.Login(() =>
+            {
+                Connecter _client;
+
+                try
+                {
+                    // 连接到的目标IP
+                    _client = new Connecter(config.Common.ServerAddr, config.Common.ServerPort);
+                    _client.Connect();
+                }
+                catch (Exception ex)
+                {
+                    Thread.Sleep(5000);
+                    throw;
+                }
+
+                // 登录
+                _client.Send(new Message<LogInRequest>
+                {
+                    MessageType = MessageType.C_LogIn,
+                    Content = new LogInRequest
+                    {
+                        Webs = config.Webs,
+                        SSH = config.SSH
+                    }
+                });
+
+                return _client;
+            });
 
             while (true)
             {

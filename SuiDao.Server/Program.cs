@@ -1,25 +1,17 @@
-﻿using Microsoft.Extensions.Configuration;
-using FastTunnel.Core;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
-using NLog.Extensions.Logging;
-using Microsoft.Extensions.Logging;
-using NLog;
-using FastTunnel.Core.Config;
-using FastTunnel.Core.Host;
+﻿using FastTunnel.Core.Config;
 using FastTunnel.Core.Core;
+using FastTunnel.Core.Handlers;
+using FastTunnel.Core.Host;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using NLog;
+using System;
+using System.IO;
+using System.Threading;
 
-namespace FastTunnel.Server
+namespace SuiDao.Server
 {
-    class Program
+    public class Program
     {
         static Appsettings appsettings;
 
@@ -65,7 +57,8 @@ namespace FastTunnel.Server
         private static void Config(ServiceCollection service)
         {
             service.AddTransient<FastTunnelServer>()
-                .AddSingleton<ServerConfig>(implementationFactory);
+                .AddSingleton<ServerConfig>(implementationFactory)
+                .AddTransient<ILoginHandler, SuiDaoLoginHandler>();
         }
 
         private static void Run(IServiceProvider servicesProvider)
