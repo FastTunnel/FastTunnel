@@ -5,34 +5,17 @@
 [![Build status](https://github.com/anjoy8/blog.core/workflows/.NET%20Core/badge.svg)](https://github.com/SpringHgui/FastTunnel/actions)
 [![License](https://img.shields.io/badge/license-Apache%202-green.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![CircleCI](https://circleci.com/gh/gothinkster/aspnetcore-realworld-example-app.svg?style=svg)](https://circleci.com/gh/SpringHgui/FastTunnel)
-- FastTunnel是一款跨平台网络代理工具，能够快速进行内网穿透。既然是代理，所以使用的时应具备
-1. 拥有一台公网的服务器
-2. 拥有自己的域名（如果使用域名穿透访问web则需要）  
-  
-***如果上面两个都没有，您还可以使用下面的测试服务器。***
+- FastTunnel是一款跨平台内网穿透工具，提供反向代理内网服务，将内网服务暴露在公网供别人访问，您可以通过本项目快速搭建一个穿透服务，需要的物料如下：
+1. 一台公网的服务器
+2. 自己的域名（如果使用域名穿透访问内网站点则需要）  
 
 ## 特性
 - [x] 用自定义域名访问内网web服务（常用于微信开发）
 - [x] 远程内网计算机 Windows/Linux/Mac
+- [x] 端口转发，访问内网任意端口提供的服务 mysql、redis、ftp等等
 - [ ] 点对点p2p穿透
 
-## 测试服务器 （请勿滥用）
-```
-ip `45.132.12.57`
-```
-```
-已开端口号，括号内容为本端口的测试用途  
-1270(httpProxy) 1271(bindPort) 1273(ssh) 1274(ssh) 1275(ssh)
-```
-```
-域名解析
-A *.ft.suidao.io
-```
-```
-本服务器已运行 `FastTunnel.Server` 本地可以直接运行客户端连接  
-nginx反向代理已开启，web穿透可不加端口号1270即可直接访问。
-```
-## 快速使用
+## 快速开始
 1. 在 [releases](https://github.com/SpringHgui/FastTunnel/releases) 页面下载对应的程序
 2. 分别修改配置文件`appsettings.json`
 3. 服务端运行FastTunnel.Server.exe(windows)，其他平台安装dotnetcore运行时，执行 dotnet FastTunnel.Server.dll
