@@ -214,11 +214,11 @@ namespace FastTunnel.Core.Core
 
         private void handle(string words, Socket client)
         {
-            Message<JObject> msg = JsonConvert.DeserializeObject<Message<JObject>>(words);
+            Message<object> msg = JsonConvert.DeserializeObject<Message<object>>(words);
             HandleMsg(client, msg);
         }
 
-        private void HandleMsg(Socket client, Message<JObject> msg)
+        private void HandleMsg(Socket client, Message<object> msg)
         {
             _logger.LogDebug($"收到客户端指令：{msg.MessageType}");
             switch (msg.MessageType)
@@ -236,7 +236,7 @@ namespace FastTunnel.Core.Core
                     ReceiveClient(client, null);
                     break;
                 case MessageType.C_SwapMsg:
-                    var msgId = msg.Content.ToObject<string>();
+                    var msgId = msg.Content as string;
                     NewRequest request;
 
                     if (!string.IsNullOrEmpty(msgId) && newRequest.TryGetValue(msgId, out request))

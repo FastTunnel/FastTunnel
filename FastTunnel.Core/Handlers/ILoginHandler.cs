@@ -8,6 +8,6 @@ namespace FastTunnel.Core.Handlers
 {
     public interface ILoginHandler
     {
-        LogInRequest GetConfig(JObject content);
+        LogInRequest GetConfig(object content);
     }
 }

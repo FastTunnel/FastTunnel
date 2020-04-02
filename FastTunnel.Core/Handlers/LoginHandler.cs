@@ -8,9 +8,9 @@ namespace FastTunnel.Core.Handlers
 {
     public class LoginHandler : ILoginHandler
     {
-        public LogInRequest GetConfig(JObject content)
+        public LogInRequest GetConfig(object content)
         {
-            return content.ToObject<LogInRequest>();
+            return (content as JObject).ToObject<LogInRequest>();
         }
     }
 }

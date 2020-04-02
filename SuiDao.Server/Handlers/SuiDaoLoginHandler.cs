@@ -10,9 +10,9 @@ namespace SuiDao.Server
 {
     public class SuiDaoLoginHandler : ILoginHandler
     {
-        public LogInRequest GetConfig(JObject content)
+        public LogInRequest GetConfig(object content)
         {
-            var key = content["key"].ToString();
+            var key = (content as JObject)["key"].ToString();
             var res = HttpHelper.PostAsJson("https://api1.suidao.io/api/Client/GetTunnelByKey", $"{{ \"key\":\"{key}\"}}").Result;
             var jobj = JObject.Parse(res);
             if ((bool)jobj["success"] == true)
