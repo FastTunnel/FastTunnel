@@ -27,9 +27,11 @@ namespace FastTunnel.Core.Core
         System.Timers.Timer timer_heart;
 
         Func<Connecter> login;
-        double heartInterval = 5000;
+        double heartInterval = 10 * 1000; // 10 秒心跳
         DateTime lastHeart;
         Thread th;
+
+        int reTrySpan = 30 * 1000; // 登陆失败后重试间隔
 
         public FastTunnelClient(ILogger<FastTunnelClient> logger)
         {
@@ -42,7 +44,7 @@ namespace FastTunnel.Core.Core
         {
             timer_heart = new System.Timers.Timer();
             timer_heart.AutoReset = true;
-            timer_heart.Interval = heartInterval; // 5秒心跳
+            timer_heart.Interval = heartInterval;
             timer_heart.Elapsed += HeartElapsed;
 
             timer_timeout = new System.Timers.Timer();
@@ -70,7 +72,19 @@ namespace FastTunnel.Core.Core
         private void reConnect()
         {
             Close();
-            _client = login.Invoke();
+            try
+            {
+                _client = login.Invoke();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message);
+
+                Thread.Sleep(reTrySpan);
+                reConnect();
+                return;
+            }
+
             LogSuccess(_client.Socket);
         }
 
@@ -78,7 +92,7 @@ namespace FastTunnel.Core.Core
         {
             try
             {
-                _client.Send(new Message<string> { MessageType = MessageType.Heart, Content = null });
+                _client.Send(new Message<object> { MessageType = MessageType.Heart, Content = null });
             }
             catch (Exception ex)
             {
@@ -91,7 +105,19 @@ namespace FastTunnel.Core.Core
             _serverConfig = serverConfig;
 
             login = fun;
-            _client = login.Invoke();
+            try
+            {
+                _client = login.Invoke();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message);
+
+                Thread.Sleep(reTrySpan);
+                reConnect();
+                return;
+            }
+
             LogSuccess(_client.Socket);
         }
 
@@ -204,7 +230,7 @@ namespace FastTunnel.Core.Core
                         var request = (Msg.Content as JObject).ToObject<NewCustomerRequest>();
                         var connecter = new Connecter(_serverConfig.ServerAddr, _serverConfig.ServerPort);
                         connecter.Connect();
-                        connecter.Send(new Message<string> { MessageType = MessageType.C_SwapMsg, Content = request.MsgId });
+                        connecter.Send(new Message<SwapMsgModel> { MessageType = MessageType.C_SwapMsg, Content = new SwapMsgModel(request.MsgId) });
 
                         var localConnecter = new Connecter(request.WebConfig.LocalIp, request.WebConfig.LocalPort);
                         localConnecter.Connect();
@@ -215,24 +241,31 @@ namespace FastTunnel.Core.Core
                         var request_ssh = (Msg.Content as JObject).ToObject<NewSSHRequest>();
                         var connecter_ssh = new Connecter(_serverConfig.ServerAddr, _serverConfig.ServerPort);
                         connecter_ssh.Connect();
-                        connecter_ssh.Send(new Message<string> { MessageType = MessageType.C_SwapMsg, Content = request_ssh.MsgId });
+                        connecter_ssh.Send(new Message<SwapMsgModel> { MessageType = MessageType.C_SwapMsg, Content = new SwapMsgModel(request_ssh.MsgId) });
 
                         var localConnecter_ssh = new Connecter(request_ssh.SSHConfig.LocalIp, request_ssh.SSHConfig.LocalPort);
                         localConnecter_ssh.Connect();
 
                         new SocketSwap(connecter_ssh.Socket, localConnecter_ssh.Socket).StartSwap();
                         break;
-                    case MessageType.Info:
-                        var info = Msg.Content.ToJson();
-                        _logger.LogInformation("From Server:" + info);
-                        break;
-                    case MessageType.LogDebug:
-                        var LogDebug = Msg.Content.ToJson();
-                        _logger.LogDebug("From Server:" + LogDebug);
-                        break;
-                    case MessageType.Error:
-                        var err = Msg.Content.ToJson();
-                        _logger.LogError("From Server:" + err);
+                    case MessageType.Log:
+                        var msg = (Msg.Content as JObject).ToObject<LogMsg>();
+
+                        switch (msg.MsgType)
+                        {
+                            case LogMsgType.Info:
+                                _logger.LogInformation("From Server:" + msg.Msg);
+                                break;
+                            case LogMsgType.Error:
+                                _logger.LogError("From Server:" + msg.Msg);
+                                break;
+                            case LogMsgType.Debug:
+                                _logger.LogDebug("From Server:" + msg.Msg);
+                                break;
+                            default:
+                                break;
+                        }
+                        
                         break;
                     case MessageType.C_SwapMsg:
                     case MessageType.C_LogIn:

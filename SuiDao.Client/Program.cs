@@ -99,8 +99,6 @@ namespace SuiDao.Client
 
                     return _client;
                 }, new SuiDaoServer { ServerAddr = server.ip, ServerPort = server.bind_port });
-
-
             }
             else
             {

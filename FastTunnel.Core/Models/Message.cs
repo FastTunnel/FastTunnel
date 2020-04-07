@@ -23,10 +23,6 @@ namespace FastTunnel.Core.Models
         S_NewSSH,
 
         // twoway
-        Info,
-
-        LogDebug,
-
-        Error,
+        Log,
     }
 }

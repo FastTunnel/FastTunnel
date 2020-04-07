@@ -18,15 +18,16 @@ namespace FastTunnel.Core.Core
 {
     public class FastTunnelServer
     {
-        Dictionary<string, WebInfo> WebList = new Dictionary<string, WebInfo>();
-        Dictionary<int, SSHInfo<SSHHandlerArg>> SSHList = new Dictionary<int, SSHInfo<SSHHandlerArg>>();
-        Dictionary<string, NewRequest> newRequest = new Dictionary<string, NewRequest>();
+        public Dictionary<string, NewRequest> newRequest = new Dictionary<string, NewRequest>();
+        public Dictionary<string, WebInfo> WebList = new Dictionary<string, WebInfo>();
+        public Dictionary<int, SSHInfo<SSHHandlerArg>> SSHList = new Dictionary<int, SSHInfo<SSHHandlerArg>>();
+        public ServerConfig _serverSettings;
 
-        private ServerConfig _serverSettings;
         ILogger<FastTunnelServer> _logger;
-        ILoginHandler _loginHandler;
 
-        public FastTunnelServer(ServerConfig settings, ILogger<FastTunnelServer> logger, ILoginHandler loginHandler)
+        LoginHandler _loginHandler;
+
+        public FastTunnelServer(ServerConfig settings, ILogger<FastTunnelServer> logger, LoginHandler loginHandler)
         {
             _serverSettings = settings;
             _logger = logger;
@@ -143,7 +144,7 @@ namespace FastTunnel.Core.Core
             }
         }
 
-        private void ReceiveClient(Socket client, object _)
+        public void ReceiveClient(Socket client, object _)
         {
             //定义byte数组存放从客户端接收过来的数据
             byte[] buffer = new byte[1024 * 1024];
@@ -190,13 +191,13 @@ namespace FastTunnel.Core.Core
                 _logger.LogError($"收到客户端 words：{words}");
 
                 // throw;
-                client.Send(new Message<string>() { MessageType = MessageType.Error, Content = ex.Message });
+                client.Send(new Message<LogMsg>() { MessageType = MessageType.Log, Content = new LogMsg(LogMsgType.Error, ex.Message) });
             }
         }
 
         private void HandleWords(string words, Socket client)
         {
-            // 读到两个或多个指令
+            // 同时读到两个或多个指令
             var index = words.IndexOf("}{");
             if (index > 0)
             {
@@ -212,10 +213,35 @@ namespace FastTunnel.Core.Core
             }
         }
 
-        private void handle(string words, Socket client)
+        private IServerHandler handle(string words, Socket client)
         {
             Message<JObject> msg = JsonConvert.DeserializeObject<Message<JObject>>(words);
+
+            IServerHandler handler = null;
+            switch (msg.MessageType)
+            {
+                case MessageType.C_LogIn:
+                    handler = _loginHandler;
+                    break;
+                case MessageType.Heart:
+
+                    break;
+                case MessageType.C_SwapMsg:
+                case MessageType.S_NewCustomer:
+                case MessageType.S_NewSSH:
+                default:
+                    handler = null;
+                    break;
+            }
+
+            if (handler != null)
+            {
+                handler.HandlerMsg(this, client, msg);
+                return handler;
+            }
+
             HandleMsg(client, msg);
+            return null;
         }
 
         private void HandleMsg(Socket client, Message<JObject> msg)
@@ -223,12 +249,6 @@ namespace FastTunnel.Core.Core
             _logger.LogDebug($"收到客户端指令：{msg.MessageType}");
             switch (msg.MessageType)
             {
-                case MessageType.C_LogIn:
-                    HandleLogin(client, _loginHandler.GetConfig(msg.Content));
-
-                    // 递归调用
-                    ReceiveClient(client, null);
-                    break;
                 case MessageType.Heart:
                     client.Send(new Message<string>() { MessageType = MessageType.Heart, Content = null });
 
@@ -236,10 +256,10 @@ namespace FastTunnel.Core.Core
                     ReceiveClient(client, null);
                     break;
                 case MessageType.C_SwapMsg:
-                    var msgId = msg.Content.ToObject<string>();
+                    var SwapMsg = msg.Content.ToObject<SwapMsgModel>();
                     NewRequest request;
 
-                    if (!string.IsNullOrEmpty(msgId) && newRequest.TryGetValue(msgId, out request))
+                    if (!string.IsNullOrEmpty(SwapMsg.msgId) && newRequest.TryGetValue(SwapMsg.msgId, out request))
                     {
                         // Join
                         Task.Run(() =>
@@ -252,8 +272,8 @@ namespace FastTunnel.Core.Core
                     else
                     {
                         // 未找到，关闭连接
-                        _logger.LogError($"未找到请求:{msgId}");
-                        client.Send(new Message<string> { MessageType = MessageType.Error, Content = $"未找到请求:{msgId}" });
+                        _logger.LogError($"未找到请求:{SwapMsg.msgId}");
+                        client.Send(new Message<LogMsg> { MessageType = MessageType.Log, Content = new LogMsg(LogMsgType.Debug, $"未找到请求:{SwapMsg.msgId}") });
                     }
 
                     break;
@@ -283,10 +303,10 @@ namespace FastTunnel.Core.Core
                         WebList.Add(hostName, new WebInfo { Socket = client, WebConfig = item });
                     }
 
-                    client.Send(new Message<string> { MessageType = MessageType.Info, Content = $"TunnelForWeb is OK: you can visit {item.LocalIp}:{item.LocalPort} from http://{hostName}:{_serverSettings.ProxyPort_HTTP}" });
+                    client.Send(new Message<LogMsg> { MessageType = MessageType.Log, Content = new LogMsg(LogMsgType.Info, $"TunnelForWeb is OK: you can visit {item.LocalIp}:{item.LocalPort} from http://{hostName}:{_serverSettings.ProxyPort_HTTP}") });
                 }
 
-                client.Send(new Message<string> { MessageType = MessageType.Info, Content = "web隧道已建立完毕" });
+                client.Send(new Message<LogMsg> { MessageType = MessageType.Log, Content = new LogMsg(LogMsgType.Info, "web隧道已建立完毕") });
             }
 
             if (requet.SSH != null && requet.SSH.Count() > 0)
@@ -322,18 +342,18 @@ namespace FastTunnel.Core.Core
                         SSHList.Add(item.RemotePort, new SSHInfo<SSHHandlerArg> { Listener = ls, Socket = client, SSHConfig = item });
                         _logger.LogDebug($"SSH proxy success: {item.RemotePort} -> {item.LocalIp}:{item.LocalPort}");
 
-                        client.Send(new Message<string> { MessageType = MessageType.Info, Content = $"TunnelForSSH is OK: [ServerAddr]:{item.RemotePort}->{item.LocalIp}:{item.LocalPort}" });
+                        client.Send(new Message<LogMsg> { MessageType = MessageType.Log, Content = new LogMsg(LogMsgType.Info, $"TunnelForSSH is OK: [ServerAddr]:{item.RemotePort}->{item.LocalIp}:{item.LocalPort}") });
                     }
                     catch (Exception ex)
                     {
                         _logger.LogError($"SSH proxy error: {item.RemotePort} -> {item.LocalIp}:{item.LocalPort}");
                         _logger.LogError(ex.Message);
-                        client.Send(new Message<string> { MessageType = MessageType.Error, Content = ex.Message });
+                        client.Send(new Message<LogMsg> { MessageType = MessageType.Log, Content = new LogMsg(LogMsgType.Error, ex.Message) });
                         continue;
                     }
                 }
 
-                client.Send(new Message<string> { MessageType = MessageType.Info, Content = "远程桌面隧道已建立完毕" });
+                client.Send(new Message<LogMsg> { MessageType = MessageType.Log, Content = new LogMsg(LogMsgType.Info, "远程桌面隧道已建立完毕") });
             }
         }
 

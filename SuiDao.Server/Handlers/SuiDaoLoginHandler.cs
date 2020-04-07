@@ -1,14 +1,16 @@
-﻿using FastTunnel.Core.Exceptions;
+﻿using FastTunnel.Core.Core;
+using FastTunnel.Core.Exceptions;
 using FastTunnel.Core.Handlers;
 using FastTunnel.Core.Models;
 using Newtonsoft.Json.Linq;
 using SuiDao.Client;
 using System;
 using System.Collections.Generic;
+using System.Net.Sockets;
 
 namespace SuiDao.Server
 {
-    public class SuiDaoLoginHandler : ILoginHandler
+    public class SuiDaoLoginHandler : IConfigHandler
     {
         public LogInRequest GetConfig(JObject content)
         {

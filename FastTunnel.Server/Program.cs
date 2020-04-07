@@ -16,6 +16,7 @@ using NLog;
 using FastTunnel.Core.Config;
 using FastTunnel.Core.Host;
 using FastTunnel.Core.Core;
+using FastTunnel.Core.Handlers;
 
 namespace FastTunnel.Server
 {
@@ -65,6 +66,7 @@ namespace FastTunnel.Server
         private static void Config(ServiceCollection service)
         {
             service.AddTransient<FastTunnelServer>()
+                .AddSingleton<LoginHandler>()
                 .AddSingleton<ServerConfig>(implementationFactory);
         }
 

@@ -6,11 +6,8 @@ using System.Text;
 
 namespace FastTunnel.Core.Handlers
 {
-    public class LoginHandler : ILoginHandler
+    public interface IConfigHandler
     {
-        public LogInRequest GetConfig(JObject content)
-        {
-            return content.ToObject<LogInRequest>();
-        }
+        LogInRequest GetConfig(JObject content);
     }
 }
