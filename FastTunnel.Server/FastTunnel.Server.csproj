@@ -3,6 +3,11 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
   </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="Program.cs.BASE.cs" />
+    <Compile Remove="Program.cs.LOCAL.cs" />
+    <Compile Remove="Program.cs.REMOTE.cs" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="3.1.0" />

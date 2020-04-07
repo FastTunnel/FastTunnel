@@ -66,11 +66,7 @@ namespace FastTunnel.Server
         private static void Config(ServiceCollection service)
         {
             service.AddTransient<FastTunnelServer>()
-<<<<<<< HEAD
                 .AddSingleton<LoginHandler>()
-=======
-                .AddTransient<ILoginHandler, LoginHandler>()
->>>>>>> b12e8925412fbe56feb317950a40e7bd799638d3
                 .AddSingleton<ServerConfig>(implementationFactory);
         }
 
