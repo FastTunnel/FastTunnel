@@ -244,7 +244,7 @@ namespace FastTunnel.Core.Core
             return null;
         }
 
-        private void HandleMsg(Socket client, Message<JObject> msg)
+        private void HandleMsg(Socket client, Message<object> msg)
         {
             _logger.LogDebug($"收到客户端指令：{msg.MessageType}");
             switch (msg.MessageType)
