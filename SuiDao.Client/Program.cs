@@ -33,8 +33,15 @@ namespace SuiDao.Client
             var logger = LogManager.GetCurrentClassLogger();
             logger.Debug("===== SuiDao Client Start =====");
 
+            var keyFile = Path.Combine(AppContext.BaseDirectory, KeyLogName);
+            if (!File.Exists(keyFile))
+            {
+                NewKey(logger);
+                return;
+            }
+
             List<string> keys = new List<string>();
-            using (var reader = new StreamReader(Path.Combine(AppContext.BaseDirectory, KeyLogName)))
+            using (var reader = new StreamReader(keyFile))
             {
                 while (!reader.EndOfStream)
                 {
@@ -62,8 +69,6 @@ namespace SuiDao.Client
                 HandleNum(keys, logger);
                 return;
             }
-
-            NewKey(logger);
         }
 
         private static void NewKey(ILogger logger)
