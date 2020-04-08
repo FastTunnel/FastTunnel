@@ -246,7 +246,11 @@ namespace FastTunnel.Core.Core
 
         private void HandleMsg(Socket client, Message<JObject> msg)
         {
-            _logger.LogDebug($"收到客户端指令：{msg.MessageType}");
+            if (msg.MessageType != MessageType.Heart)
+            {
+                _logger.LogDebug($"收到客户端指令：{msg.MessageType}");
+            }
+
             switch (msg.MessageType)
             {
                 case MessageType.Heart:
@@ -281,91 +285,6 @@ namespace FastTunnel.Core.Core
                 default:
                     throw new Exception($"参数异常, 不支持消息类型 {msg.MessageType}");
             }
-        }
-
-        private void HandleLogin(Socket client, LogInRequest requet)
-        {
-            if (requet.Webs != null && requet.Webs.Count() > 0)
-            {
-                foreach (var item in requet.Webs)
-                {
-                    var hostName = $"{item.SubDomain}.{_serverSettings.Domain}".Trim();
-                    if (WebList.ContainsKey(hostName))
-                    {
-                        _logger.LogDebug($"renew domain '{hostName}'");
-
-                        WebList.Remove(hostName);
-                        WebList.Add(hostName, new WebInfo { Socket = client, WebConfig = item });
-                    }
-                    else
-                    {
-                        _logger.LogDebug($"new domain '{hostName}'");
-                        WebList.Add(hostName, new WebInfo { Socket = client, WebConfig = item });
-                    }
-
-                    client.Send(new Message<LogMsg> { MessageType = MessageType.Log, Content = new LogMsg(LogMsgType.Info, $"TunnelForWeb is OK: you can visit {item.LocalIp}:{item.LocalPort} from http://{hostName}:{_serverSettings.ProxyPort_HTTP}") });
-                }
-
-                client.Send(new Message<LogMsg> { MessageType = MessageType.Log, Content = new LogMsg(LogMsgType.Info, "web隧道已建立完毕") });
-            }
-
-            if (requet.SSH != null && requet.SSH.Count() > 0)
-            {
-                foreach (var item in requet.SSH)
-                {
-                    try
-                    {
-                        if (item.RemotePort.Equals(_serverSettings.BindPort))
-                        {
-                            _logger.LogError($"RemotePort can not be same with BindPort: {item.RemotePort}");
-                            continue;
-                        }
-
-                        if (item.RemotePort.Equals(_serverSettings.ProxyPort_HTTP))
-                        {
-                            _logger.LogError($"RemotePort can not be same with ProxyPort_HTTP: {item.RemotePort}");
-                            continue;
-                        }
-
-                        SSHInfo<SSHHandlerArg> old;
-                        if (SSHList.TryGetValue(item.RemotePort, out old))
-                        {
-                            _logger.LogDebug($"Remove Listener {old.Listener.IP}:{old.Listener.Port}");
-                            old.Listener.ShutdownAndClose();
-                            SSHList.Remove(item.RemotePort);
-                        }
-
-                        var ls = new Listener<SSHHandlerArg>("0.0.0.0", item.RemotePort, _logger, SSHHandler, new SSHHandlerArg { LocalClient = client, SSHConfig = item });
-                        ls.Listen();
-
-                        // listen success
-                        SSHList.Add(item.RemotePort, new SSHInfo<SSHHandlerArg> { Listener = ls, Socket = client, SSHConfig = item });
-                        _logger.LogDebug($"SSH proxy success: {item.RemotePort} -> {item.LocalIp}:{item.LocalPort}");
-
-                        client.Send(new Message<LogMsg> { MessageType = MessageType.Log, Content = new LogMsg(LogMsgType.Info, $"TunnelForSSH is OK: [ServerAddr]:{item.RemotePort}->{item.LocalIp}:{item.LocalPort}") });
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError($"SSH proxy error: {item.RemotePort} -> {item.LocalIp}:{item.LocalPort}");
-                        _logger.LogError(ex.Message);
-                        client.Send(new Message<LogMsg> { MessageType = MessageType.Log, Content = new LogMsg(LogMsgType.Error, ex.Message) });
-                        continue;
-                    }
-                }
-
-                client.Send(new Message<LogMsg> { MessageType = MessageType.Log, Content = new LogMsg(LogMsgType.Info, "远程桌面隧道已建立完毕") });
-            }
-        }
-
-        private void SSHHandler(Socket client, SSHHandlerArg local)
-        {
-            var msgid = Guid.NewGuid().ToString();
-            local.LocalClient.Send(new Message<NewSSHRequest> { MessageType = MessageType.S_NewSSH, Content = new NewSSHRequest { MsgId = msgid, SSHConfig = local.SSHConfig } });
-
-            newRequest.Add(msgid, new NewRequest
-            {
-                CustomerClient = client,
-            });
         }
     }
 }
