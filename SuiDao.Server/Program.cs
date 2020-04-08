@@ -58,6 +58,7 @@ namespace SuiDao.Server
         {
             service.AddTransient<FastTunnelServer>()
                 .AddSingleton<ServerConfig>(implementationFactory)
+                .AddSingleton<LoginHandler>()
                 .AddTransient<IConfigHandler, SuiDaoLoginHandler>();
         }
 

@@ -249,28 +249,35 @@ namespace FastTunnel.Core.Core
                         new SocketSwap(connecter_ssh.Socket, localConnecter_ssh.Socket).StartSwap();
                         break;
                     case MessageType.Log:
-                        var msg = (Msg.Content as JObject).ToObject<LogMsg>();
-
-                        switch (msg.MsgType)
+                        try
                         {
-                            case LogMsgType.Info:
-                                _logger.LogInformation("From Server:" + msg.Msg);
-                                break;
-                            case LogMsgType.Error:
-                                _logger.LogError("From Server:" + msg.Msg);
-                                break;
-                            case LogMsgType.Debug:
-                                _logger.LogDebug("From Server:" + msg.Msg);
-                                break;
-                            default:
-                                break;
+                            var msg = (Msg.Content as JObject).ToObject<LogMsg>();
+
+                            switch (msg.MsgType)
+                            {
+                                case LogMsgType.Info:
+                                    _logger.LogInformation("From Server:" + msg.Msg);
+                                    break;
+                                case LogMsgType.Error:
+                                    _logger.LogError("From Server:" + msg.Msg);
+                                    break;
+                                case LogMsgType.Debug:
+                                    _logger.LogDebug("From Server:" + msg.Msg);
+                                    break;
+                                default:
+                                    break;
+                            }
                         }
-                        
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex);
+                        }
                         break;
                     case MessageType.C_SwapMsg:
                     case MessageType.C_LogIn:
                     default:
-                        throw new Exception("参数异常");
+                        _logger.LogError($"未处理的消息：{Msg.MessageType} {Msg.Content}");
+                        break;
                 }
             }
             catch (Exception ex)
