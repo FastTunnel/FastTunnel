@@ -9,6 +9,7 @@ namespace FastTunnel.Core.Extensions
     public static class SocketExtension
     {
         public static void Send<T>(this Socket socket, Message<T> message)
+            where T : TunnelMassage
         {
             socket.Send(Encoding.UTF8.GetBytes(message.ToJson() + "\n"));
         }

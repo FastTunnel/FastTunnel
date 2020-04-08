@@ -13,6 +13,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using FastTunnel.Core.Handlers;
+using FastTunnel.Core.Handlers.Server;
 
 namespace FastTunnel.Core.Core
 {
@@ -26,12 +27,16 @@ namespace FastTunnel.Core.Core
         ILogger<FastTunnelServer> _logger;
 
         LoginHandler _loginHandler;
+        HeartHandler _heartHandler;
+        SwapMsgHandler _swapMsgHandler;
 
-        public FastTunnelServer(ServerConfig settings, ILogger<FastTunnelServer> logger, LoginHandler loginHandler)
+        public FastTunnelServer(ServerConfig settings, ILogger<FastTunnelServer> logger, LoginHandler loginHandler, HeartHandler heartHandler, SwapMsgHandler swapMsgHandler)
         {
             _serverSettings = settings;
             _logger = logger;
             _loginHandler = loginHandler;
+            _heartHandler = heartHandler;
+            _swapMsgHandler = swapMsgHandler;
         }
 
         public void Run()
@@ -136,7 +141,7 @@ namespace FastTunnel.Core.Core
                     Buffer = bytes
                 });
 
-                web.Socket.Send(new Message<NewCustomerRequest> { MessageType = MessageType.S_NewCustomer, Content = new NewCustomerRequest { MsgId = msgid, WebConfig = web.WebConfig } });
+                web.Socket.Send(new Message<NewCustomerMassage> { MessageType = MessageType.S_NewCustomer, Content = new NewCustomerMassage { MsgId = msgid, WebConfig = web.WebConfig } });
             }
             catch (Exception ex)
             {
@@ -144,10 +149,11 @@ namespace FastTunnel.Core.Core
             }
         }
 
+        byte[] buffer = new byte[1024 * 1024];
+
         public void ReceiveClient(Socket client, object _)
         {
             //定义byte数组存放从客户端接收过来的数据
-            byte[] buffer = new byte[1024 * 1024];
             int length;
 
             try
@@ -183,33 +189,39 @@ namespace FastTunnel.Core.Core
 
             try
             {
-                HandleWords(words, client);
+                if (HandleWords(words, client).NeedRecive)
+                {
+                    // 递归
+                    ReceiveClient(client, _);
+                    return;
+                }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex);
-                _logger.LogError($"收到客户端 words：{words}");
+                _logger.LogError($"错误的消息内容：{words}");
 
                 // throw;
-                client.Send(new Message<LogMsg>() { MessageType = MessageType.Log, Content = new LogMsg(LogMsgType.Error, ex.Message) });
+                client.Send(new Message<LogMassage>() { MessageType = MessageType.Log, Content = new LogMassage(LogMsgType.Error, ex.Message) });
             }
         }
 
-        private void HandleWords(string words, Socket client)
+        private IServerHandler HandleWords(string words, Socket client)
         {
             // 同时读到两个或多个指令
             var index = words.IndexOf("}{");
             if (index > 0)
             {
+                _logger.LogError($"读到多个消息 {words}");
                 var sub_words = words.Substring(0, index + 1);
                 var left = words.Substring(index + 1);
 
                 handle(sub_words, client);
-                HandleWords(left, client);
+                return HandleWords(left, client);
             }
             else
             {
-                handle(words, client);
+                return handle(words, client);
             }
         }
 
@@ -220,71 +232,21 @@ namespace FastTunnel.Core.Core
             IServerHandler handler = null;
             switch (msg.MessageType)
             {
-                case MessageType.C_LogIn:
+                case MessageType.C_LogIn: // 登录
                     handler = _loginHandler;
                     break;
-                case MessageType.Heart:
-
+                case MessageType.Heart:   // 心跳
+                    handler = _heartHandler;
                     break;
-                case MessageType.C_SwapMsg:
-                case MessageType.S_NewCustomer:
-                case MessageType.S_NewSSH:
+                case MessageType.C_SwapMsg: // 交换数据
+                    handler = _swapMsgHandler;
+                    break;
                 default:
-                    handler = null;
-                    break;
+                    throw new Exception($"未知的通讯指令 {msg.MessageType}");
             }
 
-            if (handler != null)
-            {
-                handler.HandlerMsg(this, client, msg);
-                return handler;
-            }
-
-            HandleMsg(client, msg);
-            return null;
-        }
-
-        private void HandleMsg(Socket client, Message<JObject> msg)
-        {
-            if (msg.MessageType != MessageType.Heart)
-            {
-                _logger.LogDebug($"收到客户端指令：{msg.MessageType}");
-            }
-
-            switch (msg.MessageType)
-            {
-                case MessageType.Heart:
-                    client.Send(new Message<string>() { MessageType = MessageType.Heart, Content = null });
-
-                    // 递归调用
-                    ReceiveClient(client, null);
-                    break;
-                case MessageType.C_SwapMsg:
-                    var SwapMsg = msg.Content.ToObject<SwapMsgModel>();
-                    NewRequest request;
-
-                    if (!string.IsNullOrEmpty(SwapMsg.msgId) && newRequest.TryGetValue(SwapMsg.msgId, out request))
-                    {
-                        // Join
-                        Task.Run(() =>
-                        {
-                            (new SocketSwap(request.CustomerClient, client))
-                                .BeforeSwap(() => { if (request.Buffer != null) client.Send(request.Buffer); })
-                                .StartSwap();
-                        });
-                    }
-                    else
-                    {
-                        // 未找到，关闭连接
-                        _logger.LogError($"未找到请求:{SwapMsg.msgId}");
-                        client.Send(new Message<LogMsg> { MessageType = MessageType.Log, Content = new LogMsg(LogMsgType.Debug, $"未找到请求:{SwapMsg.msgId}") });
-                    }
-
-                    break;
-                case MessageType.S_NewCustomer:
-                default:
-                    throw new Exception($"参数异常, 不支持消息类型 {msg.MessageType}");
-            }
+            handler.HandlerMsg(this, client, msg);
+            return handler;
         }
     }
 }

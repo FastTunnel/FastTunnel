@@ -1,6 +1,7 @@
 ﻿using FastTunnel.Core;
 using FastTunnel.Core.Config;
 using FastTunnel.Core.Core;
+using FastTunnel.Core.Handlers.Client;
 using FastTunnel.Core.Host;
 using FastTunnel.Core.Models;
 using Microsoft.Extensions.DependencyInjection;
@@ -53,7 +54,7 @@ namespace SuiDao.Client
                 Console.WriteLine($"0：其他密钥登录");
                 for (int i = 0; i < keys.Count; i++)
                 {
-                    Console.WriteLine($"{i + 1}：{keys[i]}");
+                    Console.WriteLine($" {i + 1}：{keys[i]}");
                 }
 
                 Console.WriteLine(Environment.NewLine + "输入编号回车键继续：");
@@ -181,7 +182,7 @@ namespace SuiDao.Client
                     }
 
                     // 登录
-                    _client.Send(new Message<LogInByKeyRequest> { MessageType = MessageType.C_LogIn, Content = new LogInByKeyRequest { key = key } });
+                    _client.Send(new Message<LogInByKeyMassage> { MessageType = MessageType.C_LogIn, Content = new LogInByKeyMassage { key = key } });
 
                     return _client;
                 }, new SuiDaoServer { ServerAddr = server.ip, ServerPort = server.bind_port });
@@ -195,7 +196,11 @@ namespace SuiDao.Client
 
         private static void Config(ServiceCollection service)
         {
-            service.AddTransient<FastTunnelClient>();
+            service.AddSingleton<FastTunnelClient>()
+                 .AddSingleton<ClientHeartHandler>()
+                 .AddSingleton<LogHandler>()
+                 .AddSingleton<NewCustomerHandler>()
+                 .AddSingleton<NewSSHHandler>();
         }
 
         public static void AppendTextToFile(string filename, string inputStr)

@@ -4,7 +4,7 @@ using System.Text;
 
 namespace FastTunnel.Core.Models
 {
-    public class NewCustomerRequest
+    public class NewCustomerMassage : TunnelMassage
     {
         public string MsgId { get; set; }
 

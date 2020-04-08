@@ -1,6 +1,7 @@
 ﻿using FastTunnel.Core.Config;
 using FastTunnel.Core.Core;
 using FastTunnel.Core.Handlers;
+using FastTunnel.Core.Handlers.Server;
 using FastTunnel.Core.Host;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -56,10 +57,12 @@ namespace SuiDao.Server
 
         private static void Config(ServiceCollection service)
         {
-            service.AddTransient<FastTunnelServer>()
+            service.AddSingleton<FastTunnelServer>()
                 .AddSingleton<ServerConfig>(implementationFactory)
-                .AddSingleton<LoginHandler>()
-                .AddTransient<IConfigHandler, SuiDaoLoginHandler>();
+                .AddSingleton<LoginHandler>() 
+                .AddSingleton<SwapMsgHandler>()
+                .AddSingleton<HeartHandler>()
+                .AddSingleton<IConfigHandler, SuiDaoLoginHandler>();
         }
 
         private static void Run(IServiceProvider servicesProvider)

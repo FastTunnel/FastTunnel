@@ -4,6 +4,7 @@ using FastTunnel.Core.Handlers;
 using FastTunnel.Core.Models;
 using Newtonsoft.Json.Linq;
 using SuiDao.Client;
+using SuiDao.Client.Models;
 using System;
 using System.Collections.Generic;
 using System.Net.Sockets;
@@ -12,9 +13,9 @@ namespace SuiDao.Server
 {
     public class SuiDaoLoginHandler : IConfigHandler
     {
-        public LogInRequest GetConfig(object content)
+        public LogInMassage GetConfig(JObject content)
         {
-            var key = (content as JObject)["key"].ToString();
+            var key = content.ToObject<LogInByKeyMassage>().key;
             var res = HttpHelper.PostAsJson("https://api1.suidao.io/api/Client/GetTunnelByKey", $"{{ \"key\":\"{key}\"}}").Result;
             var jobj = JObject.Parse(res);
             if ((bool)jobj["success"] == true)
@@ -46,7 +47,7 @@ namespace SuiDao.Server
                     }
                 }
 
-                return new LogInRequest
+                return new LogInMassage
                 {
                     SSH = SSH,
                     Webs = Webs,

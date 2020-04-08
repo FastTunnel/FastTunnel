@@ -4,8 +4,7 @@ using System.Text;
 
 namespace FastTunnel.Core.Models
 {
-    public class LogInByKeyRequest
+    public class HeartMassage : TunnelMassage
     {
-        public string key { get; set; }
     }
 }

@@ -12,12 +12,13 @@ using FastTunnel.Core.Extensions;
 using System.Timers;
 using System.Threading;
 using Microsoft.Extensions.Logging;
+using FastTunnel.Core.Handlers.Client;
 
 namespace FastTunnel.Core.Core
 {
     public class FastTunnelClient
     {
-        SuiDaoServer _serverConfig;
+        public SuiDaoServer _serverConfig;
 
         Connecter _client;
 
@@ -28,44 +29,64 @@ namespace FastTunnel.Core.Core
 
         Func<Connecter> login;
         double heartInterval = 10 * 1000; // 10 秒心跳
-        DateTime lastHeart;
+        public DateTime lastHeart;
         Thread th;
 
         int reTrySpan = 30 * 1000; // 登陆失败后重试间隔
+        NewCustomerHandler _newCustomerHandler;
+        NewSSHHandler _newSSHHandler;
+        LogHandler _logHandler;
+        ClientHeartHandler _clientHeartHandler;
 
-        public FastTunnelClient(ILogger<FastTunnelClient> logger)
+        public FastTunnelClient(ILogger<FastTunnelClient> logger, NewCustomerHandler newCustomerHandler, NewSSHHandler newSSHHandler, LogHandler logHandler, ClientHeartHandler clientHeartHandler)
         {
             _logger = logger;
-
+            _newCustomerHandler = newCustomerHandler;
+            _newSSHHandler = newSSHHandler;
+            _logHandler = logHandler;
+            _clientHeartHandler = clientHeartHandler;
             initailTimer();
         }
 
         private void initailTimer()
         {
             timer_heart = new System.Timers.Timer();
-            timer_heart.AutoReset = true;
+            timer_heart.AutoReset = false;
             timer_heart.Interval = heartInterval;
             timer_heart.Elapsed += HeartElapsed;
 
             timer_timeout = new System.Timers.Timer();
-            timer_timeout.AutoReset = true;
+            timer_timeout.AutoReset = false;
             timer_timeout.Interval = heartInterval + heartInterval / 2;
             timer_timeout.Elapsed += TimeoutElapsed;
         }
 
         private void TimeoutElapsed(object sender, ElapsedEventArgs e)
         {
-            if (lastHeart == null)
-                return;
+            timer_timeout.Enabled = false;
 
-            var timer = sender as System.Timers.Timer;
-            var span = (DateTime.Now - lastHeart).TotalMilliseconds;
-            if (span > timer.Interval)
+            try
             {
-                _logger.LogDebug($"上次心跳时间为{span}ms前");
+                if (lastHeart == null)
+                    return;
 
-                // 重新登录
-                reConnect();
+                var timer = sender as System.Timers.Timer;
+                var span = (DateTime.Now - lastHeart).TotalMilliseconds;
+                if (span > timer.Interval)
+                {
+                    _logger.LogDebug($"上次心跳时间为{span}ms前");
+
+                    // 重新登录
+                    reConnect();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex);
+            }
+            finally
+            {
+                timer_timeout.Enabled = true;
             }
         }
 
@@ -90,13 +111,19 @@ namespace FastTunnel.Core.Core
 
         private void HeartElapsed(object sender, ElapsedEventArgs e)
         {
+            timer_heart.Enabled = false;
+
             try
             {
-                _client.Send(new Message<object> { MessageType = MessageType.Heart, Content = null });
+                _client.Send(new Message<HeartMassage> { MessageType = MessageType.Heart, Content = null });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex.Message);
+            }
+            finally
+            {
+                timer_heart.Enabled = true;
             }
         }
 
@@ -214,77 +241,30 @@ namespace FastTunnel.Core.Core
             }
         }
 
-        private void HandleServerRequest(string words)
+        private IClientHandler HandleServerRequest(string words)
         {
-            Message<object> Msg;
-
-            try
+            var Msg = JsonConvert.DeserializeObject<Message<JObject>>(words);
+            IClientHandler handler;
+            switch (Msg.MessageType)
             {
-                Msg = JsonConvert.DeserializeObject<Message<object>>(words);
-                switch (Msg.MessageType)
-                {
-                    case MessageType.Heart:
-                        lastHeart = DateTime.Now;
-                        break;
-                    case MessageType.S_NewCustomer:
-                        var request = (Msg.Content as JObject).ToObject<NewCustomerRequest>();
-                        var connecter = new Connecter(_serverConfig.ServerAddr, _serverConfig.ServerPort);
-                        connecter.Connect();
-                        connecter.Send(new Message<SwapMsgModel> { MessageType = MessageType.C_SwapMsg, Content = new SwapMsgModel(request.MsgId) });
-
-                        var localConnecter = new Connecter(request.WebConfig.LocalIp, request.WebConfig.LocalPort);
-                        localConnecter.Connect();
-
-                        new SocketSwap(connecter.Socket, localConnecter.Socket).StartSwap();
-                        break;
-                    case MessageType.S_NewSSH:
-                        var request_ssh = (Msg.Content as JObject).ToObject<NewSSHRequest>();
-                        var connecter_ssh = new Connecter(_serverConfig.ServerAddr, _serverConfig.ServerPort);
-                        connecter_ssh.Connect();
-                        connecter_ssh.Send(new Message<SwapMsgModel> { MessageType = MessageType.C_SwapMsg, Content = new SwapMsgModel(request_ssh.MsgId) });
-
-                        var localConnecter_ssh = new Connecter(request_ssh.SSHConfig.LocalIp, request_ssh.SSHConfig.LocalPort);
-                        localConnecter_ssh.Connect();
-
-                        new SocketSwap(connecter_ssh.Socket, localConnecter_ssh.Socket).StartSwap();
-                        break;
-                    case MessageType.Log:
-                        try
-                        {
-                            var msg = (Msg.Content as JObject).ToObject<LogMsg>();
-
-                            switch (msg.MsgType)
-                            {
-                                case LogMsgType.Info:
-                                    _logger.LogInformation("From Server:" + msg.Msg);
-                                    break;
-                                case LogMsgType.Error:
-                                    _logger.LogError("From Server:" + msg.Msg);
-                                    break;
-                                case LogMsgType.Debug:
-                                    _logger.LogDebug("From Server:" + msg.Msg);
-                                    break;
-                                default:
-                                    break;
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError(ex);
-                        }
-                        break;
-                    case MessageType.C_SwapMsg:
-                    case MessageType.C_LogIn:
-                    default:
-                        _logger.LogError($"未处理的消息：{Msg.MessageType} {Msg.Content}");
-                        break;
-                }
+                case MessageType.Heart:
+                    handler = _clientHeartHandler;
+                    break;
+                case MessageType.S_NewCustomer:
+                    handler = _newCustomerHandler;
+                    break;
+                case MessageType.S_NewSSH:
+                    handler = _newSSHHandler;
+                    break;
+                case MessageType.Log:
+                    handler = _logHandler;
+                    break;
+                default:
+                    throw new Exception($"未处理的消息：{Msg.MessageType} {Msg.Content}");
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex);
-                _logger.LogError(words);
-            }
+
+            handler.HandlerMsg(this, Msg);
+            return handler;
         }
     }
 }

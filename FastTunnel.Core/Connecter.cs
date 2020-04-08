@@ -32,14 +32,10 @@ namespace FastTunnel.Core
             Socket.Connect(point);
         }
 
-        private void Send(string msg)
-        {
-            Socket.Send(Encoding.UTF8.GetBytes(msg));
-        }
-
         public void Send<T>(Message<T> msg)
+            where T : TunnelMassage
         {
-            Send(msg.ToJson());
+            Socket.Send(msg);
         }
     }
 }

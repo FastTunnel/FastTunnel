@@ -10,6 +10,8 @@ namespace FastTunnel.Core.Handlers
 {
     public interface IServerHandler
     {
+        Boolean NeedRecive { get; }
+
         void HandlerMsg(FastTunnelServer server, Socket client, Message<JObject> msg);
     }
 }

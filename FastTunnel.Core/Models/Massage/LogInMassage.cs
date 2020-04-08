@@ -5,7 +5,7 @@ using System.Text;
 
 namespace FastTunnel.Core.Models
 {
-    public class LogInRequest
+    public class LogInMassage : TunnelMassage
     {
         public IEnumerable<WebConfig> Webs { get; set; }
 

@@ -15,23 +15,24 @@ namespace FastTunnel.Core.Handlers
     {
         ILogger<LoginHandler> _logger;
 
+        public bool NeedRecive => true;
+
         public LoginHandler(ILogger<LoginHandler> logger)
         {
             _logger = logger;
         }
 
-        public LogInRequest GetConfig(JObject content)
+        public LogInMassage GetConfig(JObject content)
         {
-            return content.ToObject<LogInRequest>();
+            return content.ToObject<LogInMassage>();
         }
 
         public void HandlerMsg(FastTunnelServer server, Socket client, Message<JObject> msg)
         {
             HandleLogin(server, client, GetConfig(msg.Content));
-            server.ReceiveClient(client, null);
         }
 
-        public void HandleLogin(FastTunnelServer server, Socket client, LogInRequest requet)
+        public void HandleLogin(FastTunnelServer server, Socket client, LogInMassage requet)
         {
             if (requet.Webs != null && requet.Webs.Count() > 0)
             {
@@ -51,10 +52,10 @@ namespace FastTunnel.Core.Handlers
                         server.WebList.Add(hostName, new WebInfo { Socket = client, WebConfig = item });
                     }
 
-                    client.Send(new Message<LogMsg> { MessageType = MessageType.Log, Content = new LogMsg(LogMsgType.Info, $"TunnelForWeb is OK: you can visit {item.LocalIp}:{item.LocalPort} from http://{hostName}:{server._serverSettings.ProxyPort_HTTP}") });
+                    client.Send(new Message<LogMassage> { MessageType = MessageType.Log, Content = new LogMassage(LogMsgType.Info, $"TunnelForWeb is OK: you can visit {item.LocalIp}:{item.LocalPort} from http://{hostName}:{server._serverSettings.ProxyPort_HTTP}") });
                 }
 
-                client.Send(new Message<LogMsg> { MessageType = MessageType.Log, Content = new LogMsg(LogMsgType.Info, "web隧道已建立完毕") });
+                client.Send(new Message<LogMassage> { MessageType = MessageType.Log, Content = new LogMassage(LogMsgType.Info, "web隧道已建立完毕") });
             }
 
             if (requet.SSH != null && requet.SSH.Count() > 0)
@@ -102,18 +103,18 @@ namespace FastTunnel.Core.Handlers
                         server.SSHList.Add(item.RemotePort, new SSHInfo<SSHHandlerArg> { Listener = ls, Socket = client, SSHConfig = item });
                         _logger.LogDebug($"SSH proxy success: {item.RemotePort} -> {item.LocalIp}:{item.LocalPort}");
 
-                        client.Send(new Message<LogMsg> { MessageType = MessageType.Log, Content = new LogMsg(LogMsgType.Info, $"TunnelForSSH is OK: [ServerAddr]:{item.RemotePort}->{item.LocalIp}:{item.LocalPort}") });
+                        client.Send(new Message<LogMassage> { MessageType = MessageType.Log, Content = new LogMassage(LogMsgType.Info, $"TunnelForSSH is OK: [ServerAddr]:{item.RemotePort}->{item.LocalIp}:{item.LocalPort}") });
                     }
                     catch (Exception ex)
                     {
                         _logger.LogError($"SSH proxy error: {item.RemotePort} -> {item.LocalIp}:{item.LocalPort}");
                         _logger.LogError(ex.Message);
-                        client.Send(new Message<LogMsg> { MessageType = MessageType.Log, Content = new LogMsg(LogMsgType.Info, ex.Message) });
+                        client.Send(new Message<LogMassage> { MessageType = MessageType.Log, Content = new LogMassage(LogMsgType.Info, ex.Message) });
                         continue;
                     }
                 }
 
-                client.Send(new Message<LogMsg> { MessageType = MessageType.Log, Content = new LogMsg(LogMsgType.Info, "远程桌面隧道已建立完毕") });
+                client.Send(new Message<LogMassage> { MessageType = MessageType.Log, Content = new LogMassage(LogMsgType.Info, "远程桌面隧道已建立完毕") });
             }
         }
     }

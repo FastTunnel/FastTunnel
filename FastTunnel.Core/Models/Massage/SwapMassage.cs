@@ -4,11 +4,11 @@ using System.Text;
 
 namespace FastTunnel.Core.Models
 {
-    public class SwapMsgModel
+    public class SwapMassage : TunnelMassage
     {
         public string msgId { get; set; }
 
-        public SwapMsgModel(string msgId)
+        public SwapMassage(string msgId)
         {
             this.msgId = msgId;
         }

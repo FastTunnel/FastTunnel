@@ -13,6 +13,7 @@ using FastTunnel.Core.Host;
 using FastTunnel.Core.Config;
 using FastTunnel.Core.Core;
 using FastTunnel.Core.Models;
+using FastTunnel.Core.Handlers.Client;
 
 namespace FastTunnel.Client
 {
@@ -70,10 +71,10 @@ namespace FastTunnel.Client
                 }
 
                 // 登录
-                _client.Send(new Message<LogInRequest>
+                _client.Send(new Message<LogInMassage>
                 {
                     MessageType = MessageType.C_LogIn,
-                    Content = new LogInRequest
+                    Content = new LogInMassage
                     {
                         Webs = config.Webs,
                         SSH = config.SSH
@@ -91,7 +92,11 @@ namespace FastTunnel.Client
 
         private static void Config(ServiceCollection service)
         {
-            service.AddTransient<FastTunnelClient>()
+            service.AddSingleton<FastTunnelClient>()
+                 .AddSingleton<ClientHeartHandler>()
+                 .AddSingleton<LogHandler>()
+                 .AddSingleton<NewCustomerHandler>()
+                 .AddSingleton<NewSSHHandler>()
                  .AddSingleton<ClientConfig>(implementationFactory);
         }
 
