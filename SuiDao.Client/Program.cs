@@ -180,7 +180,7 @@ namespace SuiDao.Client
 
                     try
                     {
-                        _client = new Connecter("127.0.0.1", 2271);
+                        _client = new Connecter(server.ip, server.bind_port);
                         _client.Connect();
                     }
                     catch (Exception ex)
