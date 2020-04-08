@@ -58,7 +58,7 @@ namespace SuiDao.Client
             {
                 Console.WriteLine("请选择要启动的客户端：" + Environment.NewLine);
 
-                Console.WriteLine($"0：其他密钥登录");
+                Console.WriteLine($" 0：其他密钥登录");
                 for (int i = 0; i < keys.Count; i++)
                 {
                     Console.WriteLine($" {i + 1}：{keys[i]}");
@@ -126,13 +126,17 @@ namespace SuiDao.Client
             }
         }
 
+        static IServiceProvider servicesProvider;
+
         private static void LogByKey(string key, ILogger logger, bool log)
         {
             Console.WriteLine("登录中...");
 
             try
             {
-                var servicesProvider = new Host().Config(Config).Build();
+                if (servicesProvider == null)
+                    servicesProvider = new Host().Config(Config).Build();
+
                 Run(servicesProvider, logger, key, log);
 
                 while (true)
@@ -176,7 +180,7 @@ namespace SuiDao.Client
 
                     try
                     {
-                        _client = new Connecter(server.ip, server.bind_port);
+                        _client = new Connecter("127.0.0.1", 2271);
                         _client.Connect();
                     }
                     catch (Exception ex)
@@ -194,8 +198,8 @@ namespace SuiDao.Client
             }
             else
             {
-                // TODO: 重新输入
                 Console.WriteLine(jobj["errorMsg"].ToString());
+                NewKey(_logger);
             }
         }
 

@@ -11,7 +11,7 @@ using System.Net.Sockets;
 
 namespace SuiDao.Server
 {
-    public class SuiDaoLoginHandler : IConfigHandler
+    public class SuiDaoConfigHandler : IConfigHandler
     {
         public LogInMassage GetConfig(JObject content)
         {

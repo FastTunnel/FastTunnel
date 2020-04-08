@@ -16,15 +16,17 @@ namespace FastTunnel.Core.Handlers
         ILogger<LoginHandler> _logger;
 
         public bool NeedRecive => true;
+        IConfigHandler _configHandler;
 
-        public LoginHandler(ILogger<LoginHandler> logger)
+        public LoginHandler(ILogger<LoginHandler> logger, IConfigHandler configHandler)
         {
             _logger = logger;
+            _configHandler = configHandler;
         }
 
         public LogInMassage GetConfig(JObject content)
         {
-            return content.ToObject<LogInMassage>();
+            return _configHandler.GetConfig(content);
         }
 
         public void HandlerMsg(FastTunnelServer server, Socket client, Message<JObject> msg)

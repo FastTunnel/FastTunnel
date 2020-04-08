@@ -62,7 +62,7 @@ namespace SuiDao.Server
                 .AddSingleton<LoginHandler>() 
                 .AddSingleton<SwapMsgHandler>()
                 .AddSingleton<HeartHandler>()
-                .AddSingleton<IConfigHandler, SuiDaoLoginHandler>();
+                .AddSingleton<IConfigHandler, SuiDaoConfigHandler>();
         }
 
         private static void Run(IServiceProvider servicesProvider)

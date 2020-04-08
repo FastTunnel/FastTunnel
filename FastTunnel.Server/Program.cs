@@ -70,6 +70,7 @@ namespace FastTunnel.Server
                 .AddSingleton<LoginHandler>()
                 .AddSingleton<HeartHandler>()
                 .AddSingleton<SwapMsgHandler>()
+                .AddSingleton<IConfigHandler, ConfigHandler>()
                 .AddSingleton<ServerConfig>(implementationFactory);
         }
 
