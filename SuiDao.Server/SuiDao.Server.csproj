@@ -6,7 +6,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.DotNet.ILCompiler" Version="1.0.0-alpha-*" />
     <Compile Include="..\SuiDao.Client\HttpHelper.cs" Link="HttpHelper.cs" />
     <Compile Include="..\SuiDao.Client\Models\LogInByKeyMassage.cs" Link="Model\LogInByKeyMassage.cs" />
   </ItemGroup>

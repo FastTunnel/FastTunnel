@@ -6,7 +6,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.DotNet.ILCompiler" Version="1.0.0-alpha-*" />
     <PackageReference Include="NLog" Version="4.6.8" />
   </ItemGroup>
 
