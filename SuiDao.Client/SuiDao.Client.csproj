@@ -14,10 +14,4 @@
     <ProjectReference Include="..\FastTunnel.Core\FastTunnel.Core.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <None Update="Nlog.config">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-
 </Project>

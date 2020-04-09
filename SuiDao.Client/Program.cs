@@ -3,11 +3,13 @@ using FastTunnel.Core.Config;
 using FastTunnel.Core.Core;
 using FastTunnel.Core.Handlers.Client;
 using FastTunnel.Core.Host;
+using FastTunnel.Core.Logger;
 using FastTunnel.Core.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NLog;
+using NLog.Extensions.Logging;
 using SuiDao.Client.Models;
 using System;
 using System.Collections.Generic;
@@ -29,9 +31,9 @@ namespace SuiDao.Client
         /// <param name="args"></param>
         static void Main(string[] args)
         {
-            LogManager.LoadConfiguration("Nlog.config");
+            LogManager.Configuration = NlogConfig.getNewConfig();
             var logger = LogManager.GetCurrentClassLogger();
-            logger.Debug("===== SuiDao Client Start =====");
+            logger.Info("===== SuiDao Client Start =====");
 
             var keyFile = Path.Combine(AppContext.BaseDirectory, KeyLogName);
             if (!File.Exists(keyFile))

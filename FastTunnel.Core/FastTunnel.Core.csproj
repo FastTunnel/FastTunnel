@@ -8,12 +8,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="Logger\**" />
-    <EmbeddedResource Remove="Logger\**" />
-    <None Remove="Logger\**" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Compile Remove="Core\SuiDaoServer.cs.BASE.cs" />
     <Compile Remove="Core\SuiDaoServer.cs.LOCAL.cs" />
     <Compile Remove="Core\SuiDaoServer.cs.REMOTE.cs" />

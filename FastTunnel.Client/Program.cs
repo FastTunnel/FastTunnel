@@ -14,6 +14,7 @@ using FastTunnel.Core.Config;
 using FastTunnel.Core.Core;
 using FastTunnel.Core.Models;
 using FastTunnel.Core.Handlers.Client;
+using FastTunnel.Core.Logger;
 
 namespace FastTunnel.Client
 {
@@ -21,7 +22,7 @@ namespace FastTunnel.Client
     {
         static void Main(string[] args)
         {
-            LogManager.LoadConfiguration("Nlog.config");
+            LogManager.Configuration = NlogConfig.getNewConfig();
             var logger = LogManager.GetCurrentClassLogger();
             logger.Debug("===== FastTunnel Client Start =====");
 

@@ -3,6 +3,7 @@ using FastTunnel.Core.Core;
 using FastTunnel.Core.Handlers;
 using FastTunnel.Core.Handlers.Server;
 using FastTunnel.Core.Host;
+using FastTunnel.Core.Logger;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NLog;
@@ -18,7 +19,7 @@ namespace SuiDao.Server
 
         static void Main(string[] args)
         {
-            LogManager.LoadConfiguration("Nlog.config");
+            LogManager.Configuration = NlogConfig.getNewConfig();
             var logger = LogManager.GetCurrentClassLogger();
             logger.Debug("===== FastTunnel Server Start =====");
 

@@ -18,6 +18,7 @@ using FastTunnel.Core.Host;
 using FastTunnel.Core.Core;
 using FastTunnel.Core.Handlers;
 using FastTunnel.Core.Handlers.Server;
+using FastTunnel.Core.Logger;
 
 namespace FastTunnel.Server
 {
@@ -27,7 +28,7 @@ namespace FastTunnel.Server
 
         static void Main(string[] args)
         {
-            LogManager.LoadConfiguration("Nlog.config");
+            LogManager.Configuration = NlogConfig.getNewConfig();
             var logger = LogManager.GetCurrentClassLogger();
             logger.Debug("===== FastTunnel Server Start =====");
 
