@@ -20,9 +20,18 @@ https://suidao.io
 
 ## 快速开始
 1. 在 [releases](https://github.com/SpringHgui/FastTunnel/releases) 页面下载对应的程序
-2. 分别修改配置文件`appsettings.json`
-3. 服务端运行FastTunnel.Server.exe(windows)，其他平台安装dotnetcore运行时，执行 dotnet FastTunnel.Server.dll
-4. 客户端运行FastTunnel.Cient.exe(windows)，其他平台同安装dotnetcore运行时，执行 dotnet FastTunnel.Client.dll
+2. 根据自己的需求修改配置文件`appsettings.json`
+3. 服务端运行FastTunnel.Server
+4. 客户端运行FastTunnel.Cient
+
+#### 各平台运行客户端的方式如下，以`FastTunnel.Client`为例
+#### Windows
+直接双击 `FastTunnel.Client.exe` 即可运行
+#### Linux
+`chmod +x FastTunnel.Client` 添加执行权限  
+`.\FastTunnel.Client` 执行文件
+#### Mac
+直接运行 `FastTunnel.Client`
 
 ## 1. 用自定义域名访问内网web服务
 - 例如你拥有一个服务器，公网ip地址为 `110.110.110.110` ,同时你有一个顶级域名为 `test.cc` 的域名，你希望访问 `test.test.cc`可以访问内网的一个网站。
