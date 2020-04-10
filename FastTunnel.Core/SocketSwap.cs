@@ -74,7 +74,6 @@ namespace FastTunnel.Core
                         break;
 
                     var str = Encoding.UTF8.GetString(result, 0, num);
-                    Console.Write(str);
 
                     chanel.Send.Send(result, num, SocketFlags.None);
                 }
