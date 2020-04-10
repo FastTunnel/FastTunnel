@@ -1,0 +1,126 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FastTunnel</title>
+  <link href="https://cdn.bootcss.com/twitter-bootstrap/4.4.1/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    /* Please see documentation at https://docs.microsoft.com/aspnet/core/client-side/bundling-and-minification
+for details on configuring this project to bundle and minify static web assets. */
+
+    a.navbar-brand {
+      white-space: normal;
+      text-align: center;
+      word-break: break-all;
+    }
+
+    /* Provide sufficient contrast against white background */
+    a {
+      color: #0366d6;
+    }
+
+    .btn-primary {
+      color: #fff;
+      background-color: #1b6ec2;
+      border-color: #1861ac;
+    }
+
+    .nav-pills .nav-link.active,
+    .nav-pills .show>.nav-link {
+      color: #fff;
+      background-color: #1b6ec2;
+      border-color: #1861ac;
+    }
+
+    /* Sticky footer styles
+-------------------------------------------------- */
+    html {
+      font-size: 14px;
+    }
+
+    @media (min-width: 768px) {
+      html {
+        font-size: 16px;
+      }
+    }
+
+    .border-top {
+      border-top: 1px solid #e5e5e5;
+    }
+
+    .border-bottom {
+      border-bottom: 1px solid #e5e5e5;
+    }
+
+    .box-shadow {
+      box-shadow: 0 .25rem .75rem rgba(0, 0, 0, .05);
+    }
+
+    button.accept-policy {
+      font-size: 1rem;
+      line-height: inherit;
+    }
+
+    /* Sticky footer styles
+-------------------------------------------------- */
+    html {
+      position: relative;
+      min-height: 100%;
+    }
+
+    body {
+      /* Margin bottom by footer height */
+      margin-bottom: 60px;
+    }
+
+    .footer {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      white-space: nowrap;
+      line-height: 60px;
+      /* Vertically center the text there */
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
+      <div class="container">
+        <a class="navbar-brand" src="https://suidao.io">FastTunnel</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target=".navbar-collapse"
+          aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+      </div>
+    </nav>
+  </header>
+  <div class="container">
+    <main role="main" class="pb-3">
+      <div class="text-center">
+        <h1 class="display-4">找不到隧道</h1>
+        <p>了解有关 <a target="_blank" href="https://github.com/SpringHgui/FastTunnel">FastTunel</a>的信息.</p>
+      </div>
+
+      <blockquote style="padding-top: 4em;">
+        <p class="lead">看到本页面表示当前隧道未登录，如果您是当前隧道地址的拥有者，请检查以下原因：</p>
+      </blockquote>
+      <ol>
+        <li class="lead">是否创建了当前子域名的隧道</li>
+        <li class="lead">是否在后台设置中禁用了当前隧道</li>
+        <li class="lead">是否启动了客户端并登录成功</li>
+      </ol>
+    </main>
+  </div>
+
+  <footer class="border-top footer text-muted">
+    <div class="container">
+      <a href="https://github.com/SpringHgui/FastTunnel" target="_blank">© Power By FastTunnel</a>
+    </div>
+  </footer>
+</body>
+
+</html>

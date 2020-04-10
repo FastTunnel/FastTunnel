@@ -72,6 +72,10 @@ namespace FastTunnel.Core
 
                     if (!chanel.Send.Connected)
                         break;
+
+                    var str = Encoding.UTF8.GetString(result, 0, num);
+                    Console.Write(str);
+
                     chanel.Send.Send(result, num, SocketFlags.None);
                 }
                 catch (Exception ex)

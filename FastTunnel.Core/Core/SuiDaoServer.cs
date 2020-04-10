@@ -14,6 +14,9 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using FastTunnel.Core.Handlers;
 using FastTunnel.Core.Handlers.Server;
+using Microsoft.AspNetCore.Http;
+using FastTunnel.Core.Helper;
+using System.IO;
 
 namespace FastTunnel.Core.Core
 {
@@ -120,14 +123,15 @@ namespace FastTunnel.Core.Core
                 {
                     _logger.LogError($"客户端不存在:'{domain}'");
                     _logger.LogDebug(words);
-                    return;
+                    HandlerClientNotOnLine(client, domain, buffer); return;
+
                 }
 
                 if (!web.Socket.Connected)
                 {
                     _logger.LogError($"客户端已下线:'{domain}'");
                     WebList.Remove(domain);
-                    return;
+                    HandlerClientNotOnLine(client, domain, buffer); return;
                 }
 
                 var msgid = Guid.NewGuid().ToString();
@@ -147,6 +151,36 @@ namespace FastTunnel.Core.Core
             {
                 _logger.LogError(ex);
             }
+        }
+
+        private void HandlerClientNotOnLine(Socket clientsocket, string domain, byte[] buffer)
+        {
+            string statusLine = "HTTP/1.1 200 OK\r\n";
+            string responseHeader = "Content-Type: text/html\r\n";
+            byte[] responseBody;
+
+            var file = Path.Combine(AppContext.BaseDirectory, "Htmls", "TunnelNotFound.html");
+            if (File.Exists(file))
+            {
+                responseBody = FileHelper.GetBytesFromFile(file);
+            }
+            else
+            {
+                responseBody = Encoding.UTF8.GetBytes(@"
+                <p>看到本页面表示当前隧道未登录，如果您是当前隧道地址的拥有者，请检查以下原因：</p>
+              <ol>
+                <li>是否创建了当前子域名的隧道</li>
+                <li>是否在后台设置中禁用了当前隧道</li>
+                <li>是否启动了客户端并登录成功</li>
+              </ol>");
+            }
+
+
+            clientsocket.Send(Encoding.UTF8.GetBytes(statusLine));
+            clientsocket.Send(Encoding.UTF8.GetBytes(responseHeader));
+            clientsocket.Send(Encoding.UTF8.GetBytes("\r\n"));
+            clientsocket.Send(responseBody);
+            clientsocket.Close();
         }
 
         byte[] buffer = new byte[1024 * 1024];
@@ -174,9 +208,9 @@ namespace FastTunnel.Core.Core
                     return;
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                _logger.LogError($"client 退出登录");
+                _logger.LogError($"接收客户端异常 -> 退出登录 {ex.Message}");
                 if (client.Connected)
                 {
                     client.Close();
