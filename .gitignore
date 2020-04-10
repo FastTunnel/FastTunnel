@@ -10,3 +10,4 @@ publish
 /SuiDao.Client/Properties/PublishProfiles/*.user
 /SuiDao.Client/*.user
 /SuiDao.Client/Properties/PublishProfiles/FolderProfile.pubxml
+/FastTunnel.Core/*.user

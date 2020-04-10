@@ -67,7 +67,7 @@ namespace FastTunnel.Core.Core
         //接收消息
         void ReceiveCustomer(Socket client, object _)
         {
-            _logger.LogDebug("新的HTTP请求");
+            _logger.LogDebug("Receive HTTP Request");
 
             try
             {
@@ -121,17 +121,15 @@ namespace FastTunnel.Core.Core
                 WebInfo web;
                 if (!WebList.TryGetValue(domain, out web))
                 {
-                    _logger.LogError($"客户端不存在:'{domain}'");
-                    _logger.LogDebug(words);
-                    HandlerClientNotOnLine(client, domain, buffer); return;
-
+                    HandlerClientNotOnLine(client, domain, buffer);
+                    return;
                 }
 
                 if (!web.Socket.Connected)
                 {
-                    _logger.LogError($"客户端已下线:'{domain}'");
                     WebList.Remove(domain);
-                    HandlerClientNotOnLine(client, domain, buffer); return;
+                    HandlerClientNotOnLine(client, domain, buffer);
+                    return;
                 }
 
                 var msgid = Guid.NewGuid().ToString();
@@ -145,36 +143,28 @@ namespace FastTunnel.Core.Core
                     Buffer = bytes
                 });
 
+                _logger.LogDebug($"OK");
                 web.Socket.Send(new Message<NewCustomerMassage> { MessageType = MessageType.S_NewCustomer, Content = new NewCustomerMassage { MsgId = msgid, WebConfig = web.WebConfig } });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex);
+                client.Close();
             }
         }
 
         private void HandlerClientNotOnLine(Socket clientsocket, string domain, byte[] buffer)
         {
+            _logger.LogDebug($"TunnelNotFound:'{domain}'");
             string statusLine = "HTTP/1.1 200 OK\r\n";
             string responseHeader = "Content-Type: text/html\r\n";
             byte[] responseBody;
 
             var file = Path.Combine(AppContext.BaseDirectory, "Htmls", "TunnelNotFound.html");
             if (File.Exists(file))
-            {
                 responseBody = FileHelper.GetBytesFromFile(file);
-            }
             else
-            {
-                responseBody = Encoding.UTF8.GetBytes(@"
-                <p>看到本页面表示当前隧道未登录，如果您是当前隧道地址的拥有者，请检查以下原因：</p>
-              <ol>
-                <li>是否创建了当前子域名的隧道</li>
-                <li>是否在后台设置中禁用了当前隧道</li>
-                <li>是否启动了客户端并登录成功</li>
-              </ol>");
-            }
-
+                responseBody = Encoding.UTF8.GetBytes(TunnelResource.NoTunnelPage);
 
             clientsocket.Send(Encoding.UTF8.GetBytes(statusLine));
             clientsocket.Send(Encoding.UTF8.GetBytes(responseHeader));
