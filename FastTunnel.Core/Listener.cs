@@ -86,6 +86,9 @@ namespace FastTunnel.Core
             {
                 ls.Shutdown(SocketShutdown.Both);
             }
+            catch (Exception)
+            {
+            }
             finally
             {
                 ls.Close();

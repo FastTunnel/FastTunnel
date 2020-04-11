@@ -67,14 +67,11 @@ namespace FastTunnel.Core.Core
 
             try
             {
-                if (lastHeart == null)
-                    return;
-
                 var timer = sender as System.Timers.Timer;
                 var span = (DateTime.Now - lastHeart).TotalMilliseconds;
                 if (span > timer.Interval)
                 {
-                    _logger.LogDebug($"上次心跳时间为{span}ms前");
+                    _logger.LogDebug($"last heart recived {span / 1000}s ago");
 
                     // 重新登录
                     reConnect();
@@ -175,6 +172,8 @@ namespace FastTunnel.Core.Core
         {
             _logger.LogDebug("通信已建立");
 
+            lastHeart = DateTime.Now;
+
             // 心跳开始
             timer_heart.Start();
             timer_timeout.Start();
@@ -189,7 +188,7 @@ namespace FastTunnel.Core.Core
             byte[] buffer = new byte[1024];
 
             string lastBuffer = string.Empty;
-            int n;
+            int n = 0;
 
             while (true)
             {
@@ -202,8 +201,24 @@ namespace FastTunnel.Core.Core
                         break;
                     }
                 }
-                catch
+                /// <see cref="https://docs.microsoft.com/zh-cn/windows/win32/winsock/windows-sockets-error-codes-2"/>
+                catch (SocketException socketEx)
                 {
+                    // Connection timed out.
+                    if (socketEx.ErrorCode == 10060)
+                    {
+                        _logger.LogInformation("Connection timed out");
+                    }
+                    else
+                    {
+                        _logger.LogError(socketEx);
+                    }
+
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex);
                     break;
                 }
 
@@ -239,6 +254,8 @@ namespace FastTunnel.Core.Core
                     continue;
                 }
             }
+
+            _logger.LogInformation("stop receive from server");
         }
 
         private IClientHandler HandleServerRequest(string words)

@@ -70,10 +70,47 @@ namespace FastTunnel.Core {
         ///  &lt;title&gt;FastTunnel&lt;/title&gt;
         ///  &lt;link href=&quot;https://cdn.bootcss.com/twitter-bootstrap/4.4.1/css/bootstrap.min.css&quot; rel=&quot;stylesheet&quot;&gt;
         ///  &lt;style&gt;
-        ///    /* Please see documentation at https://docs.microsoft.com/aspnet/core/client-side/bundling-and-minification
-        ///for details on configuring this project to bundle and minify static web assets. */
+        ///    .err-info {
+        ///      margin-top: 120px;
+        ///    }
         ///
-        ///    a.navbar-brand { [字符串的其余部分被截断]&quot;; 的本地化字符串。
+        ///    /* Provide sufficient contrast against white background */
+        ///    a {
+        ///      color: #0366d6;
+        ///    }
+        ///
+        ///    .btn-primary {
+        ///      color: #fff;
+        ///      background-color [字符串的其余部分被截断]&quot;; 的本地化字符串。
+        /// </summary>
+        internal static string NoSite {
+            get {
+                return ResourceManager.GetString("NoSite", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 &lt;!DOCTYPE html&gt;
+        ///&lt;html lang=&quot;en&quot;&gt;
+        ///
+        ///&lt;head&gt;
+        ///  &lt;meta charset=&quot;utf-8&quot; /&gt;
+        ///  &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot; /&gt;
+        ///  &lt;title&gt;FastTunnel&lt;/title&gt;
+        ///  &lt;link href=&quot;https://cdn.bootcss.com/twitter-bootstrap/4.4.1/css/bootstrap.min.css&quot; rel=&quot;stylesheet&quot;&gt;
+        ///  &lt;style&gt;
+        ///    .err-info {
+        ///      margin-top: 120px;
+        ///    }
+        ///
+        ///    /* Provide sufficient contrast against white background */
+        ///    a {
+        ///      color: #0366d6;
+        ///    }
+        ///
+        ///    .btn-primary {
+        ///      color: #fff;
+        ///      background-color [字符串的其余部分被截断]&quot;; 的本地化字符串。
         /// </summary>
         internal static string NoTunnelPage {
             get {

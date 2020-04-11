@@ -56,16 +56,17 @@ namespace FastTunnel.Core
 
                     if (num == 0)
                     {
-                        if (chanel.Receive.Connected)
+                        chanel.Receive.Close();
+
+                        try
                         {
-                            try
-                            {
-                                chanel.Receive.Shutdown(SocketShutdown.Both);
-                            }
-                            finally
-                            {
-                                chanel.Receive.Close();
-                            }
+                            // Release the socket.//
+                            chanel.Send.Shutdown(SocketShutdown.Both);
+                        }
+                        catch { }
+                        finally
+                        {
+                            chanel.Send.Close();
                         }
                         break;
                     }
@@ -73,38 +74,39 @@ namespace FastTunnel.Core
                     if (!chanel.Send.Connected)
                         break;
 
-                    var str = Encoding.UTF8.GetString(result, 0, num);
+                    // var str = Encoding.UTF8.GetString(result, 0, num);
 
                     chanel.Send.Send(result, num, SocketFlags.None);
                 }
+                catch (SocketException sex)
+                {
+                    //  Interrupted function call. 10004
+                    // An existing connection was forcibly closed by the remote host. 10054
+                    try
+                    {
+                        chanel.Send.Shutdown(SocketShutdown.Both);
+                    }
+                    catch { }
+                    finally
+                    {
+                        chanel.Send.Close();
+                    }
+
+                    try
+                    {
+                        chanel.Receive.Shutdown(SocketShutdown.Both);
+                    }
+                    catch { }
+                    finally
+                    {
+                        chanel.Receive.Close();
+                    }
+                    break;
+                }
                 catch (Exception ex)
                 {
-                    if (chanel.Receive.Connected)
-                    {
-                        try
-                        {
-                            chanel.Receive.Shutdown(SocketShutdown.Both);
-                        }
-                        finally
-                        {
-                            chanel.Receive.Close();
-                        }
-
-                    }
-
-                    if (chanel.Send.Connected)
-                    {
-                        try
-                        {
-                            chanel.Send.Shutdown(SocketShutdown.Both);
-                        }
-                        finally
-                        {
-                            chanel.Send.Close();
-                        }
-                    }
-
-                    break;
+                    Console.Write(ex.ToString());
+                    throw;
                 }
             }
         }

@@ -15,13 +15,21 @@ namespace FastTunnel.Core
 
         public Socket Socket { get; set; }
 
-        public Connecter(string v1, int v2)
+        public Connecter(string v1, int v2, int? sendTimeout = null)
         {
             this._ip = v1;
             this._port = v2;
 
             Socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            Socket.SendTimeout = 2000;
+
+            if (sendTimeout.HasValue)
+            {
+                Socket.SendTimeout = sendTimeout.Value;
+            }
+            else
+            {
+                Socket.SendTimeout = 2000;
+            }
         }
 
         public void Connect()
@@ -32,10 +40,20 @@ namespace FastTunnel.Core
             Socket.Connect(point);
         }
 
+        public void Send(byte[] data)
+        {
+            Socket.Send(data);
+        }
+
         public void Send<T>(Message<T> msg)
             where T : TunnelMassage
         {
             Socket.Send(msg);
+        }
+
+        public void Close()
+        {
+            Socket.Close();
         }
     }
 }

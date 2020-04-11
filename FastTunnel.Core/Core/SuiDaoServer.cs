@@ -114,9 +114,8 @@ namespace FastTunnel.Core.Core
                     Host = collection[0].Value;
                 }
 
+                _logger.LogDebug(Host);
                 var domain = Host.Split(":")[1].Trim();
-
-                _logger.LogDebug($"Host: {domain}");
 
                 WebInfo web;
                 if (!WebList.TryGetValue(domain, out web))
@@ -148,7 +147,7 @@ namespace FastTunnel.Core.Core
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex);
+                _logger.LogError("处理Http失败：" + ex);
                 client.Close();
             }
         }
@@ -158,13 +157,12 @@ namespace FastTunnel.Core.Core
             _logger.LogDebug($"TunnelNotFound:'{domain}'");
             string statusLine = "HTTP/1.1 200 OK\r\n";
             string responseHeader = "Content-Type: text/html\r\n";
-            byte[] responseBody;
 
-            var file = Path.Combine(AppContext.BaseDirectory, "Htmls", "TunnelNotFound.html");
-            if (File.Exists(file))
-                responseBody = FileHelper.GetBytesFromFile(file);
-            else
-                responseBody = Encoding.UTF8.GetBytes(TunnelResource.NoTunnelPage);
+            //var file = Path.Combine(AppContext.BaseDirectory, "Htmls", "TunnelNotFound.html");
+            //if (File.Exists(file))
+            //    responseBody = FileHelper.GetBytesFromFile(file);
+
+            byte[] responseBody = Encoding.UTF8.GetBytes(TunnelResource.NoTunnelPage);
 
             clientsocket.Send(Encoding.UTF8.GetBytes(statusLine));
             clientsocket.Send(Encoding.UTF8.GetBytes(responseHeader));
@@ -223,7 +221,7 @@ namespace FastTunnel.Core.Core
             catch (Exception ex)
             {
                 _logger.LogError(ex);
-                _logger.LogError($"错误的消息内容：{words}");
+                _logger.LogError($"handle fail msg：{words}");
 
                 // throw;
                 client.Send(new Message<LogMassage>() { MessageType = MessageType.Log, Content = new LogMassage(LogMsgType.Error, ex.Message) });
@@ -260,6 +258,7 @@ namespace FastTunnel.Core.Core
                     handler = _loginHandler;
                     break;
                 case MessageType.Heart:   // 心跳
+                    Console.WriteLine("收到心跳");
                     handler = _heartHandler;
                     break;
                 case MessageType.C_SwapMsg: // 交换数据
