@@ -114,7 +114,7 @@ namespace FastTunnel.Core.Core
                     Host = collection[0].Value;
                 }
 
-                _logger.LogDebug(Host);
+                _logger.LogDebug(Host.Replace("\r", ""));
                 var domain = Host.Split(":")[1].Trim();
 
                 WebInfo web;
@@ -258,7 +258,6 @@ namespace FastTunnel.Core.Core
                     handler = _loginHandler;
                     break;
                 case MessageType.Heart:   // 心跳
-                    Console.WriteLine("收到心跳");
                     handler = _heartHandler;
                     break;
                 case MessageType.C_SwapMsg: // 交换数据
