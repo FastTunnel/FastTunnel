@@ -228,6 +228,10 @@
 &lt;/body&gt;
 
 &lt;/html&gt;</value>
+    <comment>内网服务未开启</comment>
+  </data>
+  <data name="NoTunnel" xml:space="preserve">
+    <value>您尚未创建任何隧道，请登录https://suidao.io 创建后重试。</value>
   </data>
   <data name="NoTunnelPage" xml:space="preserve">
     <value>&lt;!DOCTYPE html&gt;
@@ -340,5 +344,9 @@
 &lt;/body&gt;
 
 &lt;/html&gt;</value>
+    <comment>客户端未登录</comment>
+  </data>
+  <data name="TunnelLlist" xml:space="preserve">
+    <value>\n=====隧道已建立成功，现在可以通过以下方式访问您的内网服务了=====\n{0}\n</value>
   </data>
 </root>

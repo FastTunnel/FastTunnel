@@ -13,5 +13,7 @@ namespace FastTunnel.Core.Config
         public int ProxyPort_HTTP { get; set; }
 
         public string Domain { get; set; }
+
+        public bool HasNginxProxy { get; set; }
     }
 }

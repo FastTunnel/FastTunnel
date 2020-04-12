@@ -90,6 +90,15 @@ namespace FastTunnel.Core {
         }
         
         /// <summary>
+        ///   查找类似 您尚未创建任何隧道，请登录https://suidao.io 创建后重试。 的本地化字符串。
+        /// </summary>
+        internal static string NoTunnel {
+            get {
+                return ResourceManager.GetString("NoTunnel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   查找类似 &lt;!DOCTYPE html&gt;
         ///&lt;html lang=&quot;en&quot;&gt;
         ///
@@ -115,6 +124,15 @@ namespace FastTunnel.Core {
         internal static string NoTunnelPage {
             get {
                 return ResourceManager.GetString("NoTunnelPage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 \n=====隧道已建立成功，现在可以通过以下方式访问您的内网服务了=====\n{0}\n 的本地化字符串。
+        /// </summary>
+        internal static string TunnelLlist {
+            get {
+                return ResourceManager.GetString("TunnelLlist", resourceCulture);
             }
         }
     }

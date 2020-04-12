@@ -36,8 +36,12 @@ namespace FastTunnel.Core.Handlers
 
         public void HandleLogin(FastTunnelServer server, Socket client, LogInMassage requet)
         {
+            bool hasTunnel = false;
+
+            var sb = new StringBuilder($"{Environment.NewLine}=====隧道已建立成功，可通过以下方式访问内网服务====={Environment.NewLine}");
             if (requet.Webs != null && requet.Webs.Count() > 0)
             {
+                hasTunnel = true;
                 foreach (var item in requet.Webs)
                 {
                     var hostName = $"{item.SubDomain}.{server._serverSettings.Domain}".Trim();
@@ -54,14 +58,15 @@ namespace FastTunnel.Core.Handlers
                         server.WebList.Add(hostName, new WebInfo { Socket = client, WebConfig = item });
                     }
 
-                    client.Send(new Message<LogMassage> { MessageType = MessageType.Log, Content = new LogMassage(LogMsgType.Info, $"TunnelForWeb is OK: you can visit {item.LocalIp}:{item.LocalPort} from http://{hostName}:{server._serverSettings.ProxyPort_HTTP}") });
+                    sb.Append($"{Environment.NewLine}  http://{hostName}{(server._serverSettings.HasNginxProxy ? string.Empty : ":" + server._serverSettings.ProxyPort_HTTP)} => {item.LocalIp}:{item.LocalPort}");
                 }
-
-                client.Send(new Message<LogMassage> { MessageType = MessageType.Log, Content = new LogMassage(LogMsgType.Info, "web隧道已建立完毕") });
             }
+
 
             if (requet.SSH != null && requet.SSH.Count() > 0)
             {
+                hasTunnel = true;
+
                 foreach (var item in requet.SSH)
                 {
                     try
@@ -103,20 +108,28 @@ namespace FastTunnel.Core.Handlers
 
                         // listen success
                         server.SSHList.Add(item.RemotePort, new SSHInfo<SSHHandlerArg> { Listener = ls, Socket = client, SSHConfig = item });
-                        _logger.LogDebug($"SSH proxy success: {item.RemotePort} -> {item.LocalIp}:{item.LocalPort}");
+                        _logger.LogDebug($"SSH proxy success: {item.RemotePort} => {item.LocalIp}:{item.LocalPort}");
 
-                        client.Send(new Message<LogMassage> { MessageType = MessageType.Log, Content = new LogMassage(LogMsgType.Info, $"TunnelForSSH is OK: [ServerAddr]:{item.RemotePort}->{item.LocalIp}:{item.LocalPort}") });
+                        sb.Append($"{Environment.NewLine}  {server._serverSettings.Domain}:{item.RemotePort} => {item.LocalIp}:{item.LocalPort}");
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError($"SSH proxy error: {item.RemotePort} -> {item.LocalIp}:{item.LocalPort}");
+                        _logger.LogError($"SSH proxy error: {item.RemotePort} => {item.LocalIp}:{item.LocalPort}");
                         _logger.LogError(ex.Message);
                         client.Send(new Message<LogMassage> { MessageType = MessageType.Log, Content = new LogMassage(LogMsgType.Info, ex.Message) });
                         continue;
                     }
                 }
+            }
 
-                client.Send(new Message<LogMassage> { MessageType = MessageType.Log, Content = new LogMassage(LogMsgType.Info, "远程桌面隧道已建立完毕") });
+            if (!hasTunnel)
+            {
+                client.Send(new Message<LogMassage> { MessageType = MessageType.Log, Content = new LogMassage(LogMsgType.Info, TunnelResource.NoTunnel) });
+            }
+            else
+            {
+                sb.Append($"{Environment.NewLine}{Environment.NewLine}====================================================");
+                client.Send(new Message<LogMassage> { MessageType = MessageType.Log, Content = new LogMassage(LogMsgType.Info, sb.ToString()) });
             }
         }
     }
