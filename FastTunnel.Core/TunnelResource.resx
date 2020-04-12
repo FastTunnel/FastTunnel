@@ -206,7 +206,7 @@
     &lt;main role="main" class="pb-3"&gt;
       &lt;div class="text-center"&gt;
         &lt;h1 class="display-4"&gt;连接内网的服务失败&lt;/h1&gt;
-        &lt;p&gt;了解有关 &lt;a target="_blank" href="https://github.com/SpringHgui/FastTunnel"&gt;FastTunel&lt;/a&gt;的信息.&lt;/p&gt;
+        &lt;p&gt;内网服务不会搭建？ 去github提交&lt;a target="_blank" href="https://github.com/SpringHgui/FastTunnel/issues"&gt;issue&lt;/a&gt;给软件作者.
       &lt;/div&gt;
 
       &lt;blockquote style="padding-top: 4em;"&gt;
@@ -217,6 +217,10 @@
         &lt;li class="lead"&gt;配置的本地ip以及端口号是否与您搭建的服务对应&lt;/li&gt;
         &lt;li class="lead"&gt;如果内网服务不在客户端运行的计算机，请检查您的计算是否与目标计算机位于内网的同一网段&lt;/li&gt;
       &lt;/ol&gt;
+      &lt;blockquote style="padding-top: 4em;"&gt;
+        &lt;p class="lead"&gt;提醒：当前软件处于开发阶段，客户端版本可能会更新频繁，如遇到客户端异常，请登录&lt;a target="_blank"
+            href="https://suidao.io"&gt;suidao.io&lt;/a&gt;下载最新的客户端重试。&lt;/p&gt;
+      &lt;/blockquote&gt;
     &lt;/main&gt;
   &lt;/div&gt;
 
@@ -321,8 +325,9 @@
   &lt;div class="container err-info"&gt;
     &lt;main role="main" class="pb-3"&gt;
       &lt;div class="text-center"&gt;
-        &lt;h1 class="display-4"&gt;隧道未找到&lt;/h1&gt;
-        &lt;p&gt;了解有关 &lt;a target="_blank" href="https://github.com/SpringHgui/FastTunnel"&gt;FastTunel&lt;/a&gt;的信息.&lt;/p&gt;
+        &lt;h1 class="display-4"&gt;客户端未登录&lt;/h1&gt;
+        &lt;p&gt;登录遇到问题？ 去github提交&lt;a target="_blank" href="https://github.com/SpringHgui/FastTunnel/issues"&gt;issue&lt;/a&gt;给软件作者.
+        &lt;/p&gt;
       &lt;/div&gt;
 
       &lt;blockquote style="padding-top: 4em;"&gt;
@@ -333,6 +338,9 @@
         &lt;li class="lead"&gt;是否在后台设置中禁用了当前隧道&lt;/li&gt;
         &lt;li class="lead"&gt;是否启动了客户端并登录成功&lt;/li&gt;
       &lt;/ol&gt;
+      &lt;blockquote style="padding-top: 4em;"&gt;
+        &lt;p class="lead"&gt;提醒：当前软件处于开发阶段，客户端版本可能会更新频繁，如遇到客户端异常，请登录&lt;a target="_blank" href="https://suidao.io"&gt;suidao.io&lt;/a&gt;下载最新的客户端重试。&lt;/p&gt;
+      &lt;/blockquote&gt;
     &lt;/main&gt;
   &lt;/div&gt;
 
