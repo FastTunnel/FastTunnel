@@ -13,10 +13,12 @@
 https://suidao.io
 
 ## 特性
+**:point_right:如果你觉得这个项目不错可star一下，这是对我最大的支持。**
 - [x] 用自定义域名访问内网web服务（常用于微信开发）
 - [x] 远程内网计算机 Windows/Linux/Mac
-- [x] 端口转发，访问内网任意端口提供的服务 mysql、redis、ftp等等
-- [ ] 点对点p2p穿透
+- [x] 端口转发/端口映射，访问内网任意端口提供的服务 mysql、redis、ftp等等
+- [x] 断线自动重连
+- [ ] p2p穿透
 
 ## 快速开始
 1. 在 [releases](https://github.com/SpringHgui/FastTunnel/releases) 页面下载对应的程序
@@ -87,6 +89,3 @@ ssh -oPort=12701 root@x.x.x.x
 
 # License
 Apache License 2.0
-
-# 联系作者
-springhgui@outlook.com
