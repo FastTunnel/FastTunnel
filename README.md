@@ -1,33 +1,33 @@
 <p align="center"><img src="images/logo.png" width="150" align=center /></p>
 
-# FastTunnel -内网穿透利器
+## FastTunnel -内网穿透利器
 [README](README.md) | [中文文档](README_zh.md)
 
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](https://github.com/SpringHgui/frp/pulls)
 [![Build status](https://github.com/anjoy8/blog.core/workflows/.NET%20Core/badge.svg)](https://github.com/SpringHgui/FastTunnel/actions)
 [![License](https://img.shields.io/badge/license-Apache%202-green.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![CircleCI](https://circleci.com/gh/gothinkster/aspnetcore-realworld-example-app.svg?style=svg)](https://circleci.com/gh/SpringHgui/FastTunnel)
-# FastTunnel是什么？
+## FastTunnel是什么？
 FastTunnel是一款高性能跨平台内网穿透工具，使用它可以实现在公网上访问您的内网服务。
 
 演示地址 https://suidao.io
 
-**:point_right:走过路过的朋友star一下，给予本人支持，万分感谢。**
+**有帮助的朋友不要忘了:star:支持一下，万分感谢:relaxed::relaxed::relaxed:**
 
-# 使用FastTunnel能够做什么？
+## 使用FastTunnel能够做什么？
 - [x]远程内网计算机 Windows/Linux/Mac
 - [x]用自定义域名访问内网web服务（常用于微信开发）
 - [x]端口转发/端口映射，访问内网任意端口提供的服务 mysql、redis、ftp等等
 - [ ] p2p穿透
 
 
-# 快速开始
+## 快速开始
 1. 在 [releases](https://github.com/SpringHgui/FastTunnel/releases) 页面下载对应的程序
 2. 根据自己的需求修改配置文件`appsettings.json`
 3. 服务端运行FastTunnel.Server
 4. 客户端运行FastTunnel.Cient
 
-# 如何在 Linux/Mac系统运行？
+## 如何在 Linux/Mac系统运行？
 #### Windows
 直接双击 `FastTunnel.Client.exe` 即可运行
 #### Linux
@@ -36,7 +36,7 @@ FastTunnel是一款高性能跨平台内网穿透工具，使用它可以实现�
 #### Mac
 直接运行 `FastTunnel.Client`
 
-# 配置示例
+## 配置示例
 ### 1. 用自定义域名访问内网web服务
 - 例如你拥有一个服务器，公网ip地址为 `110.110.110.110` ,同时你有一个顶级域名为 `test.cc` 的域名，你希望访问 `test.test.cc`可以访问内网的一个网站。
 - 你需要新增一个域名地址的DNS解析，类型为`A`，名称为 `*` , ipv4地址为 `110.110.110.110` ,这样 `*.test.cc`的域名均会指向`110.110.110.110`的服务器，由于`FastTunnel`默认监听的http端口为1270，所以要访问`http://test.test.cc:1270`
@@ -84,9 +84,9 @@ ssh -oPort=12701 root@x.x.x.x
 ![img1](images/remote.png)
   
     
-# 开发/PR
+## 开发/PR
 - 安装 `vs2019`
 - 安装 `dotnetcore runtime&sdk 3.1` 或以上版本
 
-# License
+## License
 Apache License 2.0
