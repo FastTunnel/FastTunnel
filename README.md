@@ -15,9 +15,9 @@ FastTunnel是一款高性能跨平台内网穿透工具，使用它可以实现�
 **有帮助的朋友不要忘了:star:支持一下，万分感谢:relaxed::relaxed::relaxed:**
 
 ## 使用FastTunnel能够做什么？
-- [x]远程内网计算机 Windows/Linux/Mac
-- [x]用自定义域名访问内网web服务（常用于微信开发）
-- [x]端口转发/端口映射，访问内网任意端口提供的服务 mysql、redis、ftp等等
+- [x] 远程内网计算机 Windows/Linux/Mac
+- [x] 用自定义域名访问内网web服务（常用于微信开发）
+- [x] 端口转发/端口映射，访问内网任意端口提供的服务 mysql、redis、ftp等等
 - [ ] p2p穿透
 
 
