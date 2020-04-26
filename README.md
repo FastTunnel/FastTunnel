@@ -38,10 +38,31 @@ FastTunnel是一款高性能跨平台内网穿透工具，使用它可以实现�
 
 ## 配置示例
 ### 1. 用自定义域名访问内网web服务
-- 例如你拥有一个服务器，公网ip地址为 `110.110.110.110` ,同时你有一个顶级域名为 `test.cc` 的域名，你希望访问 `test.test.cc`可以访问内网的一个网站。
-- 你需要新增一个域名地址的DNS解析，类型为`A`，名称为 `*` , ipv4地址为 `110.110.110.110` ,这样 `*.test.cc`的域名均会指向`110.110.110.110`的服务器，由于`FastTunnel`默认监听的http端口为1270，所以要访问`http://test.test.cc:1270`
-- 如果不希望每次访问都带上端口号，可以通过`nginx`转发实现。
-- 如果服务端配置的域名为`ft.suidao.io`, 则通过子域名`test.ft.suidao.io`访问在本地的站点，IIS配置如下：
+- 例如你拥有一个服务器，公网ip地址为 `110.110.110.110` ,同时你有一个顶级域名为 `abc.com` 的域名，你希望访问 `test.abc.com`可以访问内网的一个网站。
+- 你需要新增一个域名地址的DNS解析，类型为`A`，名称为 `*` , ipv4地址为 `110.110.110.110` ,这样 `*.abc.com`的域名均会指向`110.110.110.110`的服务器，由于`FastTunnel`默认监听的http端口为1270，所以要访问`http://test.abc.com:1270`
+- #### 如果不希望每次访问都带上端口号，可以通过`nginx`转发实现。
+```
+http {
+    # 添加resolver 
+    resolver 8.8.8.8;
+
+    # 设置 *.abc.com 转发至1270端口
+    server {
+      server_name  *.abc.com;
+      location / {
+         proxy_pass http://$host:1270;
+         proxy_set_header   Host             $host;
+         proxy_set_header   X-Real-IP        $remote_addr;
+         proxy_set_header   X-Forwarded-For  $proxy_add_x_forwarded_for;
+      }
+
+      # 可选
+      error_log /var/log/nginx/error_ft.log error;
+    }
+}
+```
+
+- 如果服务端配置的域名为`ft.suidao.io`, 则通过子域名`test.ft.suidao.io:1270`访问在本地的站点，IIS配置如下：
 ![img1](images/iis-web.png)
 
 ### 2. 远程内网计算机 Windows/Linux/Mac
