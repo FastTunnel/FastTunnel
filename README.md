@@ -12,7 +12,7 @@ FastTunnel是一款高性能跨平台内网穿透工具，使用它可以实现�
 
 演示地址 https://suidao.io
 
-**有帮助的朋友不要忘了:star:支持一下，万分感谢:relaxed::relaxed::relaxed:**
+**有帮助的朋友不要给个:star:支持一下，万分感谢:relaxed::relaxed::relaxed:**
 
 ## 使用FastTunnel能够做什么？
 - [x] 远程内网计算机 Windows/Linux/Mac
