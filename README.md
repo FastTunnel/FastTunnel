@@ -21,7 +21,7 @@ FastTunnel是一款高性能跨平台内网穿透工具，使用它可以实现�
 - [ ] p2p穿透
 
 
-## 快速开始
+## Start
 1. 在 [releases](https://github.com/SpringHgui/FastTunnel/releases) 页面下载对应的程序
 2. 根据自己的需求修改配置文件`appsettings.json`
 3. 服务端运行FastTunnel.Server
