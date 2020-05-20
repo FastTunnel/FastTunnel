@@ -27,7 +27,7 @@ FastTunnel是一款高性能跨平台内网穿透工具，使用它可以实现�
 3. 服务端运行FastTunnel.Server
 4. 客户端运行FastTunnel.Cient
 
-## 如何在 Linux/Mac系统运行？
+## Run on Linux/Mac os？
 #### Windows
 直接双击 `FastTunnel.Client.exe` 即可运行
 #### Linux
