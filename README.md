@@ -91,7 +91,7 @@ appsettings.json
 ```
 #### ssh远程内网linux主机 (ip:192.168.0.100)
 
-假设内网主机的用户名为 root，服务器ip为x.x.x.x，访问内网的两个主机分别如下
+假设内网主机的用户名为: root，服务器ip为x.x.x.x，访问内网的两个主机分别如下
 ```
 ssh -oPort=12701 root@x.x.x.x
 ```
