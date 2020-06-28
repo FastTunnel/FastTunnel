@@ -9,7 +9,8 @@ using FastTunnel.Core.Extensions;
 
 namespace FastTunnel.Core
 {
-    public class Listener<T>
+    [Obsolete("Replaced by AsyncListener")]
+    public class Listener<T> : IListener<T>
     {
         ILogger<object> _logerr;
 
@@ -21,14 +22,12 @@ namespace FastTunnel.Core
         Socket ls;
         T _data;
 
-
-        public Listener(string ip, int port, ILogger<object> logerr, Action<Socket, T> acceptCustomerHandler, T data)
+        public Listener(string ip, int port, ILogger<object> logerr, T data)
         {
             _logerr = logerr;
             _data = data;
             this.IP = ip;
             this.Port = port;
-            handler = acceptCustomerHandler;
 
             IPAddress ipa = IPAddress.Parse(IP);
             IPEndPoint ipe = new IPEndPoint(ipa, Port);
@@ -37,8 +36,9 @@ namespace FastTunnel.Core
             ls.Bind(ipe);
         }
 
-        public void Listen()
+        public void Listen(Action<Socket, T> receiveClient)
         {
+            this.handler = receiveClient;
             ls.Listen(100);
             ThreadPool.QueueUserWorkItem((state) =>
             {
@@ -63,7 +63,6 @@ namespace FastTunnel.Core
                         throw;
                     }
                 }
-
             }, ls);
         }
 

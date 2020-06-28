@@ -51,15 +51,15 @@ namespace FastTunnel.Core.Core
 
         private void ListenFastTunnelClient()
         {
-            var listener = new Listener<object>(_serverSettings.BindAddr, _serverSettings.BindPort, _logger, ReceiveClient, null);
-            listener.Listen();
+            IListener<object> listener = new Listener<object>(_serverSettings.BindAddr, _serverSettings.BindPort, _logger, null);
+            listener.Listen(ReceiveClient);
             _logger.LogDebug($"监听客户端 -> {_serverSettings.BindAddr}:{_serverSettings.BindPort}");
         }
 
         private void ListenCustomer()
         {
-            var listener = new Listener<object>(_serverSettings.BindAddr, _serverSettings.ProxyPort_HTTP, _logger, ReceiveCustomer, null);
-            listener.Listen();
+            var listener = new Listener<object>(_serverSettings.BindAddr, _serverSettings.ProxyPort_HTTP, _logger, null);
+            listener.Listen(ReceiveCustomer);
 
             _logger.LogDebug($"监听HTTP -> {_serverSettings.BindAddr}:{_serverSettings.ProxyPort_HTTP}");
         }

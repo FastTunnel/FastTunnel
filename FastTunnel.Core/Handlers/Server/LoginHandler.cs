@@ -93,18 +93,17 @@ namespace FastTunnel.Core.Handlers
 
                         var ls = new Listener<SSHHandlerArg>("0.0.0.0", item.RemotePort, _logger,
 
-                            (client, local) =>
-                            {
-                                var msgid = Guid.NewGuid().ToString();
-                                local.LocalClient.Send(new Message<NewSSHRequest> { MessageType = MessageType.S_NewSSH, Content = new NewSSHRequest { MsgId = msgid, SSHConfig = local.SSHConfig } });
+                             new SSHHandlerArg { LocalClient = client, SSHConfig = item });
+                        ls.Listen((client, local) =>
+                        {
+                            var msgid = Guid.NewGuid().ToString();
+                            local.LocalClient.Send(new Message<NewSSHRequest> { MessageType = MessageType.S_NewSSH, Content = new NewSSHRequest { MsgId = msgid, SSHConfig = local.SSHConfig } });
 
-                                server.newRequest.Add(msgid, new NewRequest
-                                {
-                                    CustomerClient = client,
-                                });
-                            }
-                            , new SSHHandlerArg { LocalClient = client, SSHConfig = item });
-                        ls.Listen();
+                            server.newRequest.Add(msgid, new NewRequest
+                            {
+                                CustomerClient = client,
+                            });
+                        });
 
                         // listen success
                         server.SSHList.Add(item.RemotePort, new SSHInfo<SSHHandlerArg> { Listener = ls, Socket = client, SSHConfig = item });
