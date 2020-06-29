@@ -91,9 +91,10 @@ namespace FastTunnel.Core.Handlers
                             server.SSHList.Remove(item.RemotePort);
                         }
 
-                        var ls = new Listener<SSHHandlerArg>("0.0.0.0", item.RemotePort, _logger,
+                        var ls = new AsyncListener<SSHHandlerArg>("0.0.0.0", item.RemotePort, _logger,
 
                              new SSHHandlerArg { LocalClient = client, SSHConfig = item });
+
                         ls.Listen((client, local) =>
                         {
                             var msgid = Guid.NewGuid().ToString();

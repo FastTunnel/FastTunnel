@@ -11,6 +11,8 @@
     <Compile Remove="Core\SuiDaoServer.cs.BASE.cs" />
     <Compile Remove="Core\SuiDaoServer.cs.LOCAL.cs" />
     <Compile Remove="Core\SuiDaoServer.cs.REMOTE.cs" />
+    <Compile Remove="Listener.cs" />
+    <Compile Remove="Server.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -25,6 +27,7 @@
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
     <PackageReference Include="NLog" Version="4.6.8" />
     <PackageReference Include="NLog.Extensions.Logging" Version="1.6.1" />
+    <PackageReference Include="System.Private.ServiceModel" Version="4.7.0" />
   </ItemGroup>
 
   <ItemGroup>

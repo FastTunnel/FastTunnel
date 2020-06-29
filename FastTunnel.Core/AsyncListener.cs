@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace FastTunnel.Core
 {
@@ -15,9 +17,12 @@ namespace FastTunnel.Core
 
         public int Port { get; set; }
 
-        Action<Socket, T> handler;
+        Action<Socket, T> receiveClient;
         Socket listener;
         T _data;
+
+        // Thread signal.  
+        public ManualResetEvent allDone = new ManualResetEvent(false);
 
         public AsyncListener(string ip, int port, ILogger<object> logerr, T data)
         {
@@ -37,36 +42,39 @@ namespace FastTunnel.Core
         {
             // example https://docs.microsoft.com/en-us/dotnet/framework/network-programming/asynchronous-server-socket-example
             // Bind the socket to the local endpoint and listen for incoming connections.  
-            try
-            {
-                listener.Listen(100);
+            this.receiveClient = receiveClient;
 
-                while (true)
+            Task.Run(() =>
+            {
+                try
                 {
-                    // Set the event to nonsignaled state.  
-                    //allDone.Reset();
+                    listener.Listen(100);
 
-                    // Start an asynchronous socket to listen for connections.  
-                    Console.WriteLine("Waiting for a connection...");
-                    listener.BeginAccept(
-                        new AsyncCallback(AcceptCallback),
-                        listener);
+                    while (true)
+                    {
+                        // Set the event to nonsignaled state.  
+                        allDone.Reset();
 
-                    // Wait until a connection is made before continuing.  
-                    //allDone.WaitOne();
+                        // Start an asynchronous socket to listen for connections.  
+                        Console.WriteLine("Waiting for a connection...");
+                        listener.BeginAccept(new AsyncCallback(AcceptCallback), listener);
+
+                        // Wait until a connection is made before continuing.
+                        allDone.WaitOne();
+                    }
+
                 }
-
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.ToString());
-            }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e.ToString());
+                }
+            });
         }
 
         void AcceptCallback(IAsyncResult ar)
         {
             // Signal the main thread to continue.  
-            //allDone.Set();
+            allDone.Set();
 
             // Get the socket that handles the client request.  
             Socket listener = (Socket)ar.AsyncState;
@@ -75,7 +83,10 @@ namespace FastTunnel.Core
             // Create the state object.  
             StateObject state = new StateObject();
             state.workSocket = handler;
-            handler.BeginReceive(state.buffer, 0, StateObject.BufferSize, 0, new AsyncCallback(ReadCallback), state);
+
+            receiveClient.Invoke(handler, _data);
+
+            //handler.BeginReceive(state.buffer, 0, StateObject.BufferSize, 0, new AsyncCallback(ReadCallback), state);
         }
 
         void ReadCallback(IAsyncResult ar)
@@ -93,8 +104,7 @@ namespace FastTunnel.Core
             if (bytesRead > 0)
             {
                 // There  might be more data, so store the data received so far.  
-                state.sb.Append(Encoding.ASCII.GetString(
-                    state.buffer, 0, bytesRead));
+                state.sb.Append(Encoding.ASCII.GetString(state.buffer, 0, bytesRead));
 
                 // Check for end-of-file tag. If it is not there, read
                 // more data.  
@@ -106,6 +116,7 @@ namespace FastTunnel.Core
                     Console.WriteLine("Read {0} bytes from socket. \n Data : {1}",
                         content.Length, content);
                     // Echo the data back to the client.  
+
                     Send(handler, content);
                 }
                 else
@@ -130,20 +141,31 @@ namespace FastTunnel.Core
         {
             try
             {
-                // Retrieve the socket from the state object.  
+                // Retrieve the socket from the state object.
                 Socket handler = (Socket)ar.AsyncState;
 
-                // Complete sending the data to the remote device.  
+                // Complete sending the data to the remote device.
                 int bytesSent = handler.EndSend(ar);
                 Console.WriteLine("Sent {0} bytes to client.", bytesSent);
-
-                handler.Shutdown(SocketShutdown.Both);
-                handler.Close();
-
             }
             catch (Exception e)
             {
                 Console.WriteLine(e.ToString());
+            }
+        }
+
+        public void ShutdownAndClose()
+        {
+            try
+            {
+                listener.Shutdown(SocketShutdown.Both);
+            }
+            catch (Exception ex)
+            {
+            }
+            finally
+            {
+                listener.Close();
             }
         }
     }

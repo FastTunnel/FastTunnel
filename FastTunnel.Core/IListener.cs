@@ -7,6 +7,12 @@ namespace FastTunnel.Core
 {
     public interface IListener<T>
     {
+        string IP { get; set; }
+
+        int Port { get; set; }
+
         void Listen(Action<Socket, T> receiveClient);
+
+        void ShutdownAndClose();
     }
 }
