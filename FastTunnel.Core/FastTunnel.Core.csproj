@@ -5,6 +5,19 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <ApplicationIcon />
     <StartupObject />
+    <PackageProjectUrl>https://github.com/SpringHgui/FastTunnel</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Copyright>FastTunnel</Copyright>
+    <Description>expose a local server behind a NAT or firewall to the internet like ngrok and frp</Description>
+    <Authors>SpringHgui</Authors>
+    <Company>FastTunnel</Company>
+    <Product>FastTunnel</Product>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <RepositoryUrl>https://github.com/SpringHgui/FastTunnel</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>FastTunnel.Core</PackageTags>
+    <PackageReleaseNotes>FastTunnel.Core</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>

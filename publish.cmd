@@ -1,6 +1,6 @@
 @echo off
 
-for /d %%p in (FastTunnel.Client,FastTunnel.Server,SuiDao.Client,SuiDao.Server) do (
+for /d %%p in (FastTunnel.Client,FastTunnel.Server) do (
   CD ./%%p 
  
   for  %%I in (win-x64,osx-x64,linux-x64) do (
