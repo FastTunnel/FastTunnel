@@ -161,8 +161,8 @@ namespace SuiDao.Client
 
         private static void Run(IServiceProvider servicesProvider, ILogger _logger, string key, bool log)
         {
-            var res = HttpHelper.PostAsJson("https://api1.suidao.io/api/Client/GetServerByKey", $"{{ \"key\":\"{key}\"}}").Result;
-            var jobj = JObject.Parse(res);
+            var res_str = HttpHelper.PostAsJson("https://api1.suidao.io/api/Client/GetServerByKey", $"{{ \"key\":\"{key}\"}}").Result;
+            var jobj = JObject.Parse(res_str);
             if ((bool)jobj["success"] == true)
             {
                 // 记录登录记录
@@ -171,7 +171,47 @@ namespace SuiDao.Client
                     AppendTextToFile(Path.Combine(AppContext.BaseDirectory, KeyLogName), Environment.NewLine + key);
                 }
 
-                var server = jobj["data"].ToObject<SuiDaoServerConfig>();
+                SuiDaoServerInfo server;
+                var res = jobj["data"].ToObject<SuiDaoServerConfig>();
+                if (res.servers != null && res.servers.Count() > 0)
+                {
+                    // 选择其中一个服务器继续
+                    if (res.servers.Count() == 1)
+                    {
+                        server = res.servers.First();
+                    }
+                    else
+                    {
+                        Console.WriteLine("请选择其中一个服务器进行连接（输入序号，回车键确认）：");
+                        for (int i = 0; i < res.servers.Length; i++)
+                        {
+                            Console.WriteLine($"{i}:{res.servers[i].server_name}");
+                        }
+
+                        while (true)
+                        {
+                            var input = Console.ReadLine();
+                            int index;
+                            if (int.TryParse(input, out index) && index <= res.servers.Length - 1 && index >= 0)
+                            {
+                                // 输入有效，退出循环
+                                server = res.servers[index];
+                                Console.WriteLine($"您选择的服务器为：{server.server_name}");
+                                break;
+                            }
+                            else
+                            {
+                                Console.WriteLine("输入有误，请重新输入");
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("您无可用的服务器");
+                    NewKey(_logger);
+                    return;
+                }
 
                 var client = servicesProvider.GetRequiredService<FastTunnelClient>();
 
@@ -193,7 +233,7 @@ namespace SuiDao.Client
                     }
 
                     // 登录
-                    _client.Send(new Message<LogInByKeyMassage> { MessageType = MessageType.C_LogIn, Content = new LogInByKeyMassage { key = key } });
+                    _client.Send(new Message<LogInByKeyMassage> { MessageType = MessageType.C_LogIn, Content = new LogInByKeyMassage { key = key, server_id = server.server_id } });
 
                     return _client;
                 }, new SuiDaoServer { ServerAddr = server.ip, ServerPort = server.bind_port });
