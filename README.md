@@ -4,7 +4,12 @@
 [README](README.md) | [中文文档](README_zh.md)
 
 ***
-演示地址 https://suidao.io  演示程序源码：[FastTunnel.SuiDao](https://github.com/SpringHgui/FastTunnel.SuiDao)
+演示地址 https://suidao.io  
+
+演示程序源码：[FastTunnel.SuiDao](https://github.com/SpringHgui/FastTunnel.SuiDao)
+
+**有帮助的朋友给个:star:支持一下，有需求和bug请提交issue，同时欢迎各位PR:blush::blush::blush:**
+
 ***
 
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](https://github.com/SpringHgui/frp/pulls)
@@ -13,8 +18,6 @@
 [![CircleCI](https://circleci.com/gh/gothinkster/aspnetcore-realworld-example-app.svg?style=svg)](https://circleci.com/gh/SpringHgui/FastTunnel)
 ## What is FastTunnel？
 FastTunnel是一款高性能跨平台内网穿透工具，使用它可以实现在公网上访问您的内网服务。
-
-**有帮助的朋友给个:star:支持一下，万分感谢:relaxed::relaxed::relaxed:**
 
 ## What can FastTunel do？
 - [x] 远程内网计算机 Windows/Linux/Mac
