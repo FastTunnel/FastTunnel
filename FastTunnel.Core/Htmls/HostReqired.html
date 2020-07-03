@@ -1,0 +1,114 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FastTunnel</title>
+  <link href="https://cdn.bootcss.com/twitter-bootstrap/4.4.1/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .err-info {
+      margin-top: 120px;
+    }
+
+    /* Provide sufficient contrast against white background */
+    a {
+      color: #0366d6;
+    }
+
+    .btn-primary {
+      color: #fff;
+      background-color: #1b6ec2;
+      border-color: #1861ac;
+    }
+
+    .nav-pills .nav-link.active,
+    .nav-pills .show>.nav-link {
+      color: #fff;
+      background-color: #1b6ec2;
+      border-color: #1861ac;
+    }
+
+    /* Sticky footer styles
+-------------------------------------------------- */
+    html {
+      font-size: 14px;
+    }
+
+    @media (min-width: 768px) {
+      html {
+        font-size: 16px;
+      }
+    }
+
+    .border-top {
+      border-top: 1px solid #e5e5e5;
+    }
+
+    .border-bottom {
+      border-bottom: 1px solid #e5e5e5;
+    }
+
+    .box-shadow {
+      box-shadow: 0 .25rem .75rem rgba(0, 0, 0, .05);
+    }
+
+    button.accept-policy {
+      font-size: 1rem;
+      line-height: inherit;
+    }
+
+    /* Sticky footer styles
+-------------------------------------------------- */
+    html {
+      position: relative;
+      min-height: 100%;
+    }
+
+    body {
+      /* Margin bottom by footer height */
+      margin-bottom: 60px;
+    }
+
+    .footer {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      white-space: nowrap;
+      line-height: 60px;
+      /* Vertically center the text there */
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container err-info">
+    <main role="main" class="pb-3">
+      <div class="text-center">
+        <h1 class="display-4">Http请求必须使用域名访问</h1>
+        <p>本页面的方法不能解决您的问题？ 去github提交<a target="_blank" href="https://github.com/SpringHgui/FastTunnel/issues">issue</a>给软件作者.
+      </div>
+
+      <blockquote style="padding-top: 4em;">
+        <p class="lead">您看到本页面表示您请求web服务的方式有误：</p>
+      </blockquote>
+      <ol>
+        <li class="lead">HTTP请求不可使用ip+端口直接访问</li>
+        <li class="lead">请根据客户端提示的地址进行访问</li>
+        <li class="lead">HTTP协议的Host头不可省略</li>
+      </ol>
+      <blockquote style="padding-top: 4em;">
+        <p class="lead">提醒：当前软件处于开发阶段，客户端版本可能会更新频繁，如遇到客户端异常，请登录<a target="_blank"
+            href="https://suidao.io">suidao.io</a>下载最新的客户端重试。</p>
+      </blockquote>
+    </main>
+  </div>
+
+  <footer class="border-top footer text-muted">
+    <div class="container">
+      <a href="https://github.com/SpringHgui/FastTunnel" target="_blank">© Power By FastTunnel</a>
+    </div>
+  </footer>
+</body>
+
+</html>

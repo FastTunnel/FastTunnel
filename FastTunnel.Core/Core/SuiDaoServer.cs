@@ -107,6 +107,9 @@ namespace FastTunnel.Core.Core
                 if (collection.Count == 0)
                 {
                     _logger.LogError($"Host异常：{words}");
+
+                    // 返回错误页
+                    HandlerHostRequired(client);
                     return;
                 }
                 else
@@ -116,6 +119,14 @@ namespace FastTunnel.Core.Core
 
                 _logger.LogDebug(Host.Replace("\r", ""));
                 var domain = Host.Split(":")[1].Trim();
+
+                // 判断是否为ip
+                if (IsIpDomian(domain))
+                {
+                    // 返回错误页
+                    HandlerHostRequired(client);
+                    return;
+                }
 
                 WebInfo web;
                 if (!WebList.TryGetValue(domain, out web))
@@ -152,23 +163,39 @@ namespace FastTunnel.Core.Core
             }
         }
 
-        private void HandlerClientNotOnLine(Socket clientsocket, string domain, byte[] buffer)
+        private bool IsIpDomian(string domain)
         {
-            _logger.LogDebug($"TunnelNotFound:'{domain}'");
+            return Regex.IsMatch(domain, @"^\d.\d.\d.\d.\d$");
+        }
+
+        private void HandlerHostRequired(Socket client)
+        {
+            _logger.LogDebug($"### HostRequired:'{client.RemoteEndPoint}'");
             string statusLine = "HTTP/1.1 200 OK\r\n";
             string responseHeader = "Content-Type: text/html\r\n";
 
-            //var file = Path.Combine(AppContext.BaseDirectory, "Htmls", "TunnelNotFound.html");
-            //if (File.Exists(file))
-            //    responseBody = FileHelper.GetBytesFromFile(file);
+            byte[] responseBody = Encoding.UTF8.GetBytes(TunnelResource.Page_HostRequired);
 
-            byte[] responseBody = Encoding.UTF8.GetBytes(TunnelResource.NoTunnelPage);
+            client.Send(Encoding.UTF8.GetBytes(statusLine));
+            client.Send(Encoding.UTF8.GetBytes(responseHeader));
+            client.Send(Encoding.UTF8.GetBytes("\r\n"));
+            client.Send(responseBody);
+            client.Close();
+        }
 
-            clientsocket.Send(Encoding.UTF8.GetBytes(statusLine));
-            clientsocket.Send(Encoding.UTF8.GetBytes(responseHeader));
-            clientsocket.Send(Encoding.UTF8.GetBytes("\r\n"));
-            clientsocket.Send(responseBody);
-            clientsocket.Close();
+        private void HandlerClientNotOnLine(Socket client, string domain, byte[] buffer)
+        {
+            _logger.LogDebug($"### TunnelNotFound:'{domain}'");
+            string statusLine = "HTTP/1.1 200 OK\r\n";
+            string responseHeader = "Content-Type: text/html\r\n";
+
+            byte[] responseBody = Encoding.UTF8.GetBytes(TunnelResource.Page_NoTunnel);
+
+            client.Send(Encoding.UTF8.GetBytes(statusLine));
+            client.Send(Encoding.UTF8.GetBytes(responseHeader));
+            client.Send(Encoding.UTF8.GetBytes("\r\n"));
+            client.Send(responseBody);
+            client.Close();
         }
 
         byte[] buffer = new byte[1024 * 1024];

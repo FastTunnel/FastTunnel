@@ -36,7 +36,7 @@ namespace FastTunnel.Core.Handlers.Client
                     string statusLine = "HTTP/1.1 200 OK\r\n";
                     string responseHeader = "Content-Type: text/html\r\n";
                     byte[] responseBody;
-                    responseBody = Encoding.UTF8.GetBytes(TunnelResource.NoSite);
+                    responseBody = Encoding.UTF8.GetBytes(TunnelResource.Page_NoSite);
 
                     connecter.Send(Encoding.UTF8.GetBytes(statusLine));
                     connecter.Send(Encoding.UTF8.GetBytes(responseHeader));
