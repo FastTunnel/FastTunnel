@@ -102,7 +102,7 @@ namespace FastTunnel.Core.Core
 
                 // 正则获取Host
                 String Host = string.Empty;
-                var pattern = @"Host:.+";
+                var pattern = @"[hH]ost:.+";
                 var collection = Regex.Matches(words, pattern);
                 if (collection.Count == 0)
                 {
