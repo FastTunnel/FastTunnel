@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "FastTunnel.Server": {
+      "commandName": "Project"
+    },
+    "Docker": {
+      "commandName": "Docker"
+    }
+  }
+}

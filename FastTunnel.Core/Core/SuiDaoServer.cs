@@ -258,7 +258,7 @@ namespace FastTunnel.Core.Core
         private IServerHandler HandleWords(string words, Socket client)
         {
             // 同时读到两个或多个指令
-            var index = words.IndexOf("}{");
+            var index = words.IndexOf("\n");
             if (index > 0)
             {
                 _logger.LogError($"读到多个消息 {words}");
