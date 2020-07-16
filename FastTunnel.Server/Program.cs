@@ -30,7 +30,9 @@ namespace FastTunnel.Server
         {
             LogManager.Configuration = NlogConfig.getNewConfig();
             var logger = LogManager.GetCurrentClassLogger();
+
             logger.Debug("===== FastTunnel Server Start =====");
+            logger.Debug("===== args =====" + Environment.NewLine + string.Join(Environment.NewLine, args));
 
             try
             {
