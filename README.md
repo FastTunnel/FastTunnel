@@ -38,7 +38,7 @@ FastTunnel是一款高性能跨平台内网穿透工具，使用它可以实现�
 直接双击 `FastTunnel.Client.exe` Ready to run
 #### Linux
 `chmod +x FastTunnel.Client`  
-`.\FastTunnel.Client`
+`./FastTunnel.Client`
 #### Mac
 直接运行 `FastTunnel.Client`
 
