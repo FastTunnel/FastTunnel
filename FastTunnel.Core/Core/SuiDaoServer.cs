@@ -199,6 +199,7 @@ namespace FastTunnel.Core.Core
         }
 
         byte[] buffer = new byte[1024 * 1024];
+        string temp = string.Empty;
 
         public void ReceiveClient(Socket client, object _)
         {
@@ -235,14 +236,38 @@ namespace FastTunnel.Core.Core
 
             // 将字节转换成字符串
             string words = Encoding.UTF8.GetString(buffer, 0, length);
+            words += temp;
+            temp = string.Empty;
 
             try
             {
-                if (HandleWords(words, client).NeedRecive)
+                int index = 0;
+                bool needRecive = false;
+
+                while (true)
                 {
-                    // 递归
+                    var firstIndex = words.IndexOf("\n");
+                    if (firstIndex < 0)
+                    {
+                        temp += words;
+                        ReceiveClient(client, _);
+                        break;
+                    }
+
+                    var sub_words = words.Substring(index, firstIndex + 1);
+                    var res = handle(sub_words, client);
+
+                    if (res.NeedRecive)
+                        needRecive = true;
+
+                    words = words.Replace(sub_words, string.Empty);
+                    if (string.IsNullOrEmpty(words))
+                        break;
+                }
+
+                if (needRecive)
+                {
                     ReceiveClient(client, _);
-                    return;
                 }
             }
             catch (Exception ex)
@@ -252,25 +277,6 @@ namespace FastTunnel.Core.Core
 
                 // throw;
                 client.Send(new Message<LogMassage>() { MessageType = MessageType.Log, Content = new LogMassage(LogMsgType.Error, ex.Message) });
-            }
-        }
-
-        private IServerHandler HandleWords(string words, Socket client)
-        {
-            // 同时读到两个或多个指令
-            var index = words.IndexOf("\n");
-            if (index > 0)
-            {
-                _logger.LogError($"读到多个消息 {words}");
-                var sub_words = words.Substring(0, index + 1);
-                var left = words.Substring(index + 1);
-
-                handle(sub_words, client);
-                return HandleWords(left, client);
-            }
-            else
-            {
-                return handle(words, client);
             }
         }
 

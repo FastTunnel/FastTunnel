@@ -27,7 +27,7 @@ namespace FastTunnel.Core.Core
         System.Timers.Timer timer_timeout;
         System.Timers.Timer timer_heart;
 
-        Func<Connecter> login;
+        Task<Connecter> login;
         double heartInterval = 10 * 1000; // 10 秒心跳
         public DateTime lastHeart;
         Thread th;
@@ -74,7 +74,7 @@ namespace FastTunnel.Core.Core
                     _logger.LogDebug($"last heart recived {span / 1000}s ago");
 
                     // 重新登录
-                    reConnect();
+                    reConnectAsync();
                 }
             }
             catch (Exception ex)
@@ -87,19 +87,19 @@ namespace FastTunnel.Core.Core
             }
         }
 
-        private void reConnect()
+        private async Task reConnectAsync()
         {
             Close();
             try
             {
-                _client = login.Invoke();
+                _client = await login;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex.Message);
 
                 Thread.Sleep(reTrySpan);
-                reConnect();
+                reConnectAsync();
                 return;
             }
 
@@ -124,25 +124,25 @@ namespace FastTunnel.Core.Core
             }
         }
 
-        public void Login(Func<Connecter> fun, SuiDaoServer serverConfig)
+        public async Task LoginAsync(Task<Connecter> fun, SuiDaoServer serverConfig)
         {
             _serverConfig = serverConfig;
 
             login = fun;
             try
             {
-                _client = login.Invoke();
+                _client = await login;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex.Message);
 
                 Thread.Sleep(reTrySpan);
-                reConnect();
+                reConnectAsync();
                 return;
             }
 
-            LogSuccess(_client.Socket);
+            //LogSuccess(_client.Socket);
         }
 
         void Close()
