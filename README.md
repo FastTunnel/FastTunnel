@@ -114,7 +114,7 @@ ssh -oPort=12701 root@x.x.x.x
 ## 开发/PR
 - install `vs2019`
 - install `dotnetcore runtime&sdk 3.1` 或以上版本
-- add host `test.test.cc`-> `127.0.0.1`
+- add `test.test.cc   127.0.0.1` in host file
 - run fasttunnel.server
 - run fasttunnel.client
 
