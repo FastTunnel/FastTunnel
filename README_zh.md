@@ -114,6 +114,9 @@ ssh -oPort=12701 root@x.x.x.x
 ## 开发/PR
 - 安装 `vs2019`
 - 安装 `dotnetcore runtime&sdk 3.1` 或以上版本
+- host文件中添加 `test.test.cc 127.0.0.1`
+- 启动 fasttunnel.server
+- 启动 fasttunnel.client
 
 ## License
 Apache License 2.0
