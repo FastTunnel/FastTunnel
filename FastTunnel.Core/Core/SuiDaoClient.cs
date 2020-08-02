@@ -142,7 +142,7 @@ namespace FastTunnel.Core.Core
                 return;
             }
 
-            //LogSuccess(_client.Socket);
+            LogSuccess(_client.Socket);
         }
 
         void Close()
