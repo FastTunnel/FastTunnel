@@ -11,81 +11,44 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NLog.Extensions.Logging;
-using Microsoft.Extensions.Logging;
-using NLog;
-using FastTunnel.Core.Config;
-using FastTunnel.Core.Host;
 using FastTunnel.Core.Core;
 using FastTunnel.Core.Handlers;
 using FastTunnel.Core.Handlers.Server;
+using Microsoft.Extensions.Hosting;
+using Microsoft.AspNetCore.Hosting;
+using FastTunnel.Server.Service;
 using FastTunnel.Core.Logger;
 
 namespace FastTunnel.Server
 {
     class Program
     {
-        static Appsettings appsettings;
-
-        static void Main(string[] args)
+        public static void Main(string[] args)
         {
-            LogManager.Configuration = NlogConfig.getNewConfig();
-            var logger = LogManager.GetCurrentClassLogger();
-
-            logger.Debug("===== FastTunnel Server Start =====");
-            logger.Debug("===== args =====" + Environment.NewLine + string.Join(Environment.NewLine, args));
-
-            try
-            {
-                var servicesProvider = new Host().Config(Config).Build();
-                Run(servicesProvider);
-            }
-            catch (Exception ex)
-            {
-                // NLog: catch any exception and log it.
-                logger.Error(ex);
-                Console.WriteLine(ex);
-            }
-            finally
-            {
-                // Ensure to flush and stop internal timers/threads before application-exit (Avoid segmentation fault on Linux)
-                LogManager.Shutdown();
-            }
+            CreateHostBuilder(args).Build().Run();
         }
 
-        private static ServerConfig implementationFactory(IServiceProvider arg)
-        {
-            if (appsettings == null)
-            {
-                var conf = new ConfigurationBuilder()
-                  .SetBasePath(Directory.GetCurrentDirectory())
-                  .AddJsonFile("appsettings.json", true, true)
-                  .Build();
+        /// <summary>
+        /// 使用托管服务实现后台任务:https://docs.microsoft.com/zh-cn/aspnet/core/fundamentals/host/hosted-services?view=aspnetcore-5.0&tabs=visual-studio
+        /// </summary>
+        /// <param name="args"></param>
+        /// <returns></returns>
+        public static IHostBuilder CreateHostBuilder(string[] args) =>
+            Host.CreateDefaultBuilder(args)
+                .ConfigureLogging((context) =>
+                {
+                    context.AddNLog(NlogConfig.getNewConfig());
+                })
+                .ConfigureServices((hostContext, services) =>
+                {
+                    services.AddHostedService<ServiceFastTunnelServer>();
 
-                appsettings = conf.Get<Appsettings>();
-            }
-
-            return appsettings.ServerSettings;
-        }
-
-        private static void Config(ServiceCollection service)
-        {
-            service.AddSingleton<FastTunnelServer>()
-                .AddSingleton<LoginHandler>()
-                .AddSingleton<HeartHandler>()
-                .AddSingleton<SwapMsgHandler>()
-                .AddSingleton<IConfigHandler, ConfigHandler>()
-                .AddSingleton<ServerConfig>(implementationFactory);
-        }
-
-        private static void Run(IServiceProvider servicesProvider)
-        {
-            var server = servicesProvider.GetRequiredService<FastTunnelServer>();
-            server.Run();
-
-            while (true)
-            {
-                Thread.Sleep(10000 * 60);
-            }
-        }
+                    // DI
+                    services.AddTransient<FastTunnelServer>();
+                    services.AddTransient<LoginHandler>();
+                    services.AddTransient<HeartHandler>();
+                    services.AddTransient<SwapMsgHandler>();
+                    services.AddTransient<IConfigHandler, ConfigHandler>();
+                });
     }
 }
