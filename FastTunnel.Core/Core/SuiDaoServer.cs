@@ -33,17 +33,17 @@ namespace FastTunnel.Core.Core
         HeartHandler _heartHandler;
         SwapMsgHandler _swapMsgHandler;
 
-        public FastTunnelServer(ServerConfig settings, ILogger<FastTunnelServer> logger, LoginHandler loginHandler, HeartHandler heartHandler, SwapMsgHandler swapMsgHandler)
+        public FastTunnelServer(ILogger<FastTunnelServer> logger, LoginHandler loginHandler, HeartHandler heartHandler, SwapMsgHandler swapMsgHandler)
         {
-            _serverSettings = settings;
             _logger = logger;
             _loginHandler = loginHandler;
             _heartHandler = heartHandler;
             _swapMsgHandler = swapMsgHandler;
         }
 
-        public void Run()
+        public void Run(ServerConfig settings)
         {
+            _serverSettings = settings;
             _logger.LogDebug("FastTunnel Server Start");
             ListenFastTunnelClient();
             ListenCustomer();
