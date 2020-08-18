@@ -30,7 +30,7 @@ namespace FastTunnel.Client
             {
                 var servicesProvider = new Host().Config(Config).Build();
 
-                RunAsync(servicesProvider);
+                Run(servicesProvider);
 
                 while (true)
                 {
@@ -50,40 +50,40 @@ namespace FastTunnel.Client
             }
         }
 
-        private static async Task RunAsync(IServiceProvider servicesProvider)
+        private static void Run(IServiceProvider servicesProvider)
         {
             var client = servicesProvider.GetRequiredService<FastTunnelClient>();
             var config = servicesProvider.GetRequiredService<ClientConfig>();
 
-            await client.LoginAsync(Task.Run(() =>
+            client.Login(() =>
             {
-               Connecter _client;
+              Connecter _client;
 
-               try
-               {
-                   // 连接到的目标IP
-                   _client = new Connecter(config.Common.ServerAddr, config.Common.ServerPort);
-                   _client.Connect();
-               }
-               catch (Exception ex)
-               {
-                   Thread.Sleep(5000);
-                   throw;
-               }
+              try
+              {
+                  // 连接到的目标IP
+                  _client = new Connecter(config.Common.ServerAddr, config.Common.ServerPort);
+                  _client.Connect();
+              }
+              catch (Exception ex)
+              {
+                  Thread.Sleep(5000);
+                  throw;
+              }
 
-               // 登录
-               _client.Send(new Message<LogInMassage>
-               {
-                   MessageType = MessageType.C_LogIn,
-                   Content = new LogInMassage
-                   {
-                       Webs = config.Webs,
-                       SSH = config.SSH
-                   }
-               });
+              // 登录
+              _client.Send(new Message<LogInMassage>
+              {
+                  MessageType = MessageType.C_LogIn,
+                  Content = new LogInMassage
+                  {
+                      Webs = config.Webs,
+                      SSH = config.SSH
+                  }
+              });
 
-               return _client;
-           }), config.Common);
+              return _client;
+          }, config.Common);
 
             while (true)
             {

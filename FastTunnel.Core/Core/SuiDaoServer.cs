@@ -227,6 +227,7 @@ namespace FastTunnel.Core.Core
             catch (Exception ex)
             {
                 _logger.LogError($"接收客户端异常 -> 退出登录 {ex.Message}");
+
                 if (client.Connected)
                 {
                     client.Close();

@@ -24,6 +24,7 @@ namespace FastTunnel.Core
 
             if (sendTimeout.HasValue)
             {
+                Socket.ReceiveTimeout = sendTimeout.Value;
                 Socket.SendTimeout = sendTimeout.Value;
             }
             else

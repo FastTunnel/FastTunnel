@@ -27,7 +27,7 @@ namespace FastTunnel.Core.Core
         System.Timers.Timer timer_timeout;
         System.Timers.Timer timer_heart;
 
-        Task<Connecter> login;
+        Func<Connecter> lastLogin;
         double heartInterval = 10 * 1000; // 10 秒心跳
         public DateTime lastHeart;
         Thread th;
@@ -92,7 +92,7 @@ namespace FastTunnel.Core.Core
             Close();
             try
             {
-                _client = await login;
+                _client = lastLogin.Invoke();
             }
             catch (Exception ex)
             {
@@ -124,14 +124,14 @@ namespace FastTunnel.Core.Core
             }
         }
 
-        public async Task LoginAsync(Task<Connecter> fun, SuiDaoServer serverConfig)
+        public void Login(Func<Connecter> login, SuiDaoServer serverConfig)
         {
             _serverConfig = serverConfig;
+            lastLogin = login;
 
-            login = fun;
             try
             {
-                _client = await login;
+                _client = lastLogin.Invoke();
             }
             catch (Exception ex)
             {

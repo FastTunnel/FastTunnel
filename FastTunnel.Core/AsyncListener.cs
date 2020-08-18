@@ -21,8 +21,10 @@ namespace FastTunnel.Core
         Socket listener;
         T _data;
 
+        bool Shutdown { get; set; }
+
         // Thread signal.  
-        public ManualResetEvent allDone = new ManualResetEvent(false);
+        ManualResetEvent allDone = new ManualResetEvent(false);
 
         public AsyncListener(string ip, int port, ILogger<object> logerr, T data)
         {
@@ -56,7 +58,7 @@ namespace FastTunnel.Core
                         allDone.Reset();
 
                         // Start an asynchronous socket to listen for connections.  
-                        Console.WriteLine("Waiting for a connection...");
+                        _logerr.LogDebug($"Waiting for a connection {listener.Handle}");
                         listener.BeginAccept(new AsyncCallback(AcceptCallback), listener);
 
                         // Wait until a connection is made before continuing.
@@ -73,6 +75,9 @@ namespace FastTunnel.Core
 
         void AcceptCallback(IAsyncResult ar)
         {
+            if (Shutdown)
+                return;
+
             // Signal the main thread to continue.  
             allDone.Set();
 
@@ -156,6 +161,7 @@ namespace FastTunnel.Core
 
         public void ShutdownAndClose()
         {
+            Shutdown = true;
             try
             {
                 listener.Shutdown(SocketShutdown.Both);
