@@ -8,6 +8,6 @@ namespace FastTunnel.Server
 {
     public class Appsettings
     {
-        public ServerConfig ServerSettings { get; set; }
+        public DefaultServerConfig ServerSettings { get; set; }
     }
 }

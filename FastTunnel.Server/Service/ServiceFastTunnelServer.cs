@@ -1,4 +1,5 @@
-﻿using FastTunnel.Core.Core;
+﻿using FastTunnel.Core.Config;
+using FastTunnel.Core.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -29,7 +30,14 @@ namespace FastTunnel.Server.Service
 
             try
             {
-                Run();
+                var setting = _configuration.Get<Appsettings>().ServerSettings;
+
+                _fastTunnelServer.Run(
+                    new DefaultServerConfigBuilder()
+                    .WithBindInfo(setting.BindAddr, setting.BindPort)
+                    .WithHasNginxProxy(setting.HasNginxProxy)
+                    .WithWebDomain(setting.Domain)
+                    .WithHTTPPort(setting.ProxyPort_HTTP).Build());
             }
             catch (Exception ex)
             {
@@ -39,11 +47,6 @@ namespace FastTunnel.Server.Service
             }
 
             return Task.CompletedTask;
-        }
-
-        private void Run()
-        {
-            _fastTunnelServer.Run(_configuration.Get<Appsettings>().ServerSettings);
         }
 
         public Task StopAsync(CancellationToken cancellationToken)

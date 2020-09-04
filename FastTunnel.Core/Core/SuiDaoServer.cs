@@ -25,7 +25,8 @@ namespace FastTunnel.Core.Core
         public Dictionary<string, NewRequest> newRequest = new Dictionary<string, NewRequest>();
         public Dictionary<string, WebInfo> WebList = new Dictionary<string, WebInfo>();
         public Dictionary<int, SSHInfo<SSHHandlerArg>> SSHList = new Dictionary<int, SSHInfo<SSHHandlerArg>>();
-        public ServerConfig _serverSettings;
+
+        public IServerConfig _serverSettings { get; set; }
 
         ILogger<FastTunnelServer> _logger;
 
@@ -41,7 +42,7 @@ namespace FastTunnel.Core.Core
             _swapMsgHandler = swapMsgHandler;
         }
 
-        public void Run(ServerConfig settings)
+        public void Run(IServerConfig settings)
         {
             _serverSettings = settings;
             _logger.LogDebug("FastTunnel Server Start");
