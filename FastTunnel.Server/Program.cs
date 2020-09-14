@@ -34,10 +34,6 @@ namespace FastTunnel.Server
 
                     // DI
                     services.AddTransient<FastTunnelServer>();
-                    services.AddTransient<LoginHandler>();
-                    services.AddTransient<HeartHandler>();
-                    services.AddTransient<SwapMsgHandler>();
-                    services.AddTransient<IConfigHandler, ConfigHandler>();
                 });
     }
 }

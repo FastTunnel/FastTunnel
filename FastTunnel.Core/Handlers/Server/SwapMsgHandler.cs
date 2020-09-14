@@ -15,9 +15,9 @@ namespace FastTunnel.Core.Handlers.Server
     {
         public bool NeedRecive => false;
 
-        ILogger<LoginHandler> _logger;
+        ILogger _logger;
 
-        public SwapMsgHandler(ILogger<LoginHandler> logger)
+        public SwapMsgHandler(ILogger logger)
         {
             _logger = logger;
         }

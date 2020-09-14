@@ -1,5 +1,6 @@
 ﻿using FastTunnel.Core.Core;
 using FastTunnel.Core.Extensions;
+using FastTunnel.Core.Handlers.Server;
 using FastTunnel.Core.Models;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
@@ -13,15 +14,15 @@ namespace FastTunnel.Core.Handlers
 {
     public class LoginHandler : IServerHandler
     {
-        ILogger<LoginHandler> _logger;
+        ILogger _logger;
 
         public bool NeedRecive => true;
         IConfigHandler _configHandler;
 
-        public LoginHandler(ILogger<LoginHandler> logger, IConfigHandler configHandler)
+        public LoginHandler(ILogger logger)
         {
             _logger = logger;
-            _configHandler = configHandler;
+            _configHandler = new ConfigHandler();
         }
 
         public LogInMassage GetConfig(JObject content)
@@ -44,7 +45,7 @@ namespace FastTunnel.Core.Handlers
                 hasTunnel = true;
                 foreach (var item in requet.Webs)
                 {
-                    var hostName = $"{item.SubDomain}.{server._serverSettings.Domain}".Trim();
+                    var hostName = $"{item.SubDomain}.{server._serverSettings.WebDomain}".Trim();
                     if (server.WebList.ContainsKey(hostName))
                     {
                         _logger.LogDebug($"renew domain '{hostName}'");
@@ -58,7 +59,7 @@ namespace FastTunnel.Core.Handlers
                         server.WebList.Add(hostName, new WebInfo { Socket = client, WebConfig = item });
                     }
 
-                    sb.Append($"{Environment.NewLine}  http://{hostName}{(server._serverSettings.HasNginxProxy ? string.Empty : ":" + server._serverSettings.ProxyPort_HTTP)} => {item.LocalIp}:{item.LocalPort}");
+                    sb.Append($"{Environment.NewLine}  http://{hostName}{(server._serverSettings.WebHasNginxProxy ? string.Empty : ":" + server._serverSettings.WebProxyPort)} => {item.LocalIp}:{item.LocalPort}");
                 }
             }
 
@@ -77,7 +78,7 @@ namespace FastTunnel.Core.Handlers
                             continue;
                         }
 
-                        if (item.RemotePort.Equals(server._serverSettings.ProxyPort_HTTP))
+                        if (item.RemotePort.Equals(server._serverSettings.WebProxyPort))
                         {
                             _logger.LogError($"RemotePort can not be same with ProxyPort_HTTP: {item.RemotePort}");
                             continue;
@@ -110,7 +111,7 @@ namespace FastTunnel.Core.Handlers
                         server.SSHList.Add(item.RemotePort, new SSHInfo<SSHHandlerArg> { Listener = ls, Socket = client, SSHConfig = item });
                         _logger.LogDebug($"SSH proxy success: {item.RemotePort} => {item.LocalIp}:{item.LocalPort}");
 
-                        sb.Append($"{Environment.NewLine}  {server._serverSettings.Domain}:{item.RemotePort} => {item.LocalIp}:{item.LocalPort}");
+                        sb.Append($"{Environment.NewLine}  {server._serverSettings.WebDomain}:{item.RemotePort} => {item.LocalIp}:{item.LocalPort}");
                     }
                     catch (Exception ex)
                     {

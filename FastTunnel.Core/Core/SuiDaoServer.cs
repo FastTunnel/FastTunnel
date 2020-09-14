@@ -26,7 +26,7 @@ namespace FastTunnel.Core.Core
         public Dictionary<string, WebInfo> WebList = new Dictionary<string, WebInfo>();
         public Dictionary<int, SSHInfo<SSHHandlerArg>> SSHList = new Dictionary<int, SSHInfo<SSHHandlerArg>>();
 
-        public IServerConfig _serverSettings { get; set; }
+        public IServerConfig _serverSettings { get; private set; }
 
         ILogger<FastTunnelServer> _logger;
 
@@ -34,12 +34,12 @@ namespace FastTunnel.Core.Core
         HeartHandler _heartHandler;
         SwapMsgHandler _swapMsgHandler;
 
-        public FastTunnelServer(ILogger<FastTunnelServer> logger, LoginHandler loginHandler, HeartHandler heartHandler, SwapMsgHandler swapMsgHandler)
+        public FastTunnelServer(ILogger<FastTunnelServer> logger)
         {
             _logger = logger;
-            _loginHandler = loginHandler;
-            _heartHandler = heartHandler;
-            _swapMsgHandler = swapMsgHandler;
+            _loginHandler = new LoginHandler(logger);
+            _heartHandler = new HeartHandler();
+            _swapMsgHandler = new SwapMsgHandler(logger);
         }
 
         public void Run(IServerConfig settings)
@@ -59,16 +59,14 @@ namespace FastTunnel.Core.Core
 
         private void ListenCustomer()
         {
-            var listener = new AsyncListener<object>(_serverSettings.BindAddr, _serverSettings.ProxyPort_HTTP, _logger, null);
+            var listener = new AsyncListener<object>(_serverSettings.BindAddr, _serverSettings.WebProxyPort, _logger, null);
             listener.Listen(ReceiveCustomer);
 
-            _logger.LogDebug($"监听HTTP -> {_serverSettings.BindAddr}:{_serverSettings.ProxyPort_HTTP}");
+            _logger.LogDebug($"监听HTTP -> {_serverSettings.BindAddr}:{_serverSettings.WebProxyPort}");
         }
 
-        //接收消息
         void ReceiveCustomer(Socket client, object _)
         {
-            _logger.LogDebug("Receive HTTP Request");
 
             try
             {
@@ -96,6 +94,25 @@ namespace FastTunnel.Core.Core
                 {
                     _logger.LogError(ex);
                     throw;
+                }
+
+                try
+                {
+                    var endpoint = client.RemoteEndPoint as System.Net.IPEndPoint;
+                    _logger.LogInformation($"Receive HTTP Request {endpoint.Address}:{endpoint.Port}");
+
+                    if (_serverSettings.WebAllowAccessIps != null)
+                    {
+                        if (!_serverSettings.WebAllowAccessIps.Contains(endpoint.Address.ToString()))
+                        {
+                            HandlerHostNotAccess(client);
+                            return;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex);
                 }
 
                 //将字节转换成字符串
@@ -167,6 +184,21 @@ namespace FastTunnel.Core.Core
         private bool IsIpDomian(string domain)
         {
             return Regex.IsMatch(domain, @"^\d.\d.\d.\d.\d$");
+        }
+
+        private void HandlerHostNotAccess(Socket client)
+        {
+            _logger.LogDebug($"### NotAccessIps:'{client.RemoteEndPoint}'");
+            string statusLine = "HTTP/1.1 200 OK\r\n";
+            string responseHeader = "Content-Type: text/html\r\n";
+
+            byte[] responseBody = Encoding.UTF8.GetBytes(TunnelResource.Page_NotAccessIps);
+
+            client.Send(Encoding.UTF8.GetBytes(statusLine));
+            client.Send(Encoding.UTF8.GetBytes(responseHeader));
+            client.Send(Encoding.UTF8.GetBytes("\r\n"));
+            client.Send(responseBody);
+            client.Close();
         }
 
         private void HandlerHostRequired(Socket client)

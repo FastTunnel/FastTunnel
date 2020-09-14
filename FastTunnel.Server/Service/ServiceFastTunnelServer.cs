@@ -34,10 +34,11 @@ namespace FastTunnel.Server.Service
 
                 _fastTunnelServer.Run(
                     new DefaultServerConfigBuilder()
+                    .WithWebAllowAccessIps(setting.WebAllowAccessIps)
                     .WithBindInfo(setting.BindAddr, setting.BindPort)
-                    .WithHasNginxProxy(setting.HasNginxProxy)
-                    .WithWebDomain(setting.Domain)
-                    .WithHTTPPort(setting.ProxyPort_HTTP).Build());
+                    .WithHasNginxProxy(setting.WebHasNginxProxy)
+                    .WithWebDomain(setting.WebDomain).WithSSHEnabled(false)
+                    .WithHTTPPort(setting.WebProxyPort).Build());
             }
             catch (Exception ex)
             {

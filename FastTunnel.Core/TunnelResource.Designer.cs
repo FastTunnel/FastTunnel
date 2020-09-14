@@ -150,6 +150,35 @@ namespace FastTunnel.Core {
         ///      color: #fff;
         ///      background-color [字符串的其余部分被截断]&quot;; 的本地化字符串。
         /// </summary>
+        internal static string Page_NotAccessIps {
+            get {
+                return ResourceManager.GetString("Page_NotAccessIps", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 &lt;!DOCTYPE html&gt;
+        ///&lt;html lang=&quot;en&quot;&gt;
+        ///
+        ///&lt;head&gt;
+        ///  &lt;meta charset=&quot;utf-8&quot; /&gt;
+        ///  &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot; /&gt;
+        ///  &lt;title&gt;FastTunnel&lt;/title&gt;
+        ///  &lt;link href=&quot;https://cdn.bootcss.com/twitter-bootstrap/4.4.1/css/bootstrap.min.css&quot; rel=&quot;stylesheet&quot;&gt;
+        ///  &lt;style&gt;
+        ///    .err-info {
+        ///      margin-top: 120px;
+        ///    }
+        ///
+        ///    /* Provide sufficient contrast against white background */
+        ///    a {
+        ///      color: #0366d6;
+        ///    }
+        ///
+        ///    .btn-primary {
+        ///      color: #fff;
+        ///      background-color [字符串的其余部分被截断]&quot;; 的本地化字符串。
+        /// </summary>
         internal static string Page_NoTunnel {
             get {
                 return ResourceManager.GetString("Page_NoTunnel", resourceCulture);

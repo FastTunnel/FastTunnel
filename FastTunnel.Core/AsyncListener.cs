@@ -11,7 +11,7 @@ namespace FastTunnel.Core
 {
     public class AsyncListener<T> : IListener<T>
     {
-        ILogger<object> _logerr;
+        ILogger _logerr;
 
         public string IP { get; set; }
 
@@ -26,7 +26,7 @@ namespace FastTunnel.Core
         // Thread signal.  
         ManualResetEvent allDone = new ManualResetEvent(false);
 
-        public AsyncListener(string ip, int port, ILogger<object> logerr, T data)
+        public AsyncListener(string ip, int port, ILogger logerr, T data)
         {
             _logerr = logerr;
             _data = data;

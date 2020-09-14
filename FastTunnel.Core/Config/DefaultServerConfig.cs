@@ -10,10 +10,14 @@ namespace FastTunnel.Core.Config
 
         public int BindPort { get; set; }
 
-        public int ProxyPort_HTTP { get; set; } = 1270;
+        public string WebDomain { get; set; }
 
-        public string Domain { get; set; }
+        public int WebProxyPort { get; set; } = 1270;
 
-        public bool HasNginxProxy { get; set; } = false;
+        public string[] WebAllowAccessIps { get; set; }
+
+        public bool WebHasNginxProxy { get; set; } = false;
+
+        public bool SSHEnabled { get; set; } = true;
     }
 }
