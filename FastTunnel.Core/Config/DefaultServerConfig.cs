@@ -18,6 +18,6 @@ namespace FastTunnel.Core.Config
 
         public bool WebHasNginxProxy { get; set; } = false;
 
-        public bool SSHEnabled { get; set; } = true;
+        public bool SSHEnabled { get; set; } = false;
     }
 }

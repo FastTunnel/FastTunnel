@@ -5,13 +5,13 @@ using System.Text;
 
 namespace FastTunnel.Core
 {
-    public interface IListener<T>
+    public interface IListener
     {
-        string IP { get; set; }
+        string IP { get; }
 
-        int Port { get; set; }
+        int Port { get; }
 
-        void Listen(Action<Socket, T> receiveClient);
+        void Listen(Action<Socket> receiveClient);
 
         void ShutdownAndClose();
     }

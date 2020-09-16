@@ -11,6 +11,6 @@ namespace FastTunnel.Core.Models
 
         public SSHConfig SSHConfig { get; set; }
 
-        public IListener<T> Listener { get; set; }
+        public IListener Listener { get; set; }
     }
 }

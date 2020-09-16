@@ -52,20 +52,20 @@ namespace FastTunnel.Core.Core
 
         private void ListenFastTunnelClient()
         {
-            IListener<object> listener = new AsyncListener<object>(_serverSettings.BindAddr, _serverSettings.BindPort, _logger, null);
+            IListener listener = new AsyncListener(_serverSettings.BindAddr, _serverSettings.BindPort, _logger);
             listener.Listen(ReceiveClient);
             _logger.LogDebug($"监听客户端 -> {_serverSettings.BindAddr}:{_serverSettings.BindPort}");
         }
 
         private void ListenCustomer()
         {
-            var listener = new AsyncListener<object>(_serverSettings.BindAddr, _serverSettings.WebProxyPort, _logger, null);
+            var listener = new AsyncListener(_serverSettings.BindAddr, _serverSettings.WebProxyPort, _logger);
             listener.Listen(ReceiveCustomer);
 
             _logger.LogDebug($"监听HTTP -> {_serverSettings.BindAddr}:{_serverSettings.WebProxyPort}");
         }
 
-        void ReceiveCustomer(Socket client, object _)
+        void ReceiveCustomer(Socket client)
         {
 
             try
@@ -234,7 +234,7 @@ namespace FastTunnel.Core.Core
         byte[] buffer = new byte[1024 * 1024];
         string temp = string.Empty;
 
-        public void ReceiveClient(Socket client, object _)
+        public void ReceiveClient(Socket client)
         {
             //定义byte数组存放从客户端接收过来的数据
             int length;
@@ -273,6 +273,8 @@ namespace FastTunnel.Core.Core
             words += temp;
             temp = string.Empty;
 
+            _logger.LogDebug($"revice from client: {words}");
+
             try
             {
                 int index = 0;
@@ -284,7 +286,7 @@ namespace FastTunnel.Core.Core
                     if (firstIndex < 0)
                     {
                         temp += words;
-                        ReceiveClient(client, _);
+                        ReceiveClient(client);
                         break;
                     }
 
@@ -301,7 +303,7 @@ namespace FastTunnel.Core.Core
 
                 if (needRecive)
                 {
-                    ReceiveClient(client, _);
+                    ReceiveClient(client);
                 }
             }
             catch (Exception ex)

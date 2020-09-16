@@ -231,6 +231,8 @@ namespace FastTunnel.Core.Core
 
                 var msgs = words.Split("\n");
 
+                _logger.LogDebug("recive from server:" + words);
+
                 try
                 {
                     foreach (var item in msgs)
