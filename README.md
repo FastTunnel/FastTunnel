@@ -1,6 +1,6 @@
 <p align="center"><img src="images/logo.png" width="150" align=center /></p>
 
-## FastTunnel -内网穿透利器
+## FastTunnel - 内网穿透
 [README](README.md) | [中文文档](README_zh.md)
 
 ***

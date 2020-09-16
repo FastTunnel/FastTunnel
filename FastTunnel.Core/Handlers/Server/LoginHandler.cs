@@ -92,18 +92,15 @@ namespace FastTunnel.Core.Handlers
                             server.SSHList.Remove(item.RemotePort);
                         }
 
-                        var ls = new AsyncListener<SSHHandlerArg>("0.0.0.0", item.RemotePort, _logger,
+                        var ls = new AsyncListener("0.0.0.0", item.RemotePort, _logger);
 
-                             new SSHHandlerArg { LocalClient = client, SSHConfig = item });
-
-                        ls.Listen((client, local) =>
+                        ls.Listen((_socket) =>
                         {
                             var msgid = Guid.NewGuid().ToString();
-                            local.LocalClient.Send(new Message<NewSSHRequest> { MessageType = MessageType.S_NewSSH, Content = new NewSSHRequest { MsgId = msgid, SSHConfig = local.SSHConfig } });
-
+                            client.Send(new Message<NewSSHRequest> { MessageType = MessageType.S_NewSSH, Content = new NewSSHRequest { MsgId = msgid, SSHConfig = item } });
                             server.newRequest.Add(msgid, new NewRequest
                             {
-                                CustomerClient = client,
+                                CustomerClient = _socket,
                             });
                         });
 
