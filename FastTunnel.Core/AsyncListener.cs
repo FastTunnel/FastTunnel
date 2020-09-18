@@ -46,31 +46,6 @@ namespace FastTunnel.Core
 
             // post accepts on the listening socket
             StartAccept(null);
-
-            //Task.Run(() =>
-            //{
-            //    try
-            //    {
-            //        listenSocket.Listen(100);
-
-            //        while (true)
-            //        {
-            //            // Set the event to nonsignaled state.  
-            //            allDone.Reset();
-
-            //            // Start an asynchronous socket to listen for connections.  
-            //            _logerr.LogDebug($"Waiting for a connection {listenSocket.Handle}");
-            //            listenSocket.BeginAccept(new AsyncCallback(AcceptCallback), listenSocket);
-
-            //            // Wait until a connection is made before continuing.
-            //            allDone.WaitOne();
-            //        }
-            //    }
-            //    catch (Exception e)
-            //    {
-            //        Console.WriteLine(e.ToString());
-            //    }
-            //});
         }
 
         public void StartAccept(SocketAsyncEventArgs acceptEventArg)
@@ -112,21 +87,6 @@ namespace FastTunnel.Core
         private void AcceptEventArg_Completed(object sender, SocketAsyncEventArgs e)
         {
             ProcessAccept(e);
-        }
-
-        void AcceptCallback(IAsyncResult ar)
-        {
-            if (Shutdown)
-                return;
-
-            // Signal the main thread to continue.  
-            allDone.Set();
-
-            // Get the socket that handles the client request.  
-            Socket listener = (Socket)ar.AsyncState;
-            Socket handler = listener.EndAccept(ar);
-
-            receiveClient.Invoke(handler);
         }
 
         public void ShutdownAndClose()
