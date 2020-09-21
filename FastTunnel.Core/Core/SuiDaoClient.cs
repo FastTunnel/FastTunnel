@@ -151,7 +151,7 @@ namespace FastTunnel.Core.Core
 
             try
             {
-                if (_client.Socket.Connected)
+                if (_client != null && _client.Socket.Connected)
                 {
                     _client.Socket.Shutdown(SocketShutdown.Both);
                 }
@@ -162,7 +162,11 @@ namespace FastTunnel.Core.Core
             }
             finally
             {
-                _client.Socket.Close();
+                if (_client != null)
+                {
+                    _client.Socket.Close();
+                }
+
                 _logger.LogDebug("已退出登录\n");
             }
         }
