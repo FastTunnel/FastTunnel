@@ -91,7 +91,7 @@ namespace FastTunnel.Core
             {
                 listenSocket.Shutdown(SocketShutdown.Both);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
             }
             finally

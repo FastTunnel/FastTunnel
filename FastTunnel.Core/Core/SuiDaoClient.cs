@@ -74,7 +74,7 @@ namespace FastTunnel.Core.Core
                     _logger.LogDebug($"last heart recived {span / 1000}s ago");
 
                     // 重新登录
-                    reConnectAsync();
+                    reConnectAsync().Wait();
                 }
             }
             catch (Exception ex)
@@ -99,8 +99,7 @@ namespace FastTunnel.Core.Core
                 _logger.LogError(ex.Message);
 
                 Thread.Sleep(reTrySpan);
-                reConnectAsync();
-                return;
+                await reConnectAsync();
             }
 
             LogSuccess(_client.Socket);
@@ -138,7 +137,7 @@ namespace FastTunnel.Core.Core
                 _logger.LogError(ex.Message);
 
                 Thread.Sleep(reTrySpan);
-                reConnectAsync();
+                reConnectAsync().Wait();
                 return;
             }
 

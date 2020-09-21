@@ -52,7 +52,7 @@ namespace FastTunnel.Core.Handlers.Client
                     throw;
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 localConnecter.Close();
                 throw;

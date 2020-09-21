@@ -78,7 +78,7 @@ namespace FastTunnel.Core
 
                     chanel.Send.Send(result, num, SocketFlags.None);
                 }
-                catch (SocketException sex)
+                catch (SocketException)
                 {
                     //  Interrupted function call. 10004
                     // An existing connection was forcibly closed by the remote host. 10054

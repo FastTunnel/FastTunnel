@@ -46,20 +46,29 @@ namespace FastTunnel.Core.Handlers
                 foreach (var item in requet.Webs)
                 {
                     var hostName = $"{item.SubDomain}.{server.ServerSettings.WebDomain}".Trim();
-                    if (server.WebList.ContainsKey(hostName))
-                    {
-                        _logger.LogDebug($"renew domain '{hostName}'");
+                    var info = new WebInfo { Socket = client, WebConfig = item };
 
-                        server.WebList.TryRemove(hostName, out WebInfo web);
-                        server.WebList.TryAdd(hostName, new WebInfo { Socket = client, WebConfig = item });
-                    }
-                    else
-                    {
-                        _logger.LogDebug($"new domain '{hostName}'");
-                        server.WebList.TryAdd(hostName, new WebInfo { Socket = client, WebConfig = item });
-                    }
-
+                    _logger.LogDebug($"new domain '{hostName}'");
+                    server.WebList.AddOrUpdate(hostName, info, (key, info) => { return info; });
                     sb.Append($"{Environment.NewLine}  http://{hostName}{(server.ServerSettings.WebHasNginxProxy ? string.Empty : ":" + server.ServerSettings.WebProxyPort)} => {item.LocalIp}:{item.LocalPort}");
+
+                    if (item.WWW != null)
+                    {
+                        foreach (var www in item.WWW)
+                        {
+                            if (!www.EndsWith(server.ServerSettings.WebDomain))
+                            {
+                                server.WebList.AddOrUpdate(www, info, (key, info) => { return info; });
+                                sb.Append($"{Environment.NewLine}  http://{www}{(server.ServerSettings.WebHasNginxProxy ? string.Empty : ":" + server.ServerSettings.WebProxyPort)} => {item.LocalIp}:{item.LocalPort}");
+                            }
+                            else
+                            {
+                                // cant use WebDomain
+                                _logger.LogDebug($"USE WebDomain IN WWW {www}");
+                                sb.Append($"{Environment.NewLine}  cant use {www}");
+                            }
+                        }
+                    }
                 }
             }
 
