@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using FastTunnel.Core.Handlers.Server;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Net;
@@ -17,13 +18,10 @@ namespace FastTunnel.Core
 
         public int Port { get; set; }
 
-        Action<Socket> receiveClient;
+        int m_numConnectedSockets;
+
+        IListenerDispatcher _requestDispatcher;
         Socket listenSocket;
-
-        bool Shutdown { get; set; }
-
-        // Thread signal.  
-        ManualResetEvent allDone = new ManualResetEvent(false);
 
         public AsyncListener(string ip, int port, ILogger logerr)
         {
@@ -38,9 +36,9 @@ namespace FastTunnel.Core
             listenSocket.Bind(localEndPoint);
         }
 
-        public void Listen(Action<Socket> receiveClient)
+        public void Listen(IListenerDispatcher requestDispatcher)
         {
-            this.receiveClient = receiveClient;
+            _requestDispatcher = requestDispatcher;
 
             listenSocket.Listen(100);
 
@@ -68,8 +66,6 @@ namespace FastTunnel.Core
             }
         }
 
-        int m_numConnectedSockets;
-
         private void ProcessAccept(SocketAsyncEventArgs e)
         {
             Interlocked.Increment(ref m_numConnectedSockets);
@@ -81,7 +77,7 @@ namespace FastTunnel.Core
             // Accept the next connection request
             StartAccept(e);
 
-            receiveClient.Invoke(accept);
+            _requestDispatcher.Dispatch(accept);
         }
 
         private void AcceptEventArg_Completed(object sender, SocketAsyncEventArgs e)
@@ -91,7 +87,6 @@ namespace FastTunnel.Core
 
         public void ShutdownAndClose()
         {
-            Shutdown = true;
             try
             {
                 listenSocket.Shutdown(SocketShutdown.Both);

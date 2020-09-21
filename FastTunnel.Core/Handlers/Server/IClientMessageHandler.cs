@@ -8,7 +8,7 @@ using System.Text;
 
 namespace FastTunnel.Core.Handlers
 {
-    public interface IServerHandler
+    public interface IClientMessageHandler
     {
         Boolean NeedRecive { get; }
 

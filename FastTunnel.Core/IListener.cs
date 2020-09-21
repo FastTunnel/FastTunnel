@@ -1,4 +1,5 @@
-﻿using System;
+﻿using FastTunnel.Core.Handlers.Server;
+using System;
 using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Text;
@@ -11,7 +12,7 @@ namespace FastTunnel.Core
 
         int Port { get; }
 
-        void Listen(Action<Socket> receiveClient);
+        void Listen(IListenerDispatcher requestDispatcher);
 
         void ShutdownAndClose();
     }

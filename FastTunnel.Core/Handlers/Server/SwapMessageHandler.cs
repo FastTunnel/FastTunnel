@@ -11,13 +11,13 @@ using System.Threading.Tasks;
 
 namespace FastTunnel.Core.Handlers.Server
 {
-    public class SwapMsgHandler : IServerHandler
+    public class SwapMessageHandler : IClientMessageHandler
     {
         public bool NeedRecive => false;
 
         ILogger _logger;
 
-        public SwapMsgHandler(ILogger logger)
+        public SwapMessageHandler(ILogger logger)
         {
             _logger = logger;
         }

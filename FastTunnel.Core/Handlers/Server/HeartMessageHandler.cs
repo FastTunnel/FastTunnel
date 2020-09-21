@@ -9,7 +9,7 @@ using System.Text;
 
 namespace FastTunnel.Core.Handlers.Server
 {
-    public class HeartHandler : IServerHandler
+    public class HeartMessageHandler : IClientMessageHandler
     {
         public bool NeedRecive => true;
 

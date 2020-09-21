@@ -7,6 +7,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Hosting;
 using FastTunnel.Server.Service;
 using FastTunnel.Core.Logger;
+using FastTunnel.Core.Config;
 
 namespace FastTunnel.Server
 {
@@ -34,6 +35,7 @@ namespace FastTunnel.Server
 
                     // DI
                     services.AddTransient<FastTunnelServer>();
+                    //services.AddSingleton<IServerConfig>();
                 });
     }
 }

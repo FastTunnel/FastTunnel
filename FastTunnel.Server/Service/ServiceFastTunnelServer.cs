@@ -14,14 +14,12 @@ namespace FastTunnel.Server.Service
     public class ServiceFastTunnelServer : IHostedService
     {
         ILogger<ServiceFastTunnelServer> _logger;
-        IConfiguration _configuration;
         FastTunnelServer _fastTunnelServer;
 
-        public ServiceFastTunnelServer(ILogger<ServiceFastTunnelServer> logger, IConfiguration configuration, FastTunnelServer fastTunnelServer)
+        public ServiceFastTunnelServer(ILogger<ServiceFastTunnelServer> logger, IConfiguration configuration)
         {
             _logger = logger;
-            _configuration = configuration;
-            _fastTunnelServer = fastTunnelServer;
+            _fastTunnelServer = new FastTunnelServer(_logger, configuration.Get<Appsettings>().ServerSettings);
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
@@ -30,15 +28,7 @@ namespace FastTunnel.Server.Service
 
             try
             {
-                var setting = _configuration.Get<Appsettings>().ServerSettings;
-
-                _fastTunnelServer.Run(
-                    new DefaultServerConfigBuilder()
-                    .WithWebAllowAccessIps(setting.WebAllowAccessIps)
-                    .WithBindInfo(setting.BindAddr, setting.BindPort)
-                    .WithHasNginxProxy(setting.WebHasNginxProxy)
-                    .WithWebDomain(setting.WebDomain).WithSSHEnabled(false)
-                    .WithHTTPPort(setting.WebProxyPort).Build());
+                _fastTunnelServer.Run();
             }
             catch (Exception ex)
             {

@@ -12,14 +12,14 @@ using System.Text;
 
 namespace FastTunnel.Core.Handlers
 {
-    public class LoginHandler : IServerHandler
+    public class LoginMessageHandler : IClientMessageHandler
     {
         ILogger _logger;
 
         public bool NeedRecive => true;
         IConfigHandler _configHandler;
 
-        public LoginHandler(ILogger logger)
+        public LoginMessageHandler(ILogger logger)
         {
             _logger = logger;
             _configHandler = new ConfigHandler();
@@ -45,21 +45,21 @@ namespace FastTunnel.Core.Handlers
                 hasTunnel = true;
                 foreach (var item in requet.Webs)
                 {
-                    var hostName = $"{item.SubDomain}.{server._serverSettings.WebDomain}".Trim();
+                    var hostName = $"{item.SubDomain}.{server.ServerSettings.WebDomain}".Trim();
                     if (server.WebList.ContainsKey(hostName))
                     {
                         _logger.LogDebug($"renew domain '{hostName}'");
 
-                        server.WebList.Remove(hostName);
-                        server.WebList.Add(hostName, new WebInfo { Socket = client, WebConfig = item });
+                        server.WebList.TryRemove(hostName, out WebInfo web);
+                        server.WebList.TryAdd(hostName, new WebInfo { Socket = client, WebConfig = item });
                     }
                     else
                     {
                         _logger.LogDebug($"new domain '{hostName}'");
-                        server.WebList.Add(hostName, new WebInfo { Socket = client, WebConfig = item });
+                        server.WebList.TryAdd(hostName, new WebInfo { Socket = client, WebConfig = item });
                     }
 
-                    sb.Append($"{Environment.NewLine}  http://{hostName}{(server._serverSettings.WebHasNginxProxy ? string.Empty : ":" + server._serverSettings.WebProxyPort)} => {item.LocalIp}:{item.LocalPort}");
+                    sb.Append($"{Environment.NewLine}  http://{hostName}{(server.ServerSettings.WebHasNginxProxy ? string.Empty : ":" + server.ServerSettings.WebProxyPort)} => {item.LocalIp}:{item.LocalPort}");
                 }
             }
 
@@ -72,13 +72,13 @@ namespace FastTunnel.Core.Handlers
                 {
                     try
                     {
-                        if (item.RemotePort.Equals(server._serverSettings.BindPort))
+                        if (item.RemotePort.Equals(server.ServerSettings.BindPort))
                         {
                             _logger.LogError($"RemotePort can not be same with BindPort: {item.RemotePort}");
                             continue;
                         }
 
-                        if (item.RemotePort.Equals(server._serverSettings.WebProxyPort))
+                        if (item.RemotePort.Equals(server.ServerSettings.WebProxyPort))
                         {
                             _logger.LogError($"RemotePort can not be same with ProxyPort_HTTP: {item.RemotePort}");
                             continue;
@@ -89,26 +89,18 @@ namespace FastTunnel.Core.Handlers
                         {
                             _logger.LogDebug($"Remove Listener {old.Listener.IP}:{old.Listener.Port}");
                             old.Listener.ShutdownAndClose();
-                            server.SSHList.Remove(item.RemotePort);
+                            server.SSHList.TryRemove(item.RemotePort, out SSHInfo<SSHHandlerArg> _);
                         }
 
                         var ls = new AsyncListener("0.0.0.0", item.RemotePort, _logger);
 
-                        ls.Listen((_socket) =>
-                        {
-                            var msgid = Guid.NewGuid().ToString();
-                            client.Send(new Message<NewSSHRequest> { MessageType = MessageType.S_NewSSH, Content = new NewSSHRequest { MsgId = msgid, SSHConfig = item } });
-                            server.newRequest.Add(msgid, new NewRequest
-                            {
-                                CustomerClient = _socket,
-                            });
-                        });
+                        ls.Listen(new SSHDispatcher(server, client, item));
 
                         // listen success
-                        server.SSHList.Add(item.RemotePort, new SSHInfo<SSHHandlerArg> { Listener = ls, Socket = client, SSHConfig = item });
+                        server.SSHList.TryAdd(item.RemotePort, new SSHInfo<SSHHandlerArg> { Listener = ls, Socket = client, SSHConfig = item });
                         _logger.LogDebug($"SSH proxy success: {item.RemotePort} => {item.LocalIp}:{item.LocalPort}");
 
-                        sb.Append($"{Environment.NewLine}  {server._serverSettings.WebDomain}:{item.RemotePort} => {item.LocalIp}:{item.LocalPort}");
+                        sb.Append($"{Environment.NewLine}  {server.ServerSettings.WebDomain}:{item.RemotePort} => {item.LocalIp}:{item.LocalPort}");
                     }
                     catch (Exception ex)
                     {
