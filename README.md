@@ -1,6 +1,6 @@
 <p align="center"><img src="images/logo.png" width="150" align=center /></p>
 
-## FastTunnel - 内网穿透
+## FastTunnel
 [README](README.md) | [中文文档](README_zh.md)
 
 ***
@@ -8,7 +8,7 @@
 
 演示程序源码：[FastTunnel.SuiDao](https://github.com/SpringHgui/FastTunnel.SuiDao)
 
-**有帮助的朋友给个:star:支持一下，有需求和bug请提交issue，同时欢迎各位PR:blush::blush::blush:**
+**Star Please**
 
 ***
 
@@ -23,8 +23,8 @@ FastTunnel是一款高性能跨平台内网穿透工具，使用它可以实现�
 - [x] 远程内网计算机 Windows/Linux/Mac
 - [x] 用自定义域名访问内网web服务（常用于微信开发）
 - [x] 端口转发/端口映射，访问内网任意端口提供的服务 mysql、redis、ftp等等
-- [x] Support any other domain names overlay current binding
-- [ ] p2p穿透
+- [x] Support binding milti domain names for web
+- [ ] p2p
 
 
 ## Quickstart
@@ -42,7 +42,7 @@ FastTunnel是一款高性能跨平台内网穿透工具，使用它可以实现�
 #### Mac
 直接运行 `FastTunnel.Client`
 
-## 配置示例
+## Settings
 ### 1. 用自定义域名访问内网web服务
 - 例如你拥有一个服务器，公网ip地址为 `110.110.110.110` ,同时你有一个顶级域名为 `abc.com` 的域名，你希望访问 `test.abc.com`可以访问内网的一个网站。
 - 你需要新增一个域名地址的DNS解析，类型为`A`，名称为 `*` , ipv4地址为 `110.110.110.110` ,这样 `*.abc.com`的域名均会指向`110.110.110.110`的服务器，由于`FastTunnel`默认监听的http端口为1270，所以要访问`http://test.abc.com:1270`

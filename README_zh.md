@@ -1,14 +1,14 @@
 <p align="center"><img src="images/logo.png" width="150" align=center /></p>
 
-## FastTunnel - 跨平台内网穿透工具
+## FastTunnel
 [README](README.md) | [中文文档](README_zh.md)
 
 ***
-演示地址 https://suidao.io  
+免费内网穿透 https://suidao.io
 
-演示程序源码：[FastTunnel.SuiDao](https://github.com/SpringHgui/FastTunnel.SuiDao)
+程序源码：[FastTunnel.SuiDao](https://github.com/SpringHgui/FastTunnel.SuiDao)
 
-**有帮助的朋友给个:star:支持一下，有需求和bug请提交issue，同时欢迎各位PR:blush::blush::blush:**
+**有帮助的朋友给个星星支持一下本项目，有需求和bug请提交issue，同时欢迎各位coder进行PR**
 
 ***
 
@@ -17,15 +17,14 @@
 [![License](https://img.shields.io/badge/license-Apache%202-green.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![CircleCI](https://circleci.com/gh/gothinkster/aspnetcore-realworld-example-app.svg?style=svg)](https://circleci.com/gh/SpringHgui/FastTunnel)
 ## FastTunnel是什么？
-FastTunnel是一款高性能跨平台内网穿透工具，使用它可以实现在公网上访问您的内网服务。
+FastTunnel是一款高性能跨平台内网穿透工具，使用它可以实现将内网服务暴露到公网供自己或任何人访问。
 
 ## 使用FastTunnel能够做什么？
-- [x] 远程内网计算机 Windows/Linux/Mac
-- [x] 用自定义域名访问内网web服务（常用于微信开发）
+- [x] 实现在任何地方远程内网计算机(公司或家里的计算机) Windows/Linux/Mac
+- [x] 通过自定义域名访问内网web服务（常用于微信开发或对外开放web服务）
 - [x] 端口转发/端口映射，访问内网任意端口提供的服务 mysql、redis、ftp等等
-- [x] 支持任意其他多个域名覆盖绑定当前域名
+- [x] 支持绑定多个域名访问内网服务
 - [ ] p2p穿透
-
 
 ## 快速开始
 1. 在 [releases](https://github.com/SpringHgui/FastTunnel/releases) 页面下载对应的程序
@@ -112,9 +111,9 @@ ssh -oPort=12701 root@x.x.x.x
   
     
 ## 开发/PR
-- 安装 `vs2019`
+- 安装 `vs2019`或更高版本
 - 安装 `dotnetcore runtime&sdk 3.1` 或以上版本
-- host文件中添加 `test.test.cc 127.0.0.1`
+- host文件中添加 `test.test.cc 127.0.0.1`等
 - 启动 fasttunnel.server
 - 启动 fasttunnel.client
 
