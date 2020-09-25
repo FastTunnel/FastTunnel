@@ -49,7 +49,7 @@ namespace FastTunnel.Core.Handlers.Server
                     {
                         client.Shutdown(SocketShutdown.Both);
                     }
-                    catch
+                    finally
                     {
                         client.Close();
                     }
@@ -114,6 +114,7 @@ namespace FastTunnel.Core.Handlers.Server
 
                 // throw;
                 client.Send(new Message<LogMassage>() { MessageType = MessageType.Log, Content = new LogMassage(LogMsgType.Error, ex.Message) });
+                Dispatch(client);
             }
         }
 
