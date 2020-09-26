@@ -1,5 +1,7 @@
 ﻿using FastTunnel.Core.Config;
 using FastTunnel.Core.Core;
+using FastTunnel.Core.Global;
+using FastTunnel.Server.Filters;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -15,16 +17,24 @@ namespace FastTunnel.Server.Service
     {
         ILogger<ServiceFastTunnelServer> _logger;
         FastTunnelServer _fastTunnelServer;
-
-        public ServiceFastTunnelServer(ILogger<ServiceFastTunnelServer> logger, IConfiguration configuration)
+        TestAuthenticationFilter _testAuthenticationFilter;
+        IConfiguration _configuration; 
+        public ServiceFastTunnelServer(
+            ILogger<ServiceFastTunnelServer> logger, 
+            IConfiguration configuration, 
+            TestAuthenticationFilter testAuthenticationFilter)
         {
+            _configuration = configuration;
+            _testAuthenticationFilter = testAuthenticationFilter;
             _logger = logger;
-            _fastTunnelServer = new FastTunnelServer(_logger, configuration.Get<Appsettings>().ServerSettings);
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
             _logger.LogInformation("===== FastTunnel Server Starting =====");
+
+            _fastTunnelServer = new FastTunnelServer(_logger, _configuration.Get<Appsettings>().ServerSettings);
+            FastTunnelGlobal.AddFilter(_testAuthenticationFilter);
 
             try
             {

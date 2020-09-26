@@ -1,5 +1,6 @@
 ﻿using FastTunnel.Core.Core;
 using FastTunnel.Core.Extensions;
+using FastTunnel.Core.Filters;
 using FastTunnel.Core.Handlers.Server;
 using FastTunnel.Core.Models;
 using Microsoft.Extensions.Logging;
@@ -38,6 +39,25 @@ namespace FastTunnel.Core.Handlers
         public void HandleLogin(FastTunnelServer server, Socket client, LogInMassage requet)
         {
             bool hasTunnel = false;
+
+            var filters = Global.FastTunnelGlobal.GetFilters(typeof(IAuthenticationFilter));
+            if (filters.Count() > 0)
+            {
+                foreach (IAuthenticationFilter item in filters)
+                {
+                    var result = item.Authentication(server, requet);
+                    if (!result)
+                    {
+                        client.Send(new Message<LogMassage>
+                        {
+                            MessageType = MessageType.Log,
+                            Content = new LogMassage(LogMsgType.Error, "认证失败")
+                        });
+
+                        return;
+                    }
+                }
+            }
 
             var sb = new StringBuilder($"{Environment.NewLine}=====隧道已建立成功，可通过以下方式访问内网服务====={Environment.NewLine}");
             if (requet.Webs != null && requet.Webs.Count() > 0)

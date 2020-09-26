@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Hosting;
 using FastTunnel.Server.Service;
 using FastTunnel.Core.Logger;
 using FastTunnel.Core.Config;
+using FastTunnel.Server.Filters;
 
 namespace FastTunnel.Server
 {
@@ -34,7 +35,7 @@ namespace FastTunnel.Server
                     services.AddHostedService<ServiceFastTunnelServer>();
 
                     // DI
-                    services.AddTransient<FastTunnelServer>();
+                    services.AddTransient<TestAuthenticationFilter>();
                     //services.AddSingleton<IServerConfig>();
                 });
     }
