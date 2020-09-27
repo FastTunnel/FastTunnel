@@ -12,7 +12,7 @@ namespace FastTunnel.Server.Filters
     {
         public bool Authentication(FastTunnelServer server, LogInMassage requet)
         {
-            return true;
+            return !string.IsNullOrEmpty(requet.AuthInfo) && requet.AuthInfo.Equals("ODadoNDONODHSoDMFMsdpapdoNDSHDoadpwPDNoWAHDoNfa");
         }
     }
 }

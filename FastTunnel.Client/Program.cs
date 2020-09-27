@@ -78,8 +78,9 @@ namespace FastTunnel.Client
                     Content = new LogInMassage
                     {
                         Webs = config.Webs,
-                        SSH = config.SSH
-                    }
+                        SSH = config.SSH,
+                        AuthInfo = "ODadoNDONODHSoDMFMsdpapdoNDSHDoadpwPDNoWAHDoNfa"
+                    },
                 });
 
                 return _client;
