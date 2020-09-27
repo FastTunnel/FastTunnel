@@ -32,7 +32,7 @@ namespace FastTunnel.Core.Handlers.Server
                 // Join
                 Task.Run(() =>
                 {
-                    (new SocketSwap(request.CustomerClient, client))
+                    (new AsyncSocketSwap(request.CustomerClient, client))
                         .BeforeSwap(() => { if (request.Buffer != null) client.Send(request.Buffer); })
                         .StartSwap();
                 });

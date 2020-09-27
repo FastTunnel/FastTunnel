@@ -32,45 +32,25 @@ namespace FastTunnel.Core.Handlers.Server
             _swapMsgHandler = new SwapMessageHandler(logger);
         }
 
-        byte[] buffer = new byte[1024 * 1024];
         string temp = string.Empty;
 
         public void Dispatch(Socket client)
         {
-            //定义byte数组存放从客户端接收过来的数据
-            int length;
+            var reader = new DataReciver(client);
+            reader.OnComplete += Reader_OnComplete;
+            reader.OnError += Reader_OnError;
 
-            try
-            {
-                length = client.Receive(buffer);
-                if (length == 0)
-                {
-                    try
-                    {
-                        client.Shutdown(SocketShutdown.Both);
-                    }
-                    finally
-                    {
-                        client.Close();
-                    }
+            reader.ReciveOne();
+        }
 
-                    // 递归结束
-                    return;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"接收客户端异常 -> 退出登录 {ex.Message}");
+        private void Reader_OnError(DataReciver send, SocketAsyncEventArgs e)
+        {
+            // 
+        }
 
-                if (client.Connected)
-                {
-                    client.Close();
-                }
-                return;
-            }
-
-            // 将字节转换成字符串
-            string words = Encoding.UTF8.GetString(buffer, 0, length);
+        private void Reader_OnComplete(DataReciver reader, byte[] buffer, int offset, int count)
+        {
+            var words = Encoding.UTF8.GetString(buffer, offset, count);
             words += temp;
             temp = string.Empty;
 
@@ -87,12 +67,12 @@ namespace FastTunnel.Core.Handlers.Server
                     if (firstIndex < 0)
                     {
                         temp += words;
-                        Dispatch(client);
+                        reader.ReciveOne();
                         break;
                     }
 
                     var sub_words = words.Substring(index, firstIndex + 1);
-                    var res = handle(sub_words, client);
+                    var res = handle(sub_words, reader.Socket);
 
                     if (res.NeedRecive)
                         needRecive = true;
@@ -104,7 +84,7 @@ namespace FastTunnel.Core.Handlers.Server
 
                 if (needRecive)
                 {
-                    Dispatch(client);
+                    reader.ReciveOne();
                 }
             }
             catch (Exception ex)
@@ -113,14 +93,15 @@ namespace FastTunnel.Core.Handlers.Server
                 _logger.LogError($"handle fail msg：{words}");
 
                 // throw;
-                client.Send(new Message<LogMassage>() { MessageType = MessageType.Log, Content = new LogMassage(LogMsgType.Error, ex.Message) });
-                Dispatch(client);
+                reader.Socket.Send(new Message<LogMassage>() { MessageType = MessageType.Log, Content = new LogMassage(LogMsgType.Error, ex.Message) });
+                reader.ReciveOne();
             }
         }
 
         private IClientMessageHandler handle(string words, Socket client)
         {
             Message<JObject> msg = JsonConvert.DeserializeObject<Message<JObject>>(words);
+
 
             IClientMessageHandler handler = null;
             switch (msg.MessageType)

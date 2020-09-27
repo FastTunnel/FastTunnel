@@ -58,7 +58,7 @@ namespace FastTunnel.Core.Handlers.Client
                 throw;
             }
 
-            new SocketSwap(connecter.Socket, localConnecter.Socket).StartSwap();
+            new AsyncSocketSwap(connecter.Socket, localConnecter.Socket).StartSwap();
         }
     }
 }
