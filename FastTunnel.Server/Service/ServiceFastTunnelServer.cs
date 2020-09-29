@@ -20,7 +20,7 @@ namespace FastTunnel.Server.Service
         TestAuthenticationFilter _testAuthenticationFilter;
         IConfiguration _configuration; 
         public ServiceFastTunnelServer(
-            ILogger<ServiceFastTunnelServer> logger, 
+            ILogger<ServiceFastTunnelServer> logger,
             IConfiguration configuration, 
             TestAuthenticationFilter testAuthenticationFilter)
         {
