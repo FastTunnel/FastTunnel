@@ -1,6 +1,12 @@
 <p align="center"><img src="images/logo.png" width="150" align=center /></p>
 
 ## FastTunnel
+[![License](https://img.shields.io/badge/license-Apache%202-green.svg)](https://www.apache.org/licenses/LICENSE-2.0)
+[![Build status](https://github.com/anjoy8/blog.core/workflows/.NET%20Core/badge.svg)](https://github.com/SpringHgui/FastTunnel/actions)
+[![CircleCI](https://circleci.com/gh/SpringHgui/FastTunnel.svg?style=svg)](https://circleci.com/gh/SpringHgui/FastTunnel)
+[![Nuget](https://img.shields.io/nuget/v/FastTunnel.Core)](https://www.nuget.org/packages/FastTunnel.Core/)
+[![Nuget](https://img.shields.io/nuget/dt/FastTunnel.Core)](https://www.nuget.org/packages/FastTunnel.Core/)
+
 [README](README.md) | [中文文档](README_zh.md)
 
 ***
@@ -8,14 +14,8 @@
 
 演示程序源码：[FastTunnel.SuiDao](https://github.com/SpringHgui/FastTunnel.SuiDao)
 
-**Star Please**
-
 ***
 
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](https://github.com/SpringHgui/frp/pulls)
-[![Build status](https://github.com/anjoy8/blog.core/workflows/.NET%20Core/badge.svg)](https://github.com/SpringHgui/FastTunnel/actions)
-[![License](https://img.shields.io/badge/license-Apache%202-green.svg)](https://www.apache.org/licenses/LICENSE-2.0)
-[![CircleCI](https://circleci.com/gh/gothinkster/aspnetcore-realworld-example-app.svg?style=svg)](https://circleci.com/gh/SpringHgui/FastTunnel)
 ## What is FastTunnel？
 FastTunnel是一款高性能跨平台内网穿透工具，使用它可以实现在公网上访问您的内网服务。
 
