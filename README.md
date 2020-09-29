@@ -10,49 +10,57 @@
 [README](README.md) | [中文文档](README_zh.md)
 
 ***
-演示地址 https://suidao.io  
+The penetration platform developed based on this framework, if you need intranet penetration, you can register and use it directly, eliminating the cost of building and maintaining yourself.
+But do not use this service for important items.
 
-演示程序源码：[FastTunnel.SuiDao](https://github.com/SpringHgui/FastTunnel.SuiDao)
+Penetration platform: https://suidao.io  
 
+Platform source code：[FastTunnel.SuiDao](https://github.com/SpringHgui/FastTunnel.SuiDao)
+
+**If helpful, click on Star to support this project, please submit an issue if you have needs and bugs, and welcome coder to PR**
 ***
 
 ## What is FastTunnel？
-FastTunnel是一款高性能跨平台内网穿透工具，使用它可以实现在公网上访问您的内网服务。
+- FastTunnel is a high-performance cross-platform intranet penetration tool. With it, you can expose intranet services to the public network for yourself or anyone to access.
+- Unlike other penetration tools, the FastTunnel project is committed to creating an easy-to-extensible and easy-to-maintain intranet penetration framework.
+- You can build your own penetration application by referencing the nuget package of FastTunnel.Cored, and target the business extension functions you need.
 
 ## What can FastTunel do？
-- [x] 远程内网计算机 Windows/Linux/Mac
-- [x] 用自定义域名访问内网web服务（常用于微信开发）
-- [x] 端口转发/端口映射，访问内网任意端口提供的服务 mysql、redis、ftp等等
-- [x] Support binding milti domain names for web
-- [ ] p2p
-
+- [x] Remote intranet computer Windows/Linux/Mac
+- [x] Use a custom domain name to access intranet web services (usually used for WeChat development)
+- [x] Port forwarding/port mapping, access services provided by any port on the intranet mysql, redis, ftp, etc.
+- [ ] p2p penetration
+- [x] Support binding multiple domain names to access intranet services
+- [x] Support domain name whitelist restriction
+- [x] Support client identity verification
 
 ## Quickstart
-1. 在 [releases](https://github.com/SpringHgui/FastTunnel/releases) 页面下载对应的程序
-2. 根据自己的需求修改配置文件`appsettings.json`
-3. 服务端运行FastTunnel.Server
-4. 客户端运行FastTunnel.Cient
+1. Download the corresponding program on the [releases](https://github.com/SpringHgui/FastTunnel/releases) page
+2. Modify the client and server configuration files according to your needs`appsettings.json`
+3. Run FastTunnel.Server
+4. Run FastTunnel.Cient
 
 ## Run on Linux/Mac os？
 #### Windows
-直接双击 `FastTunnel.Client.exe` Ready to run
+Double click directly `FastTunnel.Client.exe` to run
 #### Linux
 `chmod +x FastTunnel.Client`  
 `./FastTunnel.Client`
 #### Mac
-直接运行 `FastTunnel.Client`
+click directly `FastTunnel.Client` to run
 
-## Settings
-### 1. 用自定义域名访问内网web服务
-- 例如你拥有一个服务器，公网ip地址为 `110.110.110.110` ,同时你有一个顶级域名为 `abc.com` 的域名，你希望访问 `test.abc.com`可以访问内网的一个网站。
-- 你需要新增一个域名地址的DNS解析，类型为`A`，名称为 `*` , ipv4地址为 `110.110.110.110` ,这样 `*.abc.com`的域名均会指向`110.110.110.110`的服务器，由于`FastTunnel`默认监听的http端口为1270，所以要访问`http://test.abc.com:1270`
-- #### 如果不希望每次访问都带上端口号，可以通过`nginx`转发实现。
+## Configuration example
+### 1. Use a custom domain name to access intranet web services
+- For example, you have a server with a public IP address of `110.110.110.110`, and you have a domain name with a top-level domain name of `abc.com`, you want to visit a website on the intranet by visiting `test.abc.com`
+- You need to add a DNS resolution for the domain name address, the type is `A`, the name is `*`, and the ipv4 address is `110.110.110.110`, so that all domain names of `*.abc.com` will point to `110.110.110.110`’s server, because the default http port of `FastTunnel` is 1270, so you need to visit`http://test.abc.com:1270`
+
+- #### If you don't want to bring the port number every time you visit, you can use `nginx` forwarding.
 ```
 http {
-    # 添加resolver 
+    # add resolver 
     resolver 8.8.8.8;
 
-    # 设置 *.abc.com 转发至1270端口
+    # set *.abc.com to 1270 port
     server {
       server_name  *.abc.com;
       location / {
@@ -68,12 +76,12 @@ http {
 }
 ```
 
-- 如果服务端配置的域名为`ft.suidao.io`, 则通过子域名`test.ft.suidao.io:1270`访问在本地的站点，IIS配置如下：
+- If the domain name configured on the server is `ft.suidao.io`, then access the local site through the subdomain name `test.ft.suidao.io:1270`, the IIS configuration is as follows:
 ![img1](images/iis-web.png)
 
-### 2. 远程内网计算机 Windows/Linux/Mac
+### 2. Remote intranet computer Windows/Linux/Mac
 
-客户端配置如下，内网有两台主机，ip如下:
+The client configuration is as follows, there are two hosts in the intranet, and the ip is as follows:
 appsettings.json
 ```
  "ClientSettings": {
@@ -83,37 +91,37 @@ appsettings.json
     },
     "SSH": [
       {
-        "LocalIp": "192.168.0.100", // linux主机
-        "LocalPort": 22,            // ssh远程默认端口号
+        "LocalIp": "192.168.0.100", // linux pc
+        "LocalPort": 22,            // ssh default port
         "RemotePort": 12701
       },
       {
-        "LocalIp": "192.168.0.101", // windows主机
-        "LocalPort": 3389,          // windows远程桌面默认端口号
+        "LocalIp": "192.168.0.101", // windows pc
+        "LocalPort": 3389,          // windows default port for Remote
         "RemotePort": 12702
       }
     ]
   }
 ```
-#### ssh远程内网linux主机 (ip:192.168.0.100)
+#### remote intranet linux host by ssh (ip:192.168.0.100)
 
-假设内网主机的用户名为: root，服务器ip为x.x.x.x，访问内网的两个主机分别如下
+Assuming that the user name of the intranet host is root, the server ip is x.x.x.x, and the two hosts that access the intranet are as follows
 ```
 ssh -oPort=12701 root@x.x.x.x
 ```
 
-#### mstsc远程桌面Windows主机(ip:192.168.0.101)
-#### 被控制端设置
-- 打开cmd输入指令 `sysdm.cpl` 在弹出的对话框中选中允许远程连接此计算机  
+#### remote desktop Windows host by mstsc (ip:192.168.0.101)
+#### Controlled terminal setting
+- Open cmd and enter the command `sysdm.cpl` in the pop-up dialog box and select Allow remote connection to this computer
+
 ![img1](images/setallow.png)
-#### 控制端设置
-- 打开cmd输入指令 `mstsc`，打开远程对话框，在对话框的计算机输入框，输入 `x.x.x.x:12701` 然后指定用户名密码即可远程内网的windows主机  
+#### Control terminal settings
+- Open cmd and enter the command `mstsc`, open the remote dialog box, enter `x.x.x.x:12701` in the computer input box of the dialog box, and then specify the user name and password to remote the windows host of the intranet
 ![img1](images/remote.png)
-  
     
-## 开发/PR
+## Development/PR
 - install `vs2019`
-- install `dotnetcore runtime&sdk 3.1` 或以上版本
+- install `dotnetcore runtime&sdk 3.1` and higher
 - add `test.test.cc   127.0.0.1` in host file
 - run fasttunnel.server
 - run fasttunnel.client

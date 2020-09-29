@@ -10,27 +10,33 @@
 [README](README.md) | [中文文档](README_zh.md)
 
 ***
-免费内网穿透 https://suidao.io
+基于本框架开发的穿透平台，如果你需要内网穿透可以直接注册使用，免去自己搭建和维护的成本。但重要的项目请勿使用此服务。
 
-程序源码：[FastTunnel.SuiDao](https://github.com/SpringHgui/FastTunnel.SuiDao)
+穿透平台：https://suidao.io  
 
-**有帮助的朋友给个星星支持一下本项目，有需求和bug请提交issue，同时欢迎各位coder进行PR**
+平台源码：[FastTunnel.SuiDao](https://github.com/SpringHgui/FastTunnel.SuiDao)
+
+**有帮助的朋友点下Star支持一下本项目，有需求和bug请提交issue，同时欢迎各位coder进行PR**
 
 ***
 
 ## FastTunnel是什么？
-FastTunnel是一款高性能跨平台内网穿透工具，使用它可以实现将内网服务暴露到公网供自己或任何人访问。
+- FastTunnel是一款高性能跨平台内网穿透工具，使用它可以实现将内网服务暴露到公网供自己或任何人访问。
+- 与其他穿透工具不同的是，FastTunnel项目致力于打造一个易于扩展、易于维护的内网穿透框架。
+- 你可以通过引用FastTunnel.Cored的nuget包构建出自己的穿透应用，并针自己所需的业务扩展功能。
 
-## 使用FastTunnel能够做什么？
-- [x] 实现在任何地方远程内网计算机(公司或家里的计算机) Windows/Linux/Mac
+## FastTunnel有哪些特性
+- [x] 在任何地方远程内网计算机(公司或家里的计算机) Windows/Linux/Mac
 - [x] 通过自定义域名访问内网web服务（常用于微信开发或对外开放web服务）
 - [x] 端口转发/端口映射，访问内网任意端口提供的服务 mysql、redis、ftp等等
-- [x] 支持绑定多个域名访问内网服务
 - [ ] p2p穿透
+- [x] 支持绑定多个域名访问内网服务
+- [x] 支持域名白名单限制
+- [x] 支持客户端身份校验
 
-## 快速开始
+## 快速搭建服务
 1. 在 [releases](https://github.com/SpringHgui/FastTunnel/releases) 页面下载对应的程序
-2. 根据自己的需求修改配置文件`appsettings.json`
+2. 根据自己的需求修改客户端以及服务端配置文件`appsettings.json`
 3. 服务端运行FastTunnel.Server
 4. 客户端运行FastTunnel.Cient
 
