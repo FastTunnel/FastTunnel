@@ -5,9 +5,11 @@ using FastTunnel.Server.Filters;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -18,15 +20,44 @@ namespace FastTunnel.Server.Service
         ILogger<ServiceFastTunnelServer> _logger;
         FastTunnelServer _fastTunnelServer;
         TestAuthenticationFilter _testAuthenticationFilter;
-        IConfiguration _configuration; 
+        IConfiguration _configuration;
         public ServiceFastTunnelServer(
             ILogger<ServiceFastTunnelServer> logger,
-            IConfiguration configuration, 
+            IConfiguration configuration,
             TestAuthenticationFilter testAuthenticationFilter)
         {
             _configuration = configuration;
             _testAuthenticationFilter = testAuthenticationFilter;
             _logger = logger;
+
+            AppDomain.CurrentDomain.FirstChanceException += CurrentDomain_FirstChanceException;
+            AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+        }
+
+        private void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+        {
+            try
+            {
+                _logger.LogError("【UnhandledException】" + e.ExceptionObject);
+                _logger.LogError("【UnhandledException】" + JsonConvert.SerializeObject(e.ExceptionObject));
+                var type = e.ExceptionObject.GetType();
+                _logger.LogError("ExceptionObject GetType " + type);
+            }
+            catch
+            {
+            }
+        }
+
+        private void CurrentDomain_FirstChanceException(object sender, FirstChanceExceptionEventArgs e)
+        {
+            if (e.Exception is System.IO.DirectoryNotFoundException)
+            {
+                // nlog第一次找不到文件的错误，跳过
+            }
+            else
+            {
+                _logger.LogError(e.Exception, "【FirstChanceException】");
+            }
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
@@ -39,6 +70,8 @@ namespace FastTunnel.Server.Service
             try
             {
                 _fastTunnelServer.Run();
+
+                _logger.LogDebug("Server Run Success");
             }
             catch (Exception ex)
             {

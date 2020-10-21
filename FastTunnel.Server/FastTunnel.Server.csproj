@@ -3,6 +3,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <UserSecretsId>17e7d83b-9640-4fba-8e72-2b6b022a01b0</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="Program.cs.BASE.cs" />
