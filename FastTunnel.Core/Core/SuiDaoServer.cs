@@ -3,6 +3,7 @@ using FastTunnel.Core.Models;
 using Microsoft.Extensions.Logging;
 using FastTunnel.Core.Handlers.Server;
 using System.Collections.Concurrent;
+using System;
 
 namespace FastTunnel.Core.Core
 {
@@ -25,8 +26,19 @@ namespace FastTunnel.Core.Core
         public void Run()
         {
             _logger.LogDebug("FastTunnel Server Start");
+
+            CheckSettins();
+
             ListenClient();
             ListenHttp();
+        }
+
+        private void CheckSettins()
+        {
+            if (string.IsNullOrEmpty(ServerSettings.WebDomain))
+            {
+                throw new Exception("[WebDomain] 配置不能为空");
+            }
         }
 
         private void ListenClient()
