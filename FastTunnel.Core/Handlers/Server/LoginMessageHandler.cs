@@ -1,6 +1,7 @@
 ﻿using FastTunnel.Core.Core;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Filters;
+using FastTunnel.Core.Global;
 using FastTunnel.Core.Handlers.Server;
 using FastTunnel.Core.Models;
 using Microsoft.Extensions.Logging;
@@ -23,7 +24,8 @@ namespace FastTunnel.Core.Handlers
         public LoginMessageHandler(ILogger logger)
         {
             _logger = logger;
-            _configHandler = new ConfigHandler();
+            var custome = FastTunnelGlobal.GetCustomHandler<IConfigHandler>();
+            _configHandler = custome == null ? new ConfigHandler() : custome;
         }
 
         public LogInMassage GetConfig(JObject content)
