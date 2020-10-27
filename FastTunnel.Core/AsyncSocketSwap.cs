@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace FastTunnel.Core
 {
@@ -12,19 +13,22 @@ namespace FastTunnel.Core
         private Socket m_sockt2;
         bool m_swaping = false;
 
-        private class Channel
-        {
-            public Socket Send { get; set; }
-
-            public Socket Receive { get; set; }
-        }
-
         public AsyncSocketSwap(Socket sockt1, Socket sockt2)
         {
             m_sockt1 = sockt1;
             m_sockt2 = sockt2;
         }
-        public void StartSwap()
+
+        public AsyncSocketSwap BeforeSwap(Action fun)
+        {
+            if (m_swaping)
+                throw new Exception("BeforeSwap must be invoked before StartSwap!");
+
+            fun?.Invoke();
+            return this;
+        }
+
+        private void StartSwap()
         {
             m_swaping = true;
 
@@ -37,6 +41,21 @@ namespace FastTunnel.Core
             rcv2.ReciveOne();
         }
 
+        public void StartSwapAsync()
+        {
+            Task.Run(() =>
+            {
+                try
+                {
+                    StartSwap();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.ToString());
+                }
+            });
+        }
+
         private void Rcv1_OnComplete(DataReciver send, byte[] buffer, int index, int count)
         {
             m_sockt2.Send(buffer, index, count, SocketFlags.None);
@@ -47,17 +66,6 @@ namespace FastTunnel.Core
         {
             m_sockt1.Send(buffer, index, count, SocketFlags.None);
             send.ReciveOne();
-        }
-
-        internal AsyncSocketSwap BeforeSwap(Action fun)
-        {
-            if (m_swaping)
-            {
-                throw new Exception("BeforeSwap must be invoked before StartSwap!");
-            }
-
-            fun?.Invoke();
-            return this;
         }
     }
 }

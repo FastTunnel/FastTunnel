@@ -33,12 +33,16 @@ namespace FastTunnel.Core.Core
         Thread th;
 
         int reTrySpan = 30 * 1000; // 登陆失败后重试间隔
-        NewCustomerHandler _newCustomerHandler;
+        HttpRequestHandler _newCustomerHandler;
         NewSSHHandler _newSSHHandler;
         LogHandler _logHandler;
         ClientHeartHandler _clientHeartHandler;
 
-        public FastTunnelClient(ILogger<FastTunnelClient> logger, NewCustomerHandler newCustomerHandler, NewSSHHandler newSSHHandler, LogHandler logHandler, ClientHeartHandler clientHeartHandler)
+        public FastTunnelClient(
+            ILogger<FastTunnelClient> logger, 
+            HttpRequestHandler newCustomerHandler, 
+            NewSSHHandler newSSHHandler, LogHandler logHandler, 
+            ClientHeartHandler clientHeartHandler)
         {
             _logger = logger;
             _newCustomerHandler = newCustomerHandler;

@@ -97,7 +97,7 @@ namespace FastTunnel.Client
             service.AddSingleton<FastTunnelClient>()
                  .AddSingleton<ClientHeartHandler>()
                  .AddSingleton<LogHandler>()
-                 .AddSingleton<NewCustomerHandler>()
+                 .AddSingleton<HttpRequestHandler>()
                  .AddSingleton<NewSSHHandler>()
                  .AddSingleton<ClientConfig>(implementationFactory);
         }

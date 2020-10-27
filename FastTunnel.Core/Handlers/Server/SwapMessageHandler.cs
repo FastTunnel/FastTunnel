@@ -30,12 +30,9 @@ namespace FastTunnel.Core.Handlers.Server
             if (!string.IsNullOrEmpty(SwapMsg.msgId) && server.newRequest.TryGetValue(SwapMsg.msgId, out request))
             {
                 // Join
-                Task.Run(() =>
-                {
-                    (new AsyncSocketSwap(request.CustomerClient, client))
-                        .BeforeSwap(() => { if (request.Buffer != null) client.Send(request.Buffer); })
-                        .StartSwap();
-                });
+                new AsyncSocketSwap(request.CustomerClient, client)
+                   .BeforeSwap(() => { if (request.Buffer != null) client.Send(request.Buffer); })
+                   .StartSwapAsync();
             }
             else
             {

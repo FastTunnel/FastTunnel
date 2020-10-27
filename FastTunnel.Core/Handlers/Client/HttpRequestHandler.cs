@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace FastTunnel.Core.Handlers.Client
 {
-    public class NewCustomerHandler : IClientHandler
+    public class HttpRequestHandler : IClientHandler
     {
         public void HandlerMsg(FastTunnelClient cleint, Message<JObject> Msg)
         {
@@ -58,7 +58,7 @@ namespace FastTunnel.Core.Handlers.Client
                 throw;
             }
 
-            new AsyncSocketSwap(connecter.Socket, localConnecter.Socket).StartSwap();
+            new AsyncSocketSwap(connecter.Socket, localConnecter.Socket).StartSwapAsync();
         }
     }
 }
