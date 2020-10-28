@@ -20,6 +20,7 @@ namespace FastTunnel.Core
 
         int m_numConnectedSockets;
 
+        bool shutdown = false;
         IListenerDispatcher _requestDispatcher;
         Socket listenSocket;
 
@@ -38,6 +39,7 @@ namespace FastTunnel.Core
 
         public void Listen(IListenerDispatcher requestDispatcher)
         {
+            shutdown = false;
             _requestDispatcher = requestDispatcher;
 
             listenSocket.Listen(100);
@@ -45,7 +47,30 @@ namespace FastTunnel.Core
             StartAccept(null);
         }
 
-        public void StartAccept(SocketAsyncEventArgs acceptEventArg)
+        public void ShutdownAndClose()
+        {
+            if (shutdown)
+                return;
+
+            try
+            {
+                if (listenSocket.Connected)
+                {
+                    listenSocket.Shutdown(SocketShutdown.Both);
+                }
+            }
+            catch (Exception)
+            {
+            }
+            finally
+            {
+                shutdown = true;
+                listenSocket.Close();
+                Interlocked.Decrement(ref m_numConnectedSockets);
+            }
+        }
+
+        private void StartAccept(SocketAsyncEventArgs acceptEventArg)
         {
             if (acceptEventArg == null)
             {
@@ -78,6 +103,7 @@ namespace FastTunnel.Core
                 // Accept the next connection request
                 StartAccept(e);
 
+                // 将此客户端交由Dispatcher进行管理
                 _requestDispatcher.Dispatch(accept);
             }
             else
@@ -89,22 +115,6 @@ namespace FastTunnel.Core
         private void AcceptEventArg_Completed(object sender, SocketAsyncEventArgs e)
         {
             ProcessAccept(e);
-        }
-
-        public void ShutdownAndClose()
-        {
-            try
-            {
-                listenSocket.Shutdown(SocketShutdown.Both);
-            }
-            catch (Exception)
-            {
-            }
-            finally
-            {
-                listenSocket.Close();
-                Interlocked.Decrement(ref m_numConnectedSockets);
-            }
         }
     }
 }
