@@ -87,7 +87,6 @@ namespace FastTunnel.Core.Handlers
                             {
                                 // cant use WebDomain
                                 _logger.LogDebug($"USE WebDomain IN WWW {www}");
-                                sb.Append($"{Environment.NewLine}  cant use {www}");
                             }
                         }
                     }

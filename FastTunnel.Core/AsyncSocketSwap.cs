@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Net.Sockets;
+using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -52,6 +53,7 @@ namespace FastTunnel.Core
                 catch (Exception ex)
                 {
                     Console.WriteLine(ex.ToString());
+                    ExceptionDispatchInfo.Capture(ex).Throw();
                 }
             });
         }

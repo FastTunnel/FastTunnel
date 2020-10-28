@@ -42,7 +42,6 @@ namespace FastTunnel.Core
 
             listenSocket.Listen(100);
 
-            // post accepts on the listening socket
             StartAccept(null);
         }
 
@@ -68,16 +67,23 @@ namespace FastTunnel.Core
 
         private void ProcessAccept(SocketAsyncEventArgs e)
         {
-            Interlocked.Increment(ref m_numConnectedSockets);
-            Console.WriteLine("Client connection accepted. There are {0} clients connected to the server",
-                m_numConnectedSockets);
+            if (e.SocketError == SocketError.Success)
+            {
+                var accept = e.AcceptSocket;
 
-            var accept = e.AcceptSocket;
+                Interlocked.Increment(ref m_numConnectedSockets);
+                _logerr.LogInformation($"【{IP}:{Port}】Accepted. There are {{0}} clients connected to the port",
+                    m_numConnectedSockets);
 
-            // Accept the next connection request
-            StartAccept(e);
+                // Accept the next connection request
+                StartAccept(e);
 
-            _requestDispatcher.Dispatch(accept);
+                _requestDispatcher.Dispatch(accept);
+            }
+            else
+            {
+                ShutdownAndClose();
+            }
         }
 
         private void AcceptEventArg_Completed(object sender, SocketAsyncEventArgs e)
@@ -97,6 +103,7 @@ namespace FastTunnel.Core
             finally
             {
                 listenSocket.Close();
+                Interlocked.Decrement(ref m_numConnectedSockets);
             }
         }
     }
