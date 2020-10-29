@@ -35,11 +35,11 @@ namespace FastTunnel.Core
 
             var rcv1 = new DataReciver(m_sockt1);
             rcv1.OnComplete += Rcv1_OnComplete;
-            rcv1.ReciveOne();
+            rcv1.ReciveOneAsync();
 
             var rcv2 = new DataReciver(m_sockt2);
             rcv2.OnComplete += Rcv2_OnComplete;
-            rcv2.ReciveOne();
+            rcv2.ReciveOneAsync();
         }
 
         public void StartSwapAsync()
@@ -61,13 +61,13 @@ namespace FastTunnel.Core
         private void Rcv1_OnComplete(DataReciver send, byte[] buffer, int index, int count)
         {
             m_sockt2.Send(buffer, index, count, SocketFlags.None);
-            send.ReciveOne();
+            send.ReciveOneAsync();
         }
 
         private void Rcv2_OnComplete(DataReciver send, byte[] buffer, int index, int count)
         {
             m_sockt1.Send(buffer, index, count, SocketFlags.None);
-            send.ReciveOne();
+            send.ReciveOneAsync();
         }
     }
 }

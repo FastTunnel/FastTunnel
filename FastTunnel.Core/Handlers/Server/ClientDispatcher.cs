@@ -20,6 +20,7 @@ namespace FastTunnel.Core.Handlers.Server
         readonly LoginMessageHandler _loginHandler;
         readonly HeartMessageHandler _heartHandler;
         readonly SwapMessageHandler _swapMsgHandler;
+        Action<Socket> offLineAction;
 
         public ClientDispatcher(FastTunnelServer fastTunnelServer, ILogger logger, IServerConfig serverSettings)
         {
@@ -39,13 +40,18 @@ namespace FastTunnel.Core.Handlers.Server
             var reader = new DataReciver(client);
             reader.OnComplete += Reader_OnComplete;
             reader.OnError += Reader_OnError;
+            reader.OnReset += Reader_OnReset;
+            reader.ReciveOneAsync();
+        }
 
-            reader.ReciveOne();
+        private void Reader_OnReset(DataReciver send, Socket socket, SocketAsyncEventArgs e)
+        {
+            offLineAction(socket);
         }
 
         private void Reader_OnError(DataReciver send, SocketAsyncEventArgs e)
         {
-            // 
+            _logger.LogError("接收客户端数据异常 {0}", e.SocketError);
         }
 
         private void Reader_OnComplete(DataReciver reader, byte[] buffer, int offset, int count)
@@ -67,7 +73,7 @@ namespace FastTunnel.Core.Handlers.Server
                     if (firstIndex < 0)
                     {
                         temp += words;
-                        reader.ReciveOne();
+                        reader.ReciveOneAsync();
                         break;
                     }
 
@@ -84,7 +90,7 @@ namespace FastTunnel.Core.Handlers.Server
 
                 if (needRecive)
                 {
-                    reader.ReciveOne();
+                    reader.ReciveOneAsync();
                 }
             }
             catch (Exception ex)
@@ -94,7 +100,7 @@ namespace FastTunnel.Core.Handlers.Server
 
                 // throw;
                 reader.Socket.Send(new Message<LogMassage>() { MessageType = MessageType.Log, Content = new LogMassage(LogMsgType.Error, ex.Message) });
-                reader.ReciveOne();
+                reader.ReciveOneAsync();
             }
         }
 
@@ -121,6 +127,12 @@ namespace FastTunnel.Core.Handlers.Server
 
             handler.HandlerMsg(this._fastTunnelServer, client, msg);
             return handler;
+        }
+
+        public void Dispatch(Socket httpClient, Action<Socket> onOffLine)
+        {
+            offLineAction = onOffLine;
+            Dispatch(httpClient);
         }
     }
 }

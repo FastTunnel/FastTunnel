@@ -1,6 +1,8 @@
 ﻿using FastTunnel.Core.Handlers.Server;
 using Microsoft.Extensions.Logging;
+using Microsoft.VisualBasic;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
@@ -10,6 +12,8 @@ using System.Threading.Tasks;
 
 namespace FastTunnel.Core
 {
+    public delegate void OnClientChangeLine(Socket socket, int count, bool is_offline);
+
     public class AsyncListener : IListener
     {
         ILogger _logerr;
@@ -20,9 +24,12 @@ namespace FastTunnel.Core
 
         int m_numConnectedSockets;
 
+        public event OnClientChangeLine OnClientsChange;
+
         bool shutdown = false;
         IListenerDispatcher _requestDispatcher;
         Socket listenSocket;
+        public IList<Socket> ConnectedSockets = new List<Socket>();
 
         public AsyncListener(string ip, int port, ILogger logerr)
         {
@@ -35,6 +42,18 @@ namespace FastTunnel.Core
 
             listenSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             listenSocket.Bind(localEndPoint);
+        }
+
+        private void OnOffLine(Socket socket)
+        {
+            if (ConnectedSockets.Remove(socket))
+                OnClientsChange?.Invoke(socket, ConnectedSockets.Count, true);
+        }
+
+        private void OnAccept(Socket socket)
+        {
+            ConnectedSockets.Add(socket);
+            OnClientsChange.Invoke(socket, ConnectedSockets.Count, false);
         }
 
         public void Listen(IListenerDispatcher requestDispatcher)
@@ -95,6 +114,7 @@ namespace FastTunnel.Core
             if (e.SocketError == SocketError.Success)
             {
                 var accept = e.AcceptSocket;
+                OnAccept(accept);
 
                 Interlocked.Increment(ref m_numConnectedSockets);
                 _logerr.LogInformation($"【{IP}:{Port}】Accepted. There are {{0}} clients connected to the port",
@@ -104,7 +124,10 @@ namespace FastTunnel.Core
                 StartAccept(e);
 
                 // 将此客户端交由Dispatcher进行管理
-                _requestDispatcher.Dispatch(accept);
+                _requestDispatcher.Dispatch(accept, this.OnOffLine);
+
+                // Only the sockets that contain a connection request
+                // will remain in listenList after Select returns.
             }
             else
             {

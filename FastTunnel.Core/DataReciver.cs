@@ -7,6 +7,7 @@ namespace FastTunnel.Core
 {
     public delegate void OnCompleteHandler(DataReciver send, byte[] buffer, int index, int count);
     public delegate void OnError(DataReciver send, SocketAsyncEventArgs e);
+    public delegate void OnConnectionReset(DataReciver send, Socket socket, SocketAsyncEventArgs e);
 
     public class DataReciver
     {
@@ -14,6 +15,7 @@ namespace FastTunnel.Core
 
         public event OnCompleteHandler OnComplete;
         public event OnError OnError;
+        public event OnConnectionReset OnReset;
 
         byte[] buffer = new byte[1024 * 1024];
         SocketAsyncEventArgs rcv_event;
@@ -29,7 +31,7 @@ namespace FastTunnel.Core
             rcv_event.SetBuffer(buffer);
         }
 
-        public void ReciveOne()
+        public void ReciveOneAsync()
         {
             var willRaise = m_client.ReceiveAsync(rcv_event);
             if (!willRaise)
@@ -55,6 +57,11 @@ namespace FastTunnel.Core
                 {
                     OnComplete?.Invoke(this, buffer, e.Offset, e.BytesTransferred);
                 }
+            }
+            else if (e.SocketError == SocketError.ConnectionReset)
+            {
+                // 断线
+                OnReset?.Invoke(this, m_client, e);
             }
             else
             {

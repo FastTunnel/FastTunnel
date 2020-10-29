@@ -30,5 +30,10 @@ namespace FastTunnel.Core.Handlers.Server
                 CustomerClient = _socket,
             });
         }
+
+        public void Dispatch(Socket httpClient, Action<Socket> onOffLine)
+        {
+            Dispatch(httpClient);
+        }
     }
 }

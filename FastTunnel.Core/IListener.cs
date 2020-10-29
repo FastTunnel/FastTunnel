@@ -15,5 +15,7 @@ namespace FastTunnel.Core
         void Listen(IListenerDispatcher requestDispatcher);
 
         void ShutdownAndClose();
+
+        event OnClientChangeLine OnClientsChange;
     }
 }

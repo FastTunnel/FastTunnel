@@ -190,5 +190,10 @@ namespace FastTunnel.Core.Handlers.Server
             client.Send(responseBody);
             client.Close();
         }
+
+        public void Dispatch(Socket httpClient, Action<Socket> onOffLine)
+        {
+            Dispatch(httpClient);
+        }
     }
 }
