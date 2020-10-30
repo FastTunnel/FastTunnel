@@ -33,6 +33,9 @@ namespace FastTunnel.Server
                     // DI
                     services.AddTransient<TestAuthenticationFilter>();
                     //services.AddSingleton<IServerConfig>();
+                }).ConfigureWebHostDefaults(webBuilder =>
+                {
+                    webBuilder.UseStartup<Startup>();
                 });
     }
 }
