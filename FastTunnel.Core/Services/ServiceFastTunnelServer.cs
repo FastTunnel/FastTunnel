@@ -1,33 +1,35 @@
 ﻿using FastTunnel.Core.Config;
 using FastTunnel.Core.Core;
+using FastTunnel.Core.Filters;
 using FastTunnel.Core.Global;
-using FastTunnel.Server.Filters;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace FastTunnel.Server.Service
+namespace FastTunnel.Core.Services
 {
     public class ServiceFastTunnelServer : IHostedService
     {
         ILogger<ServiceFastTunnelServer> _logger;
         FastTunnelServer _fastTunnelServer;
-        TestAuthenticationFilter _testAuthenticationFilter;
+        IAuthenticationFilter _authenticationFilter;
         IConfiguration _configuration;
+
         public ServiceFastTunnelServer(
             ILogger<ServiceFastTunnelServer> logger,
             IConfiguration configuration,
-            TestAuthenticationFilter testAuthenticationFilter)
+            IAuthenticationFilter authenticationFilter)
         {
             _configuration = configuration;
-            _testAuthenticationFilter = testAuthenticationFilter;
+            _authenticationFilter = authenticationFilter;
             _logger = logger;
 
             AppDomain.CurrentDomain.FirstChanceException += CurrentDomain_FirstChanceException;
@@ -50,9 +52,12 @@ namespace FastTunnel.Server.Service
 
         private void CurrentDomain_FirstChanceException(object sender, FirstChanceExceptionEventArgs e)
         {
-            if (e.Exception is System.IO.DirectoryNotFoundException)
+            if (e.Exception is DirectoryNotFoundException)
             {
                 // nlog第一次找不到文件的错误，跳过
+            }
+            else if (e.Exception is IOException && e.Exception.Source == "System.Net.Security")
+            {
             }
             else
             {
@@ -64,8 +69,8 @@ namespace FastTunnel.Server.Service
         {
             _logger.LogInformation("===== FastTunnel Server Starting =====");
 
-            _fastTunnelServer = new FastTunnelServer(_logger, _configuration.Get<Appsettings>().ServerSettings);
-            FastTunnelGlobal.AddFilter(_testAuthenticationFilter);
+            _fastTunnelServer = new FastTunnelServer(_logger, _configuration.Get<AppSettings>().ServerSettings);
+            FastTunnelGlobal.AddFilter(_authenticationFilter);
 
             try
             {

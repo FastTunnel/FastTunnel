@@ -4,9 +4,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace FastTunnel.Server
+namespace FastTunnel.Core.Config
 {
-    public class Appsettings
+    public class AppSettings
     {
         public DefaultServerConfig ServerSettings { get; set; }
     }

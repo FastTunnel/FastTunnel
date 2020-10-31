@@ -9,7 +9,7 @@ namespace FastTunnel.Core.Extensions
     {
         public static void LogError(this ILogger logger, Exception ex)
         {
-            logger.LogError(ex.ToString());
+            logger.LogError(ex, string.Empty);
         }
     }
 }
