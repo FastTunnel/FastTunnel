@@ -9,6 +9,7 @@ using FastTunnel.Core.Config;
 using FastTunnel.Core.Handlers.Client;
 using Microsoft.Extensions.Logging;
 using NLog.Web;
+using FastTunnel.Core.Extensions;
 
 namespace FastTunnel.Client
 {
@@ -39,13 +40,7 @@ namespace FastTunnel.Client
                 .ConfigureServices((hostContext, services) =>
                 {
                     // -------------------FastTunnel START------------------
-                    services.AddSingleton<FastTunnelClient>()
-                    .AddSingleton<ClientHeartHandler>()
-                    .AddSingleton<LogHandler>()
-                    .AddSingleton<HttpRequestHandler>()
-                    .AddSingleton<NewSSHHandler>();
-
-                    services.AddHostedService<ServiceFastTunnelClient>();
+                    services.AddFastTunnelClient();
                     // -------------------FastTunnel EDN--------------------
                 })
                 .ConfigureLogging((HostBuilderContext context, ILoggingBuilder logging) =>
