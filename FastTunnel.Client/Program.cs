@@ -1,116 +1,58 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using FastTunnel.Core;
 using System;
 using System.IO;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using NLog;
-using FastTunnel.Core.Host;
-using FastTunnel.Core.Config;
+using FastTunnel.Core.Services;
+using Microsoft.Extensions.Hosting;
 using FastTunnel.Core.Core;
-using FastTunnel.Core.Models;
+using FastTunnel.Core.Config;
 using FastTunnel.Core.Handlers.Client;
-using FastTunnel.Core.Logger;
+using Microsoft.Extensions.Logging;
+using NLog.Web;
 
 namespace FastTunnel.Client
 {
     class Program
     {
-        static void Main(string[] args)
+        public static void Main(string[] args)
         {
-            LogManager.Configuration = NlogConfig.getNewConfig();
-            var logger = LogManager.GetCurrentClassLogger();
-            logger.Debug("===== FastTunnel Client Start =====");
-
+            var logger = NLog.Web.NLogBuilder.ConfigureNLog("nlog.config").GetCurrentClassLogger();
             try
             {
-                var servicesProvider = new Host().Config(Config).Build();
-
-                Run(servicesProvider);
-
-                while (true)
-                {
-                    Thread.Sleep(10000 * 60);
-                }
+                CreateHostBuilder(args).Build().Run();
             }
-            catch (Exception ex)
+            catch (Exception exception)
             {
-                // NLog: catch any exception and log it.
-                logger.Error(ex, "Stopped program because of exception");
+                //NLog: catch setup errors
+                logger.Error(exception, "Stopped program because of exception");
                 throw;
             }
             finally
             {
                 // Ensure to flush and stop internal timers/threads before application-exit (Avoid segmentation fault on Linux)
-                LogManager.Shutdown();
+                NLog.LogManager.Shutdown();
             }
         }
 
-        private static void Run(IServiceProvider servicesProvider)
-        {
-            var client = servicesProvider.GetRequiredService<FastTunnelClient>();
-            var config = servicesProvider.GetRequiredService<ClientConfig>();
-
-            client.Login(() =>
-            {
-                Connecter _client;
-
-                try
+        public static IHostBuilder CreateHostBuilder(string[] args) =>
+            Host.CreateDefaultBuilder(args)
+                .ConfigureServices((hostContext, services) =>
                 {
-                    // 连接到的目标IP
-                    _client = new Connecter(config.Common.ServerAddr, config.Common.ServerPort);
-                    _client.Connect();
-                }
-                catch (Exception)
+                    // -------------------FastTunnel START------------------
+                    services.AddSingleton<FastTunnelClient>()
+                    .AddSingleton<ClientHeartHandler>()
+                    .AddSingleton<LogHandler>()
+                    .AddSingleton<HttpRequestHandler>()
+                    .AddSingleton<NewSSHHandler>();
+
+                    services.AddHostedService<ServiceFastTunnelClient>();
+                    // -------------------FastTunnel EDN--------------------
+                })
+                .ConfigureLogging((HostBuilderContext context, ILoggingBuilder logging) =>
                 {
-                    Thread.Sleep(5000);
-                    throw;
-                }
-
-                // 登录
-                _client.Send(new Message<LogInMassage>
-                {
-                    MessageType = MessageType.C_LogIn,
-                    Content = new LogInMassage
-                    {
-                        Webs = config.Webs,
-                        SSH = config.SSH,
-                        AuthInfo = "ODadoNDONODHSoDMFMsdpapdoNDSHDoadpwPDNoWAHDoNfa"
-                    },
-                });
-
-                return _client;
-            }, config.Common);
-
-            while (true)
-            {
-                Thread.Sleep(10000 * 60);
-            }
-        }
-
-        private static void Config(ServiceCollection service)
-        {
-            service.AddSingleton<FastTunnelClient>()
-                 .AddSingleton<ClientHeartHandler>()
-                 .AddSingleton<LogHandler>()
-                 .AddSingleton<HttpRequestHandler>()
-                 .AddSingleton<NewSSHHandler>()
-                 .AddSingleton<ClientConfig>(implementationFactory);
-        }
-
-        private static ClientConfig implementationFactory(IServiceProvider arg)
-        {
-            var conf = new ConfigurationBuilder()
-            .SetBasePath(Directory.GetCurrentDirectory())
-            .AddJsonFile("appsettings.json", true, true)
-            .Build();
-
-            var settings = conf.Get<Appsettings>();
-            return settings.ClientSettings;
-        }
+                    logging.ClearProviders();
+                    logging.SetMinimumLevel(LogLevel.Trace);
+                })
+                .UseNLog();  // NLog: Setup NLog for Dependency injection
     }
 }

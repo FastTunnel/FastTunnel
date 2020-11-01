@@ -44,7 +44,6 @@ namespace FastTunnel.Server
                 {
                     webBuilder.UseStartup<Startup>();
                 })
-                // NLog
                 .ConfigureLogging((HostBuilderContext context, ILoggingBuilder logging) =>
                 {
                     logging.ClearProviders();

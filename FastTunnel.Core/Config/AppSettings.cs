@@ -9,5 +9,7 @@ namespace FastTunnel.Core.Config
     public class AppSettings
     {
         public DefaultServerConfig ServerSettings { get; set; }
+
+        public ClientConfig ClientSettings { get; set; }
     }
 }
