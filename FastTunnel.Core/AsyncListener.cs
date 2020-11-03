@@ -53,7 +53,7 @@ namespace FastTunnel.Core
         private void OnAccept(Socket socket)
         {
             ConnectedSockets.Add(socket);
-            OnClientsChange.Invoke(socket, ConnectedSockets.Count, false);
+            OnClientsChange?.Invoke(socket, ConnectedSockets.Count, false);
         }
 
         public void Listen(IListenerDispatcher requestDispatcher)
