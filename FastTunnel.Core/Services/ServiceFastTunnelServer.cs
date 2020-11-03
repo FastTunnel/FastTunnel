@@ -20,13 +20,13 @@ namespace FastTunnel.Core.Services
     {
         ILogger<ServiceFastTunnelServer> _logger;
         FastTunnelServer _fastTunnelServer;
-        IAuthenticationFilter _authenticationFilter;
+        IFastTunnelAuthenticationFilter _authenticationFilter;
         IConfiguration _configuration;
 
         public ServiceFastTunnelServer(
             ILogger<ServiceFastTunnelServer> logger,
             IConfiguration configuration,
-            IAuthenticationFilter authenticationFilter)
+            IFastTunnelAuthenticationFilter authenticationFilter)
         {
             _configuration = configuration;
             _authenticationFilter = authenticationFilter;

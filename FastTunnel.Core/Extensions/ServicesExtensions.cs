@@ -13,7 +13,7 @@ namespace FastTunnel.Core.Extensions
     {
         public static void AddFastTunnelServer(this IServiceCollection services)
         {
-            services.AddTransient<IAuthenticationFilter, DefaultAuthenticationFilter>();
+            services.AddTransient<IFastTunnelAuthenticationFilter, DefaultAuthenticationFilter>();
 
             services.AddHostedService<ServiceFastTunnelServer>();
         }

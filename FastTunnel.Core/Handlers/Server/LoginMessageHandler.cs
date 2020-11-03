@@ -42,10 +42,10 @@ namespace FastTunnel.Core.Handlers
         {
             bool hasTunnel = false;
 
-            var filters = Global.FastTunnelGlobal.GetFilters(typeof(IAuthenticationFilter));
+            var filters = Global.FastTunnelGlobal.GetFilters(typeof(IFastTunnelAuthenticationFilter));
             if (filters.Count() > 0)
             {
-                foreach (IAuthenticationFilter item in filters)
+                foreach (IFastTunnelAuthenticationFilter item in filters)
                 {
                     var result = item.Authentication(server, requet);
                     if (!result)

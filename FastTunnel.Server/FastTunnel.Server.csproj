@@ -1,7 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFramework>net5.0</TargetFramework>
+    <UserSecretsId>c508b25f-0a51-4bab-b64c-8a7e993f24f6</UserSecretsId>
+    <RunAnalyzersDuringBuild>true</RunAnalyzersDuringBuild>
   </PropertyGroup>
 
   <ItemGroup>

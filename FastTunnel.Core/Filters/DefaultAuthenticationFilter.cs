@@ -6,7 +6,7 @@ using System.Text;
 
 namespace FastTunnel.Core.Filters
 {
-    public class DefaultAuthenticationFilter : IAuthenticationFilter
+    public class DefaultAuthenticationFilter : IFastTunnelAuthenticationFilter
     {
         public virtual bool Authentication(FastTunnelServer server, LogInMassage requet)
         {
