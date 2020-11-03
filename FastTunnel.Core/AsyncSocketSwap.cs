@@ -60,14 +60,26 @@ namespace FastTunnel.Core
 
         private void Rcv1_OnComplete(DataReciver send, byte[] buffer, int index, int count)
         {
-            m_sockt2.Send(buffer, index, count, SocketFlags.None);
-            send.ReciveOneAsync();
+            try
+            {
+                m_sockt2.Send(buffer, index, count, SocketFlags.None);
+                send.ReciveOneAsync();
+            }
+            catch (Exception)
+            {
+            }
         }
 
         private void Rcv2_OnComplete(DataReciver send, byte[] buffer, int index, int count)
         {
-            m_sockt1.Send(buffer, index, count, SocketFlags.None);
-            send.ReciveOneAsync();
+            try
+            {
+                m_sockt1.Send(buffer, index, count, SocketFlags.None);
+                send.ReciveOneAsync();
+            }
+            catch (Exception ex)
+            {
+            }
         }
     }
 }
