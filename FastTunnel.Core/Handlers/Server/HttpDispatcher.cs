@@ -112,13 +112,6 @@ namespace FastTunnel.Core.Handlers.Server
                     return;
                 }
 
-                if (!web.Socket.Connected)
-                {
-                    _fastTunnelServer.WebList.TryRemove(domain, out WebInfo invalidWeb);
-                    HandlerClientNotOnLine(httpClient, domain, buffer);
-                    return;
-                }
-
                 var msgid = Guid.NewGuid().ToString();
 
                 byte[] bytes = new byte[count];
@@ -130,8 +123,16 @@ namespace FastTunnel.Core.Handlers.Server
                     Buffer = bytes
                 });
 
-                _logger.LogDebug($"OK");
-                web.Socket.Send(new Message<NewCustomerMassage> { MessageType = MessageType.S_NewCustomer, Content = new NewCustomerMassage { MsgId = msgid, WebConfig = web.WebConfig } });
+                try
+                {
+                    _logger.LogDebug($"OK");
+                    web.Socket.Send(new Message<NewCustomerMassage> { MessageType = MessageType.S_NewCustomer, Content = new NewCustomerMassage { MsgId = msgid, WebConfig = web.WebConfig } });
+                }
+                catch (Exception)
+                {
+                    HandlerClientNotOnLine(httpClient, domain, buffer);
+                    throw;
+                }
             }
             catch (Exception ex)
             {

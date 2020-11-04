@@ -17,7 +17,7 @@ namespace FastTunnel.Core.Handlers.Server
         readonly IServerConfig _serverSettings;
         readonly FastTunnelServer _fastTunnelServer;
 
-        readonly LoginMessageHandler _loginHandler;
+        readonly LoginHandler _loginHandler;
         readonly HeartMessageHandler _heartHandler;
         readonly SwapMessageHandler _swapMsgHandler;
         Action<Socket> offLineAction;
@@ -28,7 +28,7 @@ namespace FastTunnel.Core.Handlers.Server
             _serverSettings = serverSettings;
             _fastTunnelServer = fastTunnelServer;
 
-            _loginHandler = new LoginMessageHandler(logger);
+            _loginHandler = new LoginHandler(logger);
             _heartHandler = new HeartMessageHandler();
             _swapMsgHandler = new SwapMessageHandler(logger);
         }

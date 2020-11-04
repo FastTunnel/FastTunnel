@@ -14,14 +14,16 @@ using System.Text;
 
 namespace FastTunnel.Core.Handlers
 {
-    public class LoginMessageHandler : IClientMessageHandler
+    public class LoginHandler : IClientMessageHandler
     {
         ILogger _logger;
 
         public bool NeedRecive => true;
         IConfigHandler _configHandler;
 
-        public LoginMessageHandler(ILogger logger)
+        static object _locker = new object();
+
+        public LoginHandler(ILogger logger)
         {
             _logger = logger;
             var custome = FastTunnelGlobal.GetCustomHandler<IConfigHandler>();
@@ -35,14 +37,17 @@ namespace FastTunnel.Core.Handlers
 
         public void HandlerMsg(FastTunnelServer server, Socket client, Message<JObject> msg)
         {
-            HandleLogin(server, client, GetConfig(msg.Content));
+            lock (_locker)
+            {
+                HandleLogin(server, client, GetConfig(msg.Content));
+            }
         }
 
         public void HandleLogin(FastTunnelServer server, Socket client, LogInMassage requet)
         {
             bool hasTunnel = false;
 
-            var filters = Global.FastTunnelGlobal.GetFilters(typeof(IFastTunnelAuthenticationFilter));
+            var filters = FastTunnelGlobal.GetFilters(typeof(IFastTunnelAuthenticationFilter));
             if (filters.Count() > 0)
             {
                 foreach (IFastTunnelAuthenticationFilter item in filters)
@@ -71,8 +76,8 @@ namespace FastTunnel.Core.Handlers
                     var info = new WebInfo { Socket = client, WebConfig = item };
 
                     _logger.LogDebug($"new domain '{hostName}'");
-                    server.WebList.AddOrUpdate(hostName, info, (key, info) => { return info; });
-                    sb.Append($"{Environment.NewLine}  http://{hostName}{(server.ServerSettings.WebHasNginxProxy ? string.Empty : ":" + server.ServerSettings.WebProxyPort)} => {item.LocalIp}:{item.LocalPort}");
+                    server.WebList.AddOrUpdate(hostName, info, (key, oldInfo) => { return info; });
+                    sb.Append($"{Environment.NewLine} http://{hostName}{(server.ServerSettings.WebHasNginxProxy ? string.Empty : ":" + server.ServerSettings.WebProxyPort)} => {item.LocalIp}:{item.LocalPort}");
 
                     if (item.WWW != null)
                     {
@@ -80,13 +85,13 @@ namespace FastTunnel.Core.Handlers
                         {
                             if (!www.EndsWith(server.ServerSettings.WebDomain))
                             {
-                                server.WebList.AddOrUpdate(www, info, (key, info) => { return info; });
+                                server.WebList.AddOrUpdate(www, info, (key, oldInfo) => { return info; });
                                 sb.Append($"{Environment.NewLine}  http://{www}{(server.ServerSettings.WebHasNginxProxy ? string.Empty : ":" + server.ServerSettings.WebProxyPort)} => {item.LocalIp}:{item.LocalPort}");
                             }
                             else
                             {
-                                // cant use WebDomain
-                                _logger.LogDebug($"USE WebDomain IN WWW {www}");
+                                // can`t use WebDomain
+                                _logger.LogError($"Invalid WebDomain IN WWW {www}");
                             }
                         }
                     }
