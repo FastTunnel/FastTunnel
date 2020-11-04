@@ -1,26 +1,21 @@
-﻿using FastTunnel.Core.Handlers.Server;
+﻿using FastTunnel.Core.Dispatchers;
+using FastTunnel.Core.Handlers.Server;
 using Microsoft.Extensions.Logging;
-using Microsoft.VisualBasic;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
-namespace FastTunnel.Core
+namespace FastTunnel.Core.Listener
 {
-    public delegate void OnClientChangeLine(Socket socket, int count, bool is_offline);
-
-    public class AsyncListener : IListener
+    public class PortProxyListener : IListener
     {
         ILogger _logerr;
 
-        public string IP { get; set; }
+        public string ListenIp { get; set; }
 
-        public int Port { get; set; }
+        public int ListenPort { get; set; }
 
         int m_numConnectedSockets;
 
@@ -31,14 +26,14 @@ namespace FastTunnel.Core
         Socket listenSocket;
         public IList<Socket> ConnectedSockets = new List<Socket>();
 
-        public AsyncListener(string ip, int port, ILogger logerr)
+        public PortProxyListener(string ip, int port, ILogger logerr)
         {
             _logerr = logerr;
-            this.IP = ip;
-            this.Port = port;
+            this.ListenIp = ip;
+            this.ListenPort = port;
 
-            IPAddress ipa = IPAddress.Parse(IP);
-            IPEndPoint localEndPoint = new IPEndPoint(ipa, Port);
+            IPAddress ipa = IPAddress.Parse(ListenIp);
+            IPEndPoint localEndPoint = new IPEndPoint(ipa, ListenPort);
 
             listenSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             listenSocket.Bind(localEndPoint);
@@ -56,17 +51,17 @@ namespace FastTunnel.Core
             OnClientsChange?.Invoke(socket, ConnectedSockets.Count, false);
         }
 
-        public void Listen(IListenerDispatcher requestDispatcher)
+        public void Start(IListenerDispatcher requestDispatcher, int backlog = 100)
         {
             shutdown = false;
             _requestDispatcher = requestDispatcher;
 
-            listenSocket.Listen(100);
+            listenSocket.Listen(backlog);
 
             StartAccept(null);
         }
 
-        public void ShutdownAndClose()
+        public void Stop()
         {
             if (shutdown)
                 return;
@@ -91,6 +86,7 @@ namespace FastTunnel.Core
 
         private void StartAccept(SocketAsyncEventArgs acceptEventArg)
         {
+            _logerr.LogDebug($"【{ListenIp}:{ListenPort}】: StartAccept");
             if (acceptEventArg == null)
             {
                 acceptEventArg = new SocketAsyncEventArgs();
@@ -117,7 +113,8 @@ namespace FastTunnel.Core
                 OnAccept(accept);
 
                 Interlocked.Increment(ref m_numConnectedSockets);
-                _logerr.LogInformation($"【{IP}:{Port}】Accepted. There are {{0}} clients connected to the port",
+
+                _logerr.LogInformation($"【{ListenIp}:{ListenPort}】Accepted. There are {{0}} clients connected to the port",
                     m_numConnectedSockets);
 
                 // Accept the next connection request
@@ -125,19 +122,25 @@ namespace FastTunnel.Core
 
                 // 将此客户端交由Dispatcher进行管理
                 _requestDispatcher.Dispatch(accept, this.OnOffLine);
-
-                // Only the sockets that contain a connection request
-                // will remain in listenList after Select returns.
             }
             else
             {
-                ShutdownAndClose();
+                Stop();
             }
         }
 
         private void AcceptEventArg_Completed(object sender, SocketAsyncEventArgs e)
         {
             ProcessAccept(e);
+        }
+
+        public void Close()
+        {
+        }
+
+        public void Start(int backlog = 100)
+        {
+            throw new NotImplementedException();
         }
     }
 }

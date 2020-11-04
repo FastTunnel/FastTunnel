@@ -1,5 +1,5 @@
 ﻿using FastTunnel.Core.Config;
-using FastTunnel.Core.Core;
+using FastTunnel.Core.Client;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Models;
 using Microsoft.Extensions.Logging;
@@ -10,7 +10,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace FastTunnel.Core.Handlers.Server
+namespace FastTunnel.Core.Dispatchers
 {
     public class HttpDispatcher : IListenerDispatcher
     {

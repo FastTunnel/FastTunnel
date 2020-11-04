@@ -1,5 +1,5 @@
 ﻿using FastTunnel.Core.Config;
-using FastTunnel.Core.Core;
+using FastTunnel.Core.Client;
 using FastTunnel.Core.Models;
 using Newtonsoft.Json.Linq;
 using System;

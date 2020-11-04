@@ -14,7 +14,7 @@ using System.Threading;
 using Microsoft.Extensions.Logging;
 using FastTunnel.Core.Handlers.Client;
 
-namespace FastTunnel.Core.Core
+namespace FastTunnel.Core.Client
 {
     public class FastTunnelClient
     {

@@ -1,8 +1,9 @@
-﻿using FastTunnel.Core.Core;
+﻿using FastTunnel.Core.Client;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Filters;
 using FastTunnel.Core.Global;
 using FastTunnel.Core.Handlers.Server;
+using FastTunnel.Core.Listener;
 using FastTunnel.Core.Models;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
@@ -122,14 +123,14 @@ namespace FastTunnel.Core.Handlers
                         SSHInfo<SSHHandlerArg> old;
                         if (server.SSHList.TryGetValue(item.RemotePort, out old))
                         {
-                            _logger.LogDebug($"Remove Listener {old.Listener.IP}:{old.Listener.Port}");
-                            old.Listener.ShutdownAndClose();
+                            _logger.LogDebug($"Remove Listener {old.Listener.ListenIp}:{old.Listener.ListenPort}");
+                            old.Listener.Stop();
                             server.SSHList.TryRemove(item.RemotePort, out SSHInfo<SSHHandlerArg> _);
                         }
 
-                        var ls = new AsyncListener("0.0.0.0", item.RemotePort, _logger);
+                        var ls = new PortProxyListener("0.0.0.0", item.RemotePort, _logger);
 
-                        ls.Listen(new SSHDispatcher(server, client, item));
+                        ls.Start(new SSHDispatcher(server, client, item));
 
                         // listen success
                         server.SSHList.TryAdd(item.RemotePort, new SSHInfo<SSHHandlerArg> { Listener = ls, Socket = client, SSHConfig = item });

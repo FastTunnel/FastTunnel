@@ -1,4 +1,4 @@
-﻿using FastTunnel.Core.Core;
+﻿using FastTunnel.Core.Client;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Models;
 using Microsoft.Extensions.Logging;
@@ -29,6 +29,8 @@ namespace FastTunnel.Core.Handlers.Server
 
             if (!string.IsNullOrEmpty(SwapMsg.msgId) && server.newRequest.TryGetValue(SwapMsg.msgId, out request))
             {
+                server.newRequest.TryRemove(SwapMsg.msgId, out _);
+
                 // Join
                 new AsyncSocketSwap(request.CustomerClient, client)
                    .BeforeSwap(() => { if (request.Buffer != null) client.Send(request.Buffer); })

@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
 using System;
 using FastTunnel.Core.Extensions;
-using FastTunnel.Core.Core;
+using FastTunnel.Core.Client;
 
 namespace FastTunnel.Core.Handlers.Client
 {

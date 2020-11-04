@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Text;
 
-namespace FastTunnel.Core.Handlers.Server
+namespace FastTunnel.Core.Dispatchers
 {
     public interface IListenerDispatcher
     {

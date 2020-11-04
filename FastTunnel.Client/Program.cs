@@ -4,7 +4,7 @@ using System;
 using System.IO;
 using FastTunnel.Core.Services;
 using Microsoft.Extensions.Hosting;
-using FastTunnel.Core.Core;
+using FastTunnel.Core.Client;
 using FastTunnel.Core.Config;
 using FastTunnel.Core.Handlers.Client;
 using Microsoft.Extensions.Logging;

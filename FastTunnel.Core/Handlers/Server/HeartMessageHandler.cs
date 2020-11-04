@@ -1,4 +1,4 @@
-﻿using FastTunnel.Core.Core;
+﻿using FastTunnel.Core.Client;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Models;
 using Newtonsoft.Json.Linq;

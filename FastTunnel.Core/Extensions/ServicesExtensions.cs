@@ -1,4 +1,4 @@
-﻿using FastTunnel.Core.Core;
+﻿using FastTunnel.Core.Client;
 using FastTunnel.Core.Filters;
 using FastTunnel.Core.Handlers.Client;
 using FastTunnel.Core.Services;

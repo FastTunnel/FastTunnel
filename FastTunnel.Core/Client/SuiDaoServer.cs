@@ -4,8 +4,10 @@ using Microsoft.Extensions.Logging;
 using FastTunnel.Core.Handlers.Server;
 using System.Collections.Concurrent;
 using System;
+using FastTunnel.Core.Listener;
+using FastTunnel.Core.Dispatchers;
 
-namespace FastTunnel.Core.Core
+namespace FastTunnel.Core.Client
 {
     public class FastTunnelServer
     {
@@ -15,7 +17,8 @@ namespace FastTunnel.Core.Core
 
         public readonly IServerConfig ServerSettings;
         readonly ILogger _logger;
-
+        ClientListener client_listener;
+        HttpListener http_listener;
 
         public FastTunnelServer(ILogger logger, IServerConfig settings)
         {
@@ -41,16 +44,12 @@ namespace FastTunnel.Core.Core
             }
         }
 
-        IListener client_listener;
-
-        IListener http_listener;
-
         private void ListenClient()
         {
-            client_listener = new AsyncListener(ServerSettings.BindAddr, ServerSettings.BindPort, _logger);
+            client_listener = new ClientListener(this, ServerSettings.BindAddr, ServerSettings.BindPort, _logger);
             client_listener.OnClientsChange += Client_listener_OnClientsChange;
+            client_listener.Start();
 
-            client_listener.Listen(new ClientDispatcher(this, _logger, ServerSettings));
             _logger.LogDebug($"监听客户端 -> {ServerSettings.BindAddr}:{ServerSettings.BindPort}");
         }
 
@@ -64,8 +63,8 @@ namespace FastTunnel.Core.Core
 
         private void ListenHttp()
         {
-            http_listener = new AsyncListener(ServerSettings.BindAddr, ServerSettings.WebProxyPort, _logger);
-            http_listener.Listen(new HttpDispatcher(this, _logger, ServerSettings));
+            http_listener = new HttpListener(ServerSettings.BindAddr, ServerSettings.WebProxyPort, _logger);
+            http_listener.Start(new HttpDispatcher(this, _logger, ServerSettings));
 
             _logger.LogDebug($"监听HTTP -> {ServerSettings.BindAddr}:{ServerSettings.WebProxyPort}");
         }

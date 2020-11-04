@@ -1,6 +1,7 @@
-﻿using FastTunnel.Core.Config;
-using FastTunnel.Core.Core;
+﻿using FastTunnel.Core.Client;
 using FastTunnel.Core.Extensions;
+using FastTunnel.Core.Handlers;
+using FastTunnel.Core.Handlers.Server;
 using FastTunnel.Core.Models;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -9,35 +10,34 @@ using System;
 using System.Net.Sockets;
 using System.Text;
 
-namespace FastTunnel.Core.Handlers.Server
+namespace FastTunnel.Core.Listener
 {
-    public class ClientDispatcher : IListenerDispatcher
+    public class ClientConnection
     {
-        readonly ILogger _logger;
-        readonly IServerConfig _serverSettings;
-        readonly FastTunnelServer _fastTunnelServer;
+        public Socket Socket { get; }
 
+        readonly ILogger _logger;
         readonly LoginHandler _loginHandler;
         readonly HeartMessageHandler _heartHandler;
         readonly SwapMessageHandler _swapMsgHandler;
-        Action<Socket> offLineAction;
+        readonly FastTunnelServer _fastTunnelServer;
+        readonly DataReciver reader;
 
-        public ClientDispatcher(FastTunnelServer fastTunnelServer, ILogger logger, IServerConfig serverSettings)
+        public ClientConnection(FastTunnelServer fastTunnelServer, Socket accept, ILogger logerr)
         {
-            _logger = logger;
-            _serverSettings = serverSettings;
+            Socket = accept;
+            _logger = logerr;
             _fastTunnelServer = fastTunnelServer;
-
-            _loginHandler = new LoginHandler(logger);
+            _loginHandler = new LoginHandler(_logger);
             _heartHandler = new HeartMessageHandler();
-            _swapMsgHandler = new SwapMessageHandler(logger);
+            _swapMsgHandler = new SwapMessageHandler(_logger);
+
+
+            reader = new DataReciver(Socket);
         }
 
-        string temp = string.Empty;
-
-        public void Dispatch(Socket client)
+        public void StartRecive()
         {
-            var reader = new DataReciver(client);
             reader.OnComplete += Reader_OnComplete;
             reader.OnError += Reader_OnError;
             reader.OnReset += Reader_OnReset;
@@ -46,13 +46,15 @@ namespace FastTunnel.Core.Handlers.Server
 
         private void Reader_OnReset(DataReciver send, Socket socket, SocketAsyncEventArgs e)
         {
-            offLineAction(socket);
+            //offLineAction(socket);
         }
 
         private void Reader_OnError(DataReciver send, SocketAsyncEventArgs e)
         {
             _logger.LogError("接收客户端数据异常 {0}", e.SocketError);
         }
+
+        string temp = string.Empty;
 
         private void Reader_OnComplete(DataReciver reader, byte[] buffer, int offset, int count)
         {
@@ -95,7 +97,7 @@ namespace FastTunnel.Core.Handlers.Server
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex);
+                _logger.LogError(ex.ToString());
                 _logger.LogError($"handle fail msg：{words}");
 
                 // throw;
@@ -107,7 +109,6 @@ namespace FastTunnel.Core.Handlers.Server
         private IClientMessageHandler handle(string words, Socket client)
         {
             Message<JObject> msg = JsonConvert.DeserializeObject<Message<JObject>>(words);
-
 
             IClientMessageHandler handler = null;
             switch (msg.MessageType)
@@ -127,12 +128,6 @@ namespace FastTunnel.Core.Handlers.Server
 
             handler.HandlerMsg(this._fastTunnelServer, client, msg);
             return handler;
-        }
-
-        public void Dispatch(Socket httpClient, Action<Socket> onOffLine)
-        {
-            offLineAction = onOffLine;
-            Dispatch(httpClient);
         }
     }
 }

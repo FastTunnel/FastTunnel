@@ -22,9 +22,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="Core\SuiDaoServer.cs.BASE.cs" />
-    <Compile Remove="Core\SuiDaoServer.cs.LOCAL.cs" />
-    <Compile Remove="Core\SuiDaoServer.cs.REMOTE.cs" />
+    <Compile Remove="Client\SuiDaoServer.cs.BASE.cs" />
+    <Compile Remove="Client\SuiDaoServer.cs.LOCAL.cs" />
+    <Compile Remove="Client\SuiDaoServer.cs.REMOTE.cs" />
     <Compile Remove="Listener.cs" />
     <Compile Remove="Server.cs" />
   </ItemGroup>
