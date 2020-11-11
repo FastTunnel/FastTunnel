@@ -16,7 +16,7 @@
 
 平台源码：[FastTunnel.SuiDao](https://github.com/SpringHgui/FastTunnel.SuiDao)
 
-**有帮助的朋友点下Star支持一下本项目，有需求和bug请提交issue，同时欢迎各位coder进行PR**
+**有帮助的朋友点下⭐Star支持一下本项目，有需求和bug请提交issue，同时欢迎各位coder进行PR**
 
 ***
 
