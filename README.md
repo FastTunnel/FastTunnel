@@ -17,7 +17,7 @@ Penetration platform: https://suidao.io
 
 Platform source code：[FastTunnel.SuiDao](https://github.com/SpringHgui/FastTunnel.SuiDao)
 
-**If helpful, click on Star to support this project, please submit an issue if you have needs and bugs, and welcome coder to PR**
+**If helpful, click on ⭐Star to support this project, please submit an issue if you have needs and bugs, and welcome coder to PR**
 ***
 
 ## What is FastTunnel？
