@@ -18,6 +18,7 @@
 
 **有帮助的朋友点下⭐Star支持一下本项目，有需求和bug请提交issue，同时欢迎各位coder进行PR**
 
+![img1](images/gvp.png)
 ***
 
 ## FastTunnel是什么？
@@ -117,7 +118,6 @@ ssh -oPort=12701 root@x.x.x.x
 - 打开cmd输入指令 `mstsc`，打开远程对话框，在对话框的计算机输入框，输入 `x.x.x.x:12701` 然后指定用户名密码即可远程内网的windows主机  
 ![img1](images/remote.png)
   
-    
 ## 开发/PR
 - 安装 `vs2019`或更高版本
 - 安装 `dotnetcore runtime&sdk 3.1` 或以上版本
