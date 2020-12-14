@@ -9,6 +9,8 @@ using System.Linq;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Net.Http;
+using System.IO;
 
 namespace FastTunnel.Core.Dispatchers
 {
@@ -25,36 +27,16 @@ namespace FastTunnel.Core.Dispatchers
             _fastTunnelServer = fastTunnelServer;
         }
 
+        static string pattern = @"[hH]ost:.+[\r\n]";
+
+
         public void Dispatch(Socket httpClient)
         {
+            Stream tempBuffer = new MemoryStream();
+
             try
             {
-                //定义byte数组存放从客户端接收过来的数据
-                byte[] buffer = new byte[1024];
-
-                int count;
-                try
-                {
-                    count = httpClient.Receive(buffer);
-                    if (count == 0)
-                    {
-                        httpClient.Close();
-                        return;
-                    }
-                }
-                catch (SocketException ex)
-                {
-                    _logger.LogError(ex.Message);
-                    if (httpClient.Connected)
-                        httpClient.Close();
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex);
-                    throw;
-                }
-
+                // 1.检查白名单
                 try
                 {
                     var endpoint = httpClient.RemoteEndPoint as System.Net.IPEndPoint;
@@ -74,13 +56,56 @@ namespace FastTunnel.Core.Dispatchers
                     _logger.LogError(ex);
                 }
 
-                //将字节转换成字符串
-                string words = Encoding.UTF8.GetString(buffer, 0, count);
+                //定义byte数组存放从客户端接收过来的数据
+                byte[] buffer = new byte[1024]; // 1k
 
-                // 正则获取Host
-                String Host = string.Empty;
-                var pattern = @"[hH]ost:.+";
-                var collection = Regex.Matches(words, pattern);
+                MatchCollection collection;
+                string words = string.Empty;
+
+                try
+                {
+                    while (true)
+                    {
+                        var count = httpClient.Receive(buffer);
+                        if (count == 0)
+                        {
+                            httpClient.Close();
+                            return;
+                        }
+
+                        // 读取的字节缓存到内存
+                        tempBuffer.Write(buffer, 0, count);
+
+                        tempBuffer.Seek(0, SeekOrigin.Begin);
+                        var array = new byte[tempBuffer.Length];
+                        tempBuffer.Read(array, 0, (int)tempBuffer.Length);
+
+                        // 将字节转换成字符串
+                        words = Encoding.UTF8.GetString(array, 0, (int)tempBuffer.Length);
+
+                        collection = Regex.Matches(words, pattern);
+                        if (collection.Count > 0)
+                        {
+                            break;
+                        }
+                    }
+                }
+                catch (SocketException ex)
+                {
+                    _logger.LogError(ex.Message);
+                    if (httpClient.Connected)
+                        httpClient.Close();
+
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex);
+                    throw;
+                }
+
+
+                string Host;
                 if (collection.Count == 0)
                 {
                     _logger.LogError($"Host异常：{words}");
@@ -108,19 +133,21 @@ namespace FastTunnel.Core.Dispatchers
                 WebInfo web;
                 if (!_fastTunnelServer.WebList.TryGetValue(domain, out web))
                 {
-                    HandlerClientNotOnLine(httpClient, domain, buffer);
+                    HandlerClientNotOnLine(httpClient, domain);
                     return;
                 }
 
                 var msgid = Guid.NewGuid().ToString();
 
-                byte[] bytes = new byte[count];
-                Array.Copy(buffer, bytes, count);
+                tempBuffer.Seek(0, SeekOrigin.Begin);
+                var byteArray = new byte[tempBuffer.Length];
+                tempBuffer.Read(byteArray, 0, (int)tempBuffer.Length);
 
+                tempBuffer.Close();
                 _fastTunnelServer.newRequest.TryAdd(msgid, new NewRequest
                 {
                     CustomerClient = httpClient,
-                    Buffer = bytes
+                    Buffer = byteArray
                 });
 
                 try
@@ -130,7 +157,7 @@ namespace FastTunnel.Core.Dispatchers
                 }
                 catch (Exception)
                 {
-                    HandlerClientNotOnLine(httpClient, domain, buffer);
+                    HandlerClientNotOnLine(httpClient, domain);
                     throw;
                 }
             }
@@ -177,7 +204,7 @@ namespace FastTunnel.Core.Dispatchers
             client.Close();
         }
 
-        private void HandlerClientNotOnLine(Socket client, string domain, byte[] buffer)
+        private void HandlerClientNotOnLine(Socket client, string domain)
         {
             _logger.LogDebug($"### TunnelNotFound:'{domain}'");
             string statusLine = "HTTP/1.1 200 OK\r\n";

@@ -50,15 +50,15 @@ namespace FastTunnel.Core.Client
             client_listener.OnClientsChange += Client_listener_OnClientsChange;
             client_listener.Start();
 
-            _logger.LogDebug($"监听客户端 -> {ServerSettings.BindAddr}:{ServerSettings.BindPort}");
+            _logger.LogInformation($"监听客户端 -> {ServerSettings.BindAddr}:{ServerSettings.BindPort}");
         }
 
         private void Client_listener_OnClientsChange(System.Net.Sockets.Socket socket, int count, bool is_oofline)
         {
             if (is_oofline)
-                _logger.LogInformation($"客户端 {socket.RemoteEndPoint} 已断开，当前连接数：{count}");
+                _logger.LogDebug($"客户端 {socket.RemoteEndPoint} 已断开，当前连接数：{count}");
             else
-                _logger.LogInformation($"客户端 {socket.RemoteEndPoint} 已连接，当前连接数：{count}");
+                _logger.LogDebug($"客户端 {socket.RemoteEndPoint} 已连接，当前连接数：{count}");
         }
 
         private void ListenHttp()
@@ -66,7 +66,7 @@ namespace FastTunnel.Core.Client
             http_listener = new HttpListener(ServerSettings.BindAddr, ServerSettings.WebProxyPort, _logger);
             http_listener.Start(new HttpDispatcher(this, _logger, ServerSettings));
 
-            _logger.LogDebug($"监听HTTP -> {ServerSettings.BindAddr}:{ServerSettings.WebProxyPort}");
+            _logger.LogInformation($"监听HTTP请求 -> {ServerSettings.BindAddr}:{ServerSettings.WebProxyPort}");
         }
     }
 }
