@@ -84,7 +84,7 @@ namespace FastTunnel.Core.Dispatchers
                         words = Encoding.UTF8.GetString(array, 0, (int)tempBuffer.Length);
 
                         collection = Regex.Matches(words, pattern);
-                        if (collection.Count > 0)
+                        if (collection.Count > 0 || count < buffer.Length)
                         {
                             break;
                         }
