@@ -10,13 +10,14 @@
 [README](README.md) | [中文文档](README_zh.md)
 
 ***
-基于本框架开发的穿透平台，如果你需要内网穿透可以直接注册使用，免去自己搭建和维护的成本。但重要的项目请勿使用此服务。
 
 穿透平台：https://suidao.io  
 
 平台源码：[FastTunnel.SuiDao](https://github.com/SpringHgui/FastTunnel.SuiDao)
 
-**有帮助的朋友点下⭐Star支持一下本项目，有需求和bug请提交issue，同时欢迎各位coder进行PR**
+此网站基于本框架开发的穿透平台，用于分享测试使用，如果你需要低频使用内网穿透可以直接注册使用，免去自己搭建和维护的成本；但生产项目请勿使用此服务。
+
+**有帮助的朋友点下右上角项目的⭐Star支持一下本项目，有需求和bug请提交issue，同时欢迎各位coder进行PR**
 
 ![img1](images/gvp.png)
 ***
@@ -119,8 +120,8 @@ ssh -oPort=12701 root@x.x.x.x
 ![img1](images/remote.png)
   
 ## 开发/PR
-- 安装 `vs2019`或更高版本
-- 安装 `dotnetcore runtime&sdk 3.1` 或以上版本
+- 安装 `vs2019` 最新版本
+- 安装 `.Net5` 或以上版本 `https://dotnet.microsoft.com/download/dotnet/5.0`
 - host文件中添加 `test.test.cc 127.0.0.1`等
 - 启动 fasttunnel.server
 - 启动 fasttunnel.client
