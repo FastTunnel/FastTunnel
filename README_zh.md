@@ -11,14 +11,19 @@
 
 ***
 
-穿透平台：https://suidao.io  
-
-平台源码：[FastTunnel.SuiDao](https://github.com/SpringHgui/FastTunnel.SuiDao)
+官网：https://suidao.io  
 
 此网站基于本框架开发的穿透平台，用于分享测试使用，如果你需要低频使用内网穿透可以直接注册使用，免去自己搭建和维护的成本；但生产项目请勿使用此服务。
 
+开源地址：
+
+GitHub : [FastTunnel](https://github.com/SpringHgui/FastTunnel)  
+Gitee: [FastTunnel](https://gitee.com/Hgui/FastTunnel)
+
+
 **有帮助的朋友点下右上角项目的⭐Star支持一下本项目，有需求和bug请提交issue，同时欢迎各位coder进行PR**
 
+***
 ![img1](images/gvp.png)
 ***
 
