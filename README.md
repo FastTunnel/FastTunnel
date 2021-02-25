@@ -29,7 +29,7 @@ Gitee: [FastTunnel](https://gitee.com/Hgui/FastTunnel)
 ## What is FastTunnel？
 - FastTunnel is a high-performance cross-platform intranet penetration tool. With it, you can expose intranet services to the public network for yourself or anyone to access.
 - Unlike other penetration tools, the FastTunnel project is committed to creating an easy-to-extensible and easy-to-maintain intranet penetration framework.
-- You can build your own penetration application by referencing the nuget package of FastTunnel.Cored, and target the business extension functions you need.
+- You can build your own penetration application by referencing the nuget package of `FastTunnel.Core`, and target the business extension functions you need.
 
 ## What can FastTunel do？
 - [x] Remote intranet computer Windows/Linux/Mac
