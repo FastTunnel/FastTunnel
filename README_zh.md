@@ -30,7 +30,7 @@ Gitee: [FastTunnel](https://gitee.com/Hgui/FastTunnel)
 ## FastTunnel是什么？
 - FastTunnel是一款高性能跨平台内网穿透工具，使用它可以实现将内网服务暴露到公网供自己或任何人访问。
 - 与其他穿透工具不同的是，FastTunnel项目致力于打造一个易于扩展、易于维护的内网穿透框架。
-- 你可以通过引用FastTunnel.Cored的nuget包构建出自己的穿透应用，并针自己所需的业务扩展功能。
+- 你可以通过引用`FastTunnel.Core`的nuget包构建出自己的穿透应用，并针自己所需的业务扩展功能。
 
 ## FastTunnel有哪些特性
 - [x] 在任何地方远程内网计算机(公司或家里的计算机) Windows/Linux/Mac
