@@ -20,5 +20,4 @@ RUN dotnet publish "FastTunnel.Server.csproj" -c Release -o /app/publish
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-COPY --from=publish /app/publish/config /config
 ENTRYPOINT ["dotnet", "FastTunnel.Server.dll"]
