@@ -1,6 +1,7 @@
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Services;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -33,6 +34,17 @@ namespace FastTunnel.Server
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
+                .ConfigureWebHost(webHostBuilder =>
+                {
+                    webHostBuilder.ConfigureAppConfiguration((hostingContext, config) =>
+                    {
+                        var env = hostingContext.HostingEnvironment;
+                        config.AddJsonFile("config/appsettings.json", optional: true, reloadOnChange: true)
+                              .AddJsonFile($"config/appsettings.{env.EnvironmentName}.json", optional: true, reloadOnChange: true);
+
+                    });
+
+                })
                 .ConfigureServices((hostContext, services) =>
                 {
                     // -------------------FastTunnel START------------------
