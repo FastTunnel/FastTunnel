@@ -84,16 +84,11 @@ namespace FastTunnel.Core.Handlers
                     {
                         foreach (var www in item.WWW)
                         {
-                            if (!www.EndsWith(server.ServerSettings.WebDomain))
-                            {
-                                server.WebList.AddOrUpdate(www, info, (key, oldInfo) => { return info; });
-                                sb.Append($"{Environment.NewLine}  http://{www}{(server.ServerSettings.WebHasNginxProxy ? string.Empty : ":" + server.ServerSettings.WebProxyPort)} => {item.LocalIp}:{item.LocalPort}");
-                            }
-                            else
-                            {
-                                // can`t use WebDomain
-                                _logger.LogError($"Invalid WebDomain IN WWW {www}");
-                            }
+                            // TODO:validateDomain
+                            _logger.LogError($"WWW {www}");
+
+                            server.WebList.AddOrUpdate(www, info, (key, oldInfo) => { return info; });
+                            sb.Append($"{Environment.NewLine}  http://{www}{(server.ServerSettings.WebHasNginxProxy ? string.Empty : ":" + server.ServerSettings.WebProxyPort)} => {item.LocalIp}:{item.LocalPort}");
                         }
                     }
                 }
