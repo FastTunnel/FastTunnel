@@ -20,6 +20,7 @@ OpenSource：
 
 GitHub : [FastTunnel](https://github.com/SpringHgui/FastTunnel)  
 Gitee: [FastTunnel](https://gitee.com/Hgui/FastTunnel)
+
 ***
 
 **If helpful, click on ⭐Star to support this project, please submit an issue if you have needs and bugs, and welcome coder to PR**
@@ -131,6 +132,10 @@ ssh -oPort=12701 root@x.x.x.x
 - add `test.test.cc   127.0.0.1` in system host file
 - run fasttunnel.server
 - run fasttunnel.client
+
+## Join QQ Group
+
+<div align="center"><img src="images/qqgroup.png" width="150" align=center /></div>  
 
 ## License
 Apache License 2.0

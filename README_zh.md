@@ -131,5 +131,9 @@ ssh -oPort=12701 root@x.x.x.x
 - 启动 fasttunnel.server
 - 启动 fasttunnel.client
 
+## 加入QQ群
+
+<div align="center"><img src="images/qqgroup.png" width="150" align=center /></div>
+
 ## License
 Apache License 2.0
