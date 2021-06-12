@@ -1,13 +1,16 @@
-﻿using FastTunnel.Core.Models;
+﻿using FastTunnel.Core.Config;
+using FastTunnel.Core.Models;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
-namespace FastTunnel.Core.Config
+namespace FastTunnel.Core.Client
 {
-    public class ClientConfig
+    public interface IClientConfig
     {
-        public SuiDaoServer Common { get; set; }
+        public SuiDaoServer Server { get; set; }
 
         public IEnumerable<WebConfig> Webs { get; set; }
 

@@ -10,6 +10,6 @@ namespace FastTunnel.Core.Config
     {
         public DefaultServerConfig ServerSettings { get; set; }
 
-        public ClientConfig ClientSettings { get; set; }
+        public DefaultClientConfig ClientSettings { get; set; }
     }
 }

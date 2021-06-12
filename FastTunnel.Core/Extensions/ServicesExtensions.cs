@@ -17,7 +17,9 @@ namespace FastTunnel.Core.Extensions
         /// <param name="services"></param>
         public static void AddFastTunnelServer(this IServiceCollection services)
         {
-            services.AddTransient<IFastTunnelAuthenticationFilter, DefaultAuthenticationFilter>();
+            services.AddSingleton<IFastTunnelAuthenticationFilter, DefaultAuthenticationFilter>();
+            services.AddSingleton<FastTunnelServer, FastTunnelServer>();
+
             services.AddHostedService<ServiceFastTunnelServer>();
         }
 
@@ -25,7 +27,8 @@ namespace FastTunnel.Core.Extensions
         /// 添加客户端后台进程
         /// </summary>
         /// <param name="services"></param>
-        public static void AddFastTunnelClient(this IServiceCollection services) {
+        public static void AddFastTunnelClient(this IServiceCollection services)
+        {
             services.AddSingleton<FastTunnelClient>()
                 .AddSingleton<ClientHeartHandler>()
                 .AddSingleton<LogHandler>()

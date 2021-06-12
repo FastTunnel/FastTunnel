@@ -17,9 +17,6 @@ namespace FastTunnel.Core.Models
         /// </summary>
         public IEnumerable<SSHConfig> SSH { get; set; }
 
-        /// <summary>
-        /// 身份信息，用于服务端认证
-        /// </summary>
-        public string AuthInfo { get; set; }
+        public object CustomInfo { get; set; }
     }
 }

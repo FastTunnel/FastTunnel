@@ -7,11 +7,6 @@ namespace FastTunnel.Core.Models
     public class SSHConfig
     {
         /// <summary>
-        /// 协议
-        /// </summary>
-        public Protocol Protocol { get; set; }
-
-        /// <summary>
         /// 局域网IP地址
         /// </summary>
         public string LocalIp { get; set; }

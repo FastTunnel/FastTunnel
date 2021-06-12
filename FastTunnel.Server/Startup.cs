@@ -29,7 +29,7 @@ namespace FastTunnel.Server
             services.AddControllersWithViews();
 
             // ------------------------Custom Business------------------------------
-            services.AddTransient<IFastTunnelAuthenticationFilter, TestAuthenticationFilter>();
+            services.AddTransient<IAuthenticationFilter, TestAuthenticationFilter>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

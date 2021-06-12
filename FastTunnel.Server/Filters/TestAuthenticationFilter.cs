@@ -1,6 +1,7 @@
 ﻿using FastTunnel.Core.Client;
 using FastTunnel.Core.Filters;
 using FastTunnel.Core.Models;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,7 +13,7 @@ namespace FastTunnel.Server.Filters
     {
         public bool Authentication(FastTunnelServer server, LogInMassage requet)
         {
-            return !string.IsNullOrEmpty(requet.AuthInfo) && requet.AuthInfo.Equals("ODadoNDONODHSoDMFMsdpapdoNDSHDoadpwPDNoWAHDoNfa");
+            return (requet.CustomInfo as JObject)["Token"].ToString() == "123";
         }
     }
 }

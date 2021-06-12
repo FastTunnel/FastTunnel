@@ -13,13 +13,12 @@ using System.Timers;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using FastTunnel.Core.Handlers.Client;
+using Microsoft.Extensions.Configuration;
 
 namespace FastTunnel.Core.Client
 {
     public class FastTunnelClient
     {
-        public SuiDaoServer _serverConfig;
-
         Connecter _client;
 
         ILogger<FastTunnelClient> _logger;
@@ -27,21 +26,25 @@ namespace FastTunnel.Core.Client
         System.Timers.Timer timer_timeout;
         System.Timers.Timer timer_heart;
 
-        Func<Connecter> lastLogin;
         double heartInterval = 10 * 1000; // 10 秒心跳
         public DateTime lastHeart;
         Thread th;
 
-        int reTrySpan = 30 * 1000; // 登陆失败后重试间隔
+        int reTrySpan = 10 * 1000; // 登陆失败后重试间隔
         HttpRequestHandler _newCustomerHandler;
         NewSSHHandler _newSSHHandler;
         LogHandler _logHandler;
         ClientHeartHandler _clientHeartHandler;
+        Func<Connecter> lastLogin;
+        Message<LogInMassage> loginMsg;
+
+        public IClientConfig ClientConfig { get; set; }
 
         public FastTunnelClient(
-            ILogger<FastTunnelClient> logger, 
-            HttpRequestHandler newCustomerHandler, 
-            NewSSHHandler newSSHHandler, LogHandler logHandler, 
+            ILogger<FastTunnelClient> logger,
+            HttpRequestHandler newCustomerHandler,
+            NewSSHHandler newSSHHandler, LogHandler logHandler,
+            IConfiguration configuration,
             ClientHeartHandler clientHeartHandler)
         {
             _logger = logger;
@@ -49,6 +52,7 @@ namespace FastTunnel.Core.Client
             _newSSHHandler = newSSHHandler;
             _logHandler = logHandler;
             _clientHeartHandler = clientHeartHandler;
+            ClientConfig = configuration.Get<AppSettings>().ClientSettings;
             initailTimer();
         }
 
@@ -127,11 +131,26 @@ namespace FastTunnel.Core.Client
             }
         }
 
-        public void Start(Func<Connecter> login, SuiDaoServer serverConfig)
+        /// <summary>
+        /// 启动客户端
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="customLoginMsg">自定义登录信息，可进行扩展业务</param>
+        public void Start(object customLoginMsg)
         {
             _logger.LogInformation("===== FastTunnel Client Start =====");
 
-            _serverConfig = serverConfig;
+            loginMsg = new Message<LogInMassage>
+            {
+                MessageType = MessageType.C_LogIn,
+                Content = new LogInMassage
+                {
+                    Webs = ClientConfig.Webs,
+                    SSH = ClientConfig.SSH,
+                    CustomInfo = customLoginMsg,
+                },
+            };
+
             lastLogin = login;
 
             try
@@ -148,6 +167,31 @@ namespace FastTunnel.Core.Client
             }
 
             LogSuccess(_client.Socket);
+        }
+
+        private Connecter login()
+        {
+            Connecter _client;
+            _logger.LogInformation($"正在连接服务端 {ClientConfig.Server.ServerAddr}:{ClientConfig.Server.ServerPort}");
+
+            try
+            {
+                // 连接到的目标IP
+                _client = new Connecter(ClientConfig.Server.ServerAddr, ClientConfig.Server.ServerPort);
+                _client.Connect();
+
+                _logger.LogInformation("连接成功");
+            }
+            catch (Exception)
+            {
+                Thread.Sleep(5000);
+                throw;
+            }
+
+            // 登录
+            _client.Send(loginMsg);
+
+            return _client;
         }
 
         void Close()

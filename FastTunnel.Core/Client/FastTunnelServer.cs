@@ -8,6 +8,7 @@ using FastTunnel.Core.Listener;
 using FastTunnel.Core.Dispatchers;
 using System.Threading.Tasks;
 using System.Threading;
+using Microsoft.Extensions.Configuration;
 
 namespace FastTunnel.Core.Client
 {
@@ -22,13 +23,13 @@ namespace FastTunnel.Core.Client
         ClientListener client_listener;
         HttpListener http_listener;
 
-        public FastTunnelServer(ILogger logger, IServerConfig settings)
+        public FastTunnelServer(ILogger<FastTunnelServer> logger, IConfiguration configuration)
         {
             _logger = logger;
-            ServerSettings = settings;
+            ServerSettings = configuration.Get<AppSettings>().ServerSettings;
         }
 
-        public void Run(CancellationToken cancellationToken)
+        public void Run()
         {
             _logger.LogInformation("===== FastTunnel Server Starting =====");
 

@@ -21,19 +21,16 @@ namespace FastTunnel.Core.Services
     {
         readonly ILogger<ServiceFastTunnelServer> _logger;
         readonly IFastTunnelAuthenticationFilter _authenticationFilter;
-        readonly AppSettings _appSettings;
-
-        FastTunnelServer _fastTunnelServer;
+        FastTunnelServer _Server;
 
         public ServiceFastTunnelServer(
             ILogger<ServiceFastTunnelServer> logger,
-            IConfiguration configuration,
+            FastTunnelServer fastTunnelServer,
             IFastTunnelAuthenticationFilter authenticationFilter)
         {
-            _authenticationFilter = authenticationFilter;
             _logger = logger;
-            _appSettings = configuration.Get<AppSettings>();
-
+            _authenticationFilter = authenticationFilter;
+            _Server = fastTunnelServer;
             AppDomain.CurrentDomain.FirstChanceException += CurrentDomain_FirstChanceException;
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
         }
@@ -71,12 +68,11 @@ namespace FastTunnel.Core.Services
         {
             return Task.Run(() =>
             {
-                _fastTunnelServer = new FastTunnelServer(_logger, _appSettings.ServerSettings);
                 FastTunnelGlobal.AddFilter(_authenticationFilter);
 
                 try
                 {
-                    _fastTunnelServer.Run(cancellationToken);
+                    _Server.Run();
                 }
                 catch (Exception ex)
                 {
@@ -92,7 +88,7 @@ namespace FastTunnel.Core.Services
         {
             return Task.Run(() =>
             {
-                _fastTunnelServer.Stop(cancellationToken);
+                _Server.Stop(cancellationToken);
             }, cancellationToken);
         }
     }
