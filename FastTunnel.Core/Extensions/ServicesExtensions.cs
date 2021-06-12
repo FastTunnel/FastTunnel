@@ -17,7 +17,7 @@ namespace FastTunnel.Core.Extensions
         /// <param name="services"></param>
         public static void AddFastTunnelServer(this IServiceCollection services)
         {
-            services.AddSingleton<IFastTunnelAuthenticationFilter, DefaultAuthenticationFilter>();
+            services.AddSingleton<IAuthenticationFilter, DefaultAuthenticationFilter>();
             services.AddSingleton<FastTunnelServer, FastTunnelServer>();
 
             services.AddHostedService<ServiceFastTunnelServer>();

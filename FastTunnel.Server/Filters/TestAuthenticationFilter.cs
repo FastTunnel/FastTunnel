@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace FastTunnel.Server.Filters
 {
-    public class TestAuthenticationFilter : IFastTunnelAuthenticationFilter
+    public class TestAuthenticationFilter : IAuthenticationFilter
     {
         public bool Authentication(FastTunnelServer server, LogInMassage requet)
         {
