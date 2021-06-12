@@ -127,8 +127,10 @@ namespace FastTunnel.Core.Client
             }
         }
 
-        public void Login(Func<Connecter> login, SuiDaoServer serverConfig)
+        public void Start(Func<Connecter> login, SuiDaoServer serverConfig)
         {
+            _logger.LogInformation("===== FastTunnel Client Start =====");
+
             _serverConfig = serverConfig;
             lastLogin = login;
 

@@ -11,13 +11,20 @@ namespace FastTunnel.Core.Extensions
 {
     public static class ServicesExtensions
     {
+        /// <summary>
+        /// 添加服务端后台进程
+        /// </summary>
+        /// <param name="services"></param>
         public static void AddFastTunnelServer(this IServiceCollection services)
         {
             services.AddTransient<IFastTunnelAuthenticationFilter, DefaultAuthenticationFilter>();
-
             services.AddHostedService<ServiceFastTunnelServer>();
         }
 
+        /// <summary>
+        /// 添加客户端后台进程
+        /// </summary>
+        /// <param name="services"></param>
         public static void AddFastTunnelClient(this IServiceCollection services) {
             services.AddSingleton<FastTunnelClient>()
                 .AddSingleton<ClientHeartHandler>()

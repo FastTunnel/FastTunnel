@@ -43,7 +43,6 @@ namespace FastTunnel.Server
                               .AddJsonFile($"config/appsettings.{env.EnvironmentName}.json", optional: true, reloadOnChange: true);
 
                     });
-
                 })
                 .ConfigureServices((hostContext, services) =>
                 {

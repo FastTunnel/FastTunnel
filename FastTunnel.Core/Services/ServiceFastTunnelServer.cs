@@ -13,24 +13,26 @@ using System.Linq;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
+using FastTunnel.Core.Models;
 
 namespace FastTunnel.Core.Services
 {
     public class ServiceFastTunnelServer : IHostedService
     {
-        ILogger<ServiceFastTunnelServer> _logger;
+        readonly ILogger<ServiceFastTunnelServer> _logger;
+        readonly IFastTunnelAuthenticationFilter _authenticationFilter;
+        readonly AppSettings _appSettings;
+
         FastTunnelServer _fastTunnelServer;
-        IFastTunnelAuthenticationFilter _authenticationFilter;
-        IConfiguration _configuration;
 
         public ServiceFastTunnelServer(
             ILogger<ServiceFastTunnelServer> logger,
             IConfiguration configuration,
             IFastTunnelAuthenticationFilter authenticationFilter)
         {
-            _configuration = configuration;
             _authenticationFilter = authenticationFilter;
             _logger = logger;
+            _appSettings = configuration.Get<AppSettings>();
 
             AppDomain.CurrentDomain.FirstChanceException += CurrentDomain_FirstChanceException;
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
@@ -67,31 +69,31 @@ namespace FastTunnel.Core.Services
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("===== FastTunnel Server Starting =====");
-
-            _fastTunnelServer = new FastTunnelServer(_logger, _configuration.Get<AppSettings>().ServerSettings);
-            FastTunnelGlobal.AddFilter(_authenticationFilter);
-
-            try
+            return Task.Run(() =>
             {
-                _fastTunnelServer.Run();
+                _fastTunnelServer = new FastTunnelServer(_logger, _appSettings.ServerSettings);
+                FastTunnelGlobal.AddFilter(_authenticationFilter);
 
-                _logger.LogDebug("Server Run Success");
-            }
-            catch (Exception ex)
-            {
-                // NLog: catch any exception and log it.
-                _logger.LogError(ex, "Server Error");
-                Console.WriteLine(ex);
-            }
+                try
+                {
+                    _fastTunnelServer.Run(cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    // NLog: catch any exception and log it.
+                    _logger.LogError(ex, "Server Error");
+                    Console.WriteLine(ex);
+                }
 
-            return Task.CompletedTask;
+            }, cancellationToken);
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("===== FastTunnel Server Stoping =====");
-            return Task.CompletedTask;
+            return Task.Run(() =>
+            {
+                _fastTunnelServer.Stop(cancellationToken);
+            }, cancellationToken);
         }
     }
 }

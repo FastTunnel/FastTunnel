@@ -6,6 +6,8 @@ using System.Collections.Concurrent;
 using System;
 using FastTunnel.Core.Listener;
 using FastTunnel.Core.Dispatchers;
+using System.Threading.Tasks;
+using System.Threading;
 
 namespace FastTunnel.Core.Client
 {
@@ -26,9 +28,9 @@ namespace FastTunnel.Core.Client
             ServerSettings = settings;
         }
 
-        public void Run()
+        public void Run(CancellationToken cancellationToken)
         {
-            _logger.LogDebug("FastTunnel Server Start");
+            _logger.LogInformation("===== FastTunnel Server Starting =====");
 
             CheckSettins();
 
@@ -67,6 +69,13 @@ namespace FastTunnel.Core.Client
             http_listener.Start(new HttpDispatcher(this, _logger, ServerSettings));
 
             _logger.LogInformation($"监听HTTP请求 -> {ServerSettings.BindAddr}:{ServerSettings.WebProxyPort}");
+        }
+
+        public void Stop(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("===== FastTunnel Server Stoping =====");
+
+            // TODO:释放资源和线程
         }
     }
 }

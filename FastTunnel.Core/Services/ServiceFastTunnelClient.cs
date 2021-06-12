@@ -12,10 +12,9 @@ namespace FastTunnel.Core.Services
 {
     public class ServiceFastTunnelClient : IHostedService
     {
-        ILogger<ServiceFastTunnelClient> _logger;
-        IConfiguration _configuration;
-        FastTunnelClient _fastTunnelClient;
-        ClientConfig config;
+        readonly ILogger<ServiceFastTunnelClient> _logger;
+        readonly FastTunnelClient _fastTunnelClient;
+        readonly ClientConfig _config;
 
         public ServiceFastTunnelClient(
             ILogger<ServiceFastTunnelClient> logger,
@@ -23,48 +22,47 @@ namespace FastTunnel.Core.Services
             FastTunnelClient fastTunnelClient)
         {
             _logger = logger;
-            _configuration = configuration;
             _fastTunnelClient = fastTunnelClient;
+            _config = configuration.Get<AppSettings>().ClientSettings;
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("===== FastTunnel Client Start =====");
-
-            config = _configuration.Get<AppSettings>().ClientSettings;
-
-            _fastTunnelClient.Login(() =>
+            return Task.Run(() =>
             {
-                Connecter _client;
+                _fastTunnelClient.Start(() =>
+                {
+                    Connecter _client;
 
-                try
-                {
-                    // 连接到的目标IP
-                    _client = new Connecter(config.Common.ServerAddr, config.Common.ServerPort);
-                    _client.Connect();
-                }
-                catch (Exception)
-                {
-                    Thread.Sleep(5000);
-                    throw;
-                }
-
-                // 登录
-                _client.Send(new Message<LogInMassage>
-                {
-                    MessageType = MessageType.C_LogIn,
-                    Content = new LogInMassage
+                    try
                     {
-                        Webs = config.Webs,
-                        SSH = config.SSH,
-                        AuthInfo = "ODadoNDONODHSoDMFMsdpapdoNDSHDoadpwPDNoWAHDoNfa"
-                    },
-                });
+                        // 连接到的目标IP
+                        _client = new Connecter(_config.Common.ServerAddr, _config.Common.ServerPort);
+                        _client.Connect();
+                    }
+                    catch (Exception)
+                    {
+                        Thread.Sleep(5000);
+                        throw;
+                    }
 
-                return _client;
-            }, config.Common);
+                    // 登录
+                    _client.Send(new Message<LogInMassage>
+                    {
+                        MessageType = MessageType.C_LogIn,
+                        Content = new LogInMassage
+                        {
+                            Webs = _config.Webs,
+                            SSH = _config.SSH,
+                            AuthInfo = "ODadoNDONODHSoDMFMsdpapdoNDSHDoadpwPDNoWAHDoNfa"
+                        },
+                    });
 
-            return Task.CompletedTask;
+                    return _client;
+                }, _config.Common);
+
+
+            }, cancellationToken);
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
