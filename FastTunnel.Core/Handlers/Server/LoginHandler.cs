@@ -85,7 +85,7 @@ namespace FastTunnel.Core.Handlers
                         foreach (var www in item.WWW)
                         {
                             // TODO:validateDomain
-                            _logger.LogError($"WWW {www}");
+                            _logger.LogInformation($"WWW {www}");
 
                             server.WebList.AddOrUpdate(www, info, (key, oldInfo) => { return info; });
                             sb.Append($"{Environment.NewLine}  http://{www}{(server.ServerSettings.WebHasNginxProxy ? string.Empty : ":" + server.ServerSettings.WebProxyPort)} => {item.LocalIp}:{item.LocalPort}");

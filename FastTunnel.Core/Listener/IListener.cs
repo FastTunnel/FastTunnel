@@ -15,8 +15,6 @@ namespace FastTunnel.Core.Listener
 
         int ListenPort { get; }
 
-        void Start(IListenerDispatcher requestDispatcher, int backlog = 100);
-
         void Start(int backlog = 100);
 
         void Stop();

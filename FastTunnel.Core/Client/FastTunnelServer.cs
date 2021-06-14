@@ -20,26 +20,31 @@ namespace FastTunnel.Core.Client
 
         public readonly IServerConfig ServerSettings;
         readonly ILogger _logger;
-        ClientListener client_listener;
+        ClientListenerV2 clientListener;
         HttpListener http_listener;
 
         public FastTunnelServer(ILogger<FastTunnelServer> logger, IConfiguration configuration)
         {
             _logger = logger;
             ServerSettings = configuration.Get<AppSettings>().ServerSettings;
+
+            clientListener = new ClientListenerV2(this, ServerSettings.BindAddr, ServerSettings.BindPort, _logger);
+            http_listener = new HttpListener(ServerSettings.BindAddr, ServerSettings.WebProxyPort, _logger);
+
+            clientListener.OnClientsChange += Client_listener_OnClientsChange;
         }
 
         public void Run()
         {
             _logger.LogInformation("===== FastTunnel Server Starting =====");
 
-            CheckSettins();
+            checkSettins();
 
-            ListenClient();
-            ListenHttp();
+            listenClient();
+            listenHttp();
         }
 
-        private void CheckSettins()
+        private void checkSettins()
         {
             if (string.IsNullOrEmpty(ServerSettings.WebDomain))
             {
@@ -47,13 +52,14 @@ namespace FastTunnel.Core.Client
             }
         }
 
-        private void ListenClient()
+        private void listenClient()
         {
-            client_listener = new ClientListener(this, ServerSettings.BindAddr, ServerSettings.BindPort, _logger);
-            client_listener.OnClientsChange += Client_listener_OnClientsChange;
-            client_listener.Start();
+            clientListener.Start();
+        }
 
-            _logger.LogInformation($"监听客户端 -> {ServerSettings.BindAddr}:{ServerSettings.BindPort}");
+        private void listenHttp()
+        {
+            http_listener.Start(new HttpDispatcher(this, _logger, ServerSettings));
         }
 
         private void Client_listener_OnClientsChange(System.Net.Sockets.Socket socket, int count, bool is_oofline)
@@ -62,14 +68,6 @@ namespace FastTunnel.Core.Client
                 _logger.LogDebug($"客户端 {socket.RemoteEndPoint} 已断开，当前连接数：{count}");
             else
                 _logger.LogDebug($"客户端 {socket.RemoteEndPoint} 已连接，当前连接数：{count}");
-        }
-
-        private void ListenHttp()
-        {
-            http_listener = new HttpListener(ServerSettings.BindAddr, ServerSettings.WebProxyPort, _logger);
-            http_listener.Start(new HttpDispatcher(this, _logger, ServerSettings));
-
-            _logger.LogInformation($"监听HTTP请求 -> {ServerSettings.BindAddr}:{ServerSettings.WebProxyPort}");
         }
 
         public void Stop(CancellationToken cancellationToken)

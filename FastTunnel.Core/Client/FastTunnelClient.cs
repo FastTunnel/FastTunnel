@@ -100,6 +100,7 @@ namespace FastTunnel.Core.Client
             Close();
             try
             {
+                _logger.LogInformation("登录重试...");
                 _client = lastLogin.Invoke();
             }
             catch (Exception ex)

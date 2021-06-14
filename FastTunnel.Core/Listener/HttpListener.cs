@@ -11,7 +11,7 @@ namespace FastTunnel.Core.Listener
 {
     public class HttpListener : IListener
     {
-        ILogger _logerr;
+        ILogger _logger;
 
         public string ListenIp { get; set; }
 
@@ -26,9 +26,9 @@ namespace FastTunnel.Core.Listener
         Socket listenSocket;
         public IList<Socket> ConnectedSockets = new List<Socket>();
 
-        public HttpListener(string ip, int port, ILogger logerr)
+        public HttpListener(string ip, int port, ILogger logger)
         {
-            _logerr = logerr;
+            _logger = logger;
             this.ListenIp = ip;
             this.ListenPort = port;
 
@@ -59,6 +59,7 @@ namespace FastTunnel.Core.Listener
             listenSocket.Listen(backlog);
 
             StartAccept(null);
+            _logger.LogInformation($"监听HTTP请求 -> {ListenIp}:{ListenPort}");
         }
 
         public void Stop()
@@ -86,7 +87,7 @@ namespace FastTunnel.Core.Listener
 
         private void StartAccept(SocketAsyncEventArgs acceptEventArg)
         {
-            _logerr.LogDebug($"【{ListenIp}:{ListenPort}】: StartAccept");
+            _logger.LogDebug($"【{ListenIp}:{ListenPort}】: StartAccept");
             if (acceptEventArg == null)
             {
                 acceptEventArg = new SocketAsyncEventArgs();
@@ -114,7 +115,7 @@ namespace FastTunnel.Core.Listener
 
                 Interlocked.Increment(ref m_numConnectedSockets);
 
-                _logerr.LogInformation($"【{ListenIp}:{ListenPort}】Accepted. There are {{0}} clients connected to the port",
+                _logger.LogInformation($"【{ListenIp}:{ListenPort}】Accepted. There are {{0}} clients connected to the port",
                     m_numConnectedSockets);
 
                 // Accept the next connection request

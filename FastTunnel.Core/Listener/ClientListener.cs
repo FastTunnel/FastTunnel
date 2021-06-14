@@ -13,7 +13,7 @@ namespace FastTunnel.Core.Listener
 {
     public class ClientListener : IListener
     {
-        ILogger _logerr;
+        ILogger _logger;
 
         public string ListenIp { get; set; }
 
@@ -22,7 +22,6 @@ namespace FastTunnel.Core.Listener
         public event OnClientChangeLine OnClientsChange;
 
         bool shutdown = false;
-        //IListenerDispatcher _requestDispatcher;
         Socket listenSocket;
         public IList<ClientConnection> ConnectedSockets = new List<ClientConnection>();
         FastTunnelServer _fastTunnelServer;
@@ -30,7 +29,7 @@ namespace FastTunnel.Core.Listener
         public ClientListener(FastTunnelServer fastTunnelServer, string ip, int port, ILogger logerr)
         {
             _fastTunnelServer = fastTunnelServer;
-            _logerr = logerr;
+            _logger = logerr;
             this.ListenIp = ip;
             this.ListenPort = port;
 
@@ -44,21 +43,22 @@ namespace FastTunnel.Core.Listener
         private void HandleNewClient(Socket socket)
         {
             // 此时的客户端可能有两种 1.登录的客户端 2.交换请求的客户端
-            var client = new ClientConnection(_fastTunnelServer, socket, _logerr);
+            var client = new ClientConnection(_fastTunnelServer, socket, _logger);
             ConnectedSockets.Add(client);
 
             // 接收客户端消息
             client.StartRecive();
         }
 
-        public void Start(IListenerDispatcher requestDispatcher, int backlog = 100)
+        public void Start(int backlog = 100)
         {
             shutdown = false;
-            // _requestDispatcher = requestDispatcher;
 
             listenSocket.Listen(backlog);
 
             StartAccept(null);
+
+            _logger.LogInformation($"监听客户端 -> {ListenIp}:{ListenPort}");
         }
 
         public void Stop()
@@ -85,7 +85,7 @@ namespace FastTunnel.Core.Listener
 
         private void StartAccept(SocketAsyncEventArgs acceptEventArg)
         {
-            _logerr.LogDebug($"【{ListenIp}:{ListenPort}】: StartAccept");
+            _logger.LogDebug($"【{ListenIp}:{ListenPort}】: StartAccept");
             if (acceptEventArg == null)
             {
                 acceptEventArg = new SocketAsyncEventArgs();
@@ -120,18 +120,13 @@ namespace FastTunnel.Core.Listener
             }
             else
             {
-                _logerr.LogError($"监听客户端异常 this={this.ToJson()} e={e.ToJson()}");
+                _logger.LogError($"监听客户端异常 this={this.ToJson()} e={e.ToJson()}");
                 Stop();
             }
         }
 
         public void Close()
         {
-        }
-
-        public void Start(int backlog = 100)
-        {
-            Start(null, backlog);
         }
     }
 }

@@ -1,13 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Text;
 
 namespace FastTunnel.Core.Config
 {
     public class DefaultServerConfig : IServerConfig
     {
+        [Required]
         public string BindAddr { get; set; }
 
+        [Required]
         public int BindPort { get; set; }
 
         public string WebDomain { get; set; }
