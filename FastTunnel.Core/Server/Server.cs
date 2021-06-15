@@ -4,6 +4,7 @@
 // is continued until the client disconnects.
 using FastTunnel.Core.Extensions;
 using System;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -25,7 +26,8 @@ namespace FastTunnel.Core.Server
         int m_numConnectedSockets;      // the total number of clients connected to the server
         Semaphore m_maxNumberAcceptedClients;
 
-        Func<Socket, string, bool> m_handller;
+        Func<AsyncUserToken, string, bool> m_handller;
+        string m_sectionFlag;
 
         // Create an uninitialized server instance.
         // To start the server listening for connection requests
@@ -82,9 +84,10 @@ namespace FastTunnel.Core.Server
         //
         // <param name="localEndPoint">The endpoint which the server will listening
         // for connection requests on</param>
-        public void Start(IPEndPoint localEndPoint, Func<Socket, string, bool> handller)
+        public void Start(IPEndPoint localEndPoint, string sectionFlag, Func<AsyncUserToken, string, bool> handller)
         {
             m_handller = handller;
+            m_sectionFlag = sectionFlag;
 
             // create the socket which listens for incoming connections
             listenSocket = new Socket(localEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
@@ -156,11 +159,6 @@ namespace FastTunnel.Core.Server
             StartAccept(e);
         }
 
-        private bool processLine(Socket socket, byte[] line)
-        {
-            return m_handller(socket, Encoding.UTF8.GetString(line));
-        }
-
         // This method is called whenever a receive or send operation is completed on a socket
         //
         // <param name="e">SocketAsyncEventArg associated with the completed receive operation</param>
@@ -192,20 +190,46 @@ namespace FastTunnel.Core.Server
             {
                 //increment the count of the total bytes receive by the server
                 //Interlocked.Add(ref m_totalBytesRead, e.BytesTransferred);
-
-                var words = e.Buffer.GetString(e.Offset, e.BytesTransferred);
-                if (words.IndexOf("\n") != -1)
+                if (token.Recived != null)
                 {
-                    var array = words.Split("\n");
+                    byte[] resArr = new byte[token.Recived.Length + e.BytesTransferred];
+                    token.Recived.CopyTo(resArr, 0);
+                    Array.Copy(e.Buffer, e.Offset, resArr, token.Recived.Length, e.BytesTransferred);
+                    token.Recived = resArr;
+                }
+                else
+                {
+                    byte[] resArr = new byte[e.BytesTransferred];
+                    Array.Copy(e.Buffer, e.Offset, resArr, 0, e.BytesTransferred);
+                    token.Recived = resArr;
+                }
 
-                    // handle msg
-                    var msg = token.MassgeTemp + array[0];
-                    var needRecive = m_handller(token.Socket, msg);
-                    token.MassgeTemp = array.Length > 1 ? array[1] : null;
+                bool needRecive = false;
+                var words = e.Buffer.GetString(e.Offset, e.BytesTransferred);
+                if (words.Contains(m_sectionFlag))
+                {
+                    var array = (token.MassgeTemp + words).Split(m_sectionFlag);
+                    token.MassgeTemp = null;
+                    var fullMsg = words.EndsWith(m_sectionFlag);
 
-                    if (!needRecive)
+                    if (!fullMsg)
                     {
-                        return;
+                        token.MassgeTemp = array[array.Length - 1];
+                    }
+
+                    for (int i = 0; i < array.Length - 1; i++)
+                    {
+                        needRecive = m_handller(token, array[i]);
+                        if (needRecive)
+                        {
+                            continue;
+                        }
+                        else
+                        {
+                            // ÊÍ·Å×ÊÔ´
+                            m_readWritePool.Push(e);
+                            return;
+                        }
                     }
                 }
                 else
@@ -269,7 +293,7 @@ namespace FastTunnel.Core.Server
             m_readWritePool.Push(e);
 
             m_maxNumberAcceptedClients.Release();
-            Console.WriteLine("A client has been disconnected from the server. There are {0} clients connected to the server", m_numConnectedSockets);
+            // Console.WriteLine("A client has been disconnected from the server. There are {0} clients connected to the server", m_numConnectedSockets);
         }
     }
 }

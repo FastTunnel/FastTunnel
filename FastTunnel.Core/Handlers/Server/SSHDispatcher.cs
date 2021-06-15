@@ -2,6 +2,7 @@
 using FastTunnel.Core.Dispatchers;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Models;
+using FastTunnel.Core.Server;
 using System;
 using System.Collections.Generic;
 using System.Net.Sockets;
@@ -35,6 +36,11 @@ namespace FastTunnel.Core.Handlers.Server
         public void Dispatch(Socket httpClient, Action<Socket> onOffLine)
         {
             Dispatch(httpClient);
+        }
+
+        public void Dispatch(AsyncUserToken token, string words)
+        {
+            throw new NotImplementedException();
         }
     }
 }

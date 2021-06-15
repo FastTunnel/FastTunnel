@@ -1,18 +1,17 @@
-﻿using FastTunnel.Core.Client;
-using FastTunnel.Core.Dispatchers;
-using FastTunnel.Core.Extensions;
+﻿using FastTunnel.Core.Dispatchers;
 using FastTunnel.Core.Handlers.Server;
+using FastTunnel.Core.Server;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 using System.Threading;
 
 namespace FastTunnel.Core.Listener
 {
-    [Obsolete("由ClientListenerV2替代", true)]
-    public class ClientListener : IListener
+    public class HttpListenerV2
     {
         ILogger _logger;
 
@@ -20,46 +19,36 @@ namespace FastTunnel.Core.Listener
 
         public int ListenPort { get; set; }
 
+        int m_numConnectedSockets;
+
         public event OnClientChangeLine OnClientsChange;
 
         bool shutdown = false;
+        IListenerDispatcher _requestDispatcher;
         Socket listenSocket;
-        public IList<ClientConnection> ConnectedSockets = new List<ClientConnection>();
-        FastTunnelServer _fastTunnelServer;
+        public IList<Socket> ConnectedSockets = new List<Socket>();
 
-        public ClientListener(FastTunnelServer fastTunnelServer, string ip, int port, ILogger logerr)
+        Server.Server server;
+
+        public HttpListenerV2(string ip, int port, ILogger logger)
         {
-            _fastTunnelServer = fastTunnelServer;
-            _logger = logerr;
+            _logger = logger;
             this.ListenIp = ip;
             this.ListenPort = port;
 
-            IPAddress ipa = IPAddress.Parse(ListenIp);
-            IPEndPoint localEndPoint = new IPEndPoint(ipa, ListenPort);
-
-            listenSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            listenSocket.Bind(localEndPoint);
+            server = new Server.Server(1000, 10);
         }
 
-        private void HandleNewClient(Socket socket)
+        private void OnOffLine(Socket socket)
         {
-            // 此时的客户端可能有两种 1.登录的客户端 2.交换请求的客户端
-            var client = new ClientConnection(_fastTunnelServer, socket, _logger);
-            ConnectedSockets.Add(client);
-
-            // 接收客户端消息
-            client.StartRecive();
+            if (ConnectedSockets.Remove(socket))
+                OnClientsChange?.Invoke(socket, ConnectedSockets.Count, true);
         }
 
-        public void Start(int backlog = 100)
+        private void OnAccept(Socket socket)
         {
-            shutdown = false;
-
-            listenSocket.Listen(backlog);
-
-            StartAccept(null);
-
-            _logger.LogInformation($"监听客户端 -> {ListenIp}:{ListenPort}");
+            ConnectedSockets.Add(socket);
+            OnClientsChange?.Invoke(socket, ConnectedSockets.Count, false);
         }
 
         public void Stop()
@@ -81,6 +70,7 @@ namespace FastTunnel.Core.Listener
             {
                 shutdown = true;
                 listenSocket.Close();
+                Interlocked.Decrement(ref m_numConnectedSockets);
             }
         }
 
@@ -105,29 +95,55 @@ namespace FastTunnel.Core.Listener
             }
         }
 
-        private void AcceptEventArg_Completed(object sender, SocketAsyncEventArgs e)
-        {
-            ProcessAccept(e);
-        }
-
         private void ProcessAccept(SocketAsyncEventArgs e)
         {
             if (e.SocketError == SocketError.Success)
             {
                 var accept = e.AcceptSocket;
+                OnAccept(accept);
 
+                Interlocked.Increment(ref m_numConnectedSockets);
+
+                _logger.LogInformation($"【{ListenIp}:{ListenPort}】Accepted. There are {{0}} clients connected to the port",
+                    m_numConnectedSockets);
+
+                // Accept the next connection request
                 StartAccept(e);
-                HandleNewClient(accept);
+
+                // 将此客户端交由Dispatcher进行管理
+                _requestDispatcher.Dispatch(accept, this.OnOffLine);
             }
             else
             {
-                _logger.LogError($"监听客户端异常 this={this.ToJson()} e={e.ToJson()}");
                 Stop();
             }
         }
 
+        private void AcceptEventArg_Completed(object sender, SocketAsyncEventArgs e)
+        {
+            ProcessAccept(e);
+        }
+
         public void Close()
         {
+        }
+
+        public void Start(IListenerDispatcher requestDispatcher, int backlog = 100)
+        {
+            _requestDispatcher = requestDispatcher;
+
+            IPAddress ipa = IPAddress.Parse(ListenIp);
+            IPEndPoint localEndPoint = new IPEndPoint(ipa, ListenPort);
+
+            server.Init();
+            server.Start(localEndPoint, "\r\n\r\n", handle);
+            _logger.LogInformation($"监听客户端 -> {ListenIp}:{ListenPort}");
+        }
+
+        private bool handle(AsyncUserToken token, string words)
+        {
+            _requestDispatcher.Dispatch(token, words);
+            return false;
         }
     }
 }

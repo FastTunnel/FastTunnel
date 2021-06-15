@@ -4,6 +4,7 @@ using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Handlers;
 using FastTunnel.Core.Handlers.Server;
 using FastTunnel.Core.Models;
+using FastTunnel.Core.Server;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -135,6 +136,11 @@ namespace FastTunnel.Core.Dispatchers
         {
             offLineAction = onOffLine;
             Dispatch(httpClient);
+        }
+
+        public void Dispatch(AsyncUserToken token, string words)
+        {
+            throw new NotImplementedException();
         }
     }
 }

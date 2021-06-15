@@ -4,6 +4,7 @@ using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Handlers;
 using FastTunnel.Core.Handlers.Server;
 using FastTunnel.Core.Models;
+using FastTunnel.Core.Server;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -25,8 +26,6 @@ namespace FastTunnel.Core.Listener
 
         public event OnClientChangeLine OnClientsChange;
 
-        bool shutdown = false;
-        Socket listenSocket;
         public IList<ClientConnection> ConnectedSockets = new List<ClientConnection>();
         FastTunnelServer _fastTunnelServer;
         Server.Server server;
@@ -46,7 +45,7 @@ namespace FastTunnel.Core.Listener
             _heartHandler = new HeartMessageHandler();
             _swapMsgHandler = new SwapMessageHandler(_logger);
 
-            server = new Server.Server(1000, 1024);
+            server = new Server.Server(1000, 10);
         }
 
         public void Start(int backlog = 100)
@@ -55,11 +54,11 @@ namespace FastTunnel.Core.Listener
             IPEndPoint localEndPoint = new IPEndPoint(ipa, ListenPort);
 
             server.Init();
-            server.Start(localEndPoint, handle);
+            server.Start(localEndPoint, "\n", handle);
             _logger.LogInformation($"监听客户端 -> {ListenIp}:{ListenPort}");
         }
 
-        private bool handle(Socket client, string words)
+        private bool handle(AsyncUserToken token, string words)
         {
             Message<JObject> msg = JsonConvert.DeserializeObject<Message<JObject>>(words);
 
@@ -79,24 +78,13 @@ namespace FastTunnel.Core.Listener
                     throw new Exception($"未知的通讯指令 {msg.MessageType}");
             }
 
-            handler.HandlerMsg(this._fastTunnelServer, client, msg);
+            handler.HandlerMsg(this._fastTunnelServer, token.Socket, msg);
             return handler.NeedRecive;
         }
 
         public void Stop()
         {
         }
-
-        private void HandleNewClient(Socket socket)
-        {
-            // 此时的客户端可能有两种 1.登录的客户端 2.交换请求的客户端
-            var client = new ClientConnection(_fastTunnelServer, socket, _logger);
-            ConnectedSockets.Add(client);
-
-            // 接收客户端消息
-            client.StartRecive();
-        }
-
 
         public void Close()
         {

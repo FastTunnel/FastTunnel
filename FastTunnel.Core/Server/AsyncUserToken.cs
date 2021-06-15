@@ -12,5 +12,7 @@ namespace FastTunnel.Core.Server
         public Socket Socket { get; set; }
 
         public string MassgeTemp { get; set; }
+
+        public byte[] Recived { get; set; }
     }
 }

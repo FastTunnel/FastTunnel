@@ -21,7 +21,7 @@ namespace FastTunnel.Core.Client
         public readonly IServerConfig ServerSettings;
         readonly ILogger _logger;
         ClientListenerV2 clientListener;
-        HttpListener http_listener;
+        HttpListenerV2 http_listener;
 
         public FastTunnelServer(ILogger<FastTunnelServer> logger, IConfiguration configuration)
         {
@@ -29,7 +29,7 @@ namespace FastTunnel.Core.Client
             ServerSettings = configuration.Get<AppSettings>().ServerSettings;
 
             clientListener = new ClientListenerV2(this, ServerSettings.BindAddr, ServerSettings.BindPort, _logger);
-            http_listener = new HttpListener(ServerSettings.BindAddr, ServerSettings.WebProxyPort, _logger);
+            http_listener = new HttpListenerV2(ServerSettings.BindAddr, ServerSettings.WebProxyPort, _logger);
 
             clientListener.OnClientsChange += Client_listener_OnClientsChange;
         }
@@ -59,7 +59,7 @@ namespace FastTunnel.Core.Client
 
         private void listenHttp()
         {
-            http_listener.Start(new HttpDispatcher(this, _logger, ServerSettings));
+            http_listener.Start(new HttpDispatcherV2(this, _logger, ServerSettings));
         }
 
         private void Client_listener_OnClientsChange(System.Net.Sockets.Socket socket, int count, bool is_oofline)

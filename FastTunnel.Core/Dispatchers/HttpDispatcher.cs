@@ -11,6 +11,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Net.Http;
 using System.IO;
+using FastTunnel.Core.Server;
 
 namespace FastTunnel.Core.Dispatchers
 {
@@ -28,7 +29,6 @@ namespace FastTunnel.Core.Dispatchers
         }
 
         static string pattern = @"[hH]ost:.+[\r\n]";
-
 
         public void Dispatch(Socket httpClient)
         {
@@ -222,6 +222,11 @@ namespace FastTunnel.Core.Dispatchers
         public void Dispatch(Socket httpClient, Action<Socket> onOffLine)
         {
             Dispatch(httpClient);
+        }
+
+        public void Dispatch(AsyncUserToken token, string words)
+        {
+            throw new NotImplementedException();
         }
     }
 }
