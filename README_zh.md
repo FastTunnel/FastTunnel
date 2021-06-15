@@ -140,3 +140,9 @@ ssh -oPort=12701 root@x.x.x.x
 
 ## License
 Apache License 2.0
+
+## 特别声明
+
+本项目已加入 [dotNET China](https://gitee.com/dotnetchina)  组织。<br/>
+
+![dotnetchina](https://images.gitee.com/uploads/images/2021/0324/120117_2da9922c_416720.png "132645_21007ea0_974299.png")
