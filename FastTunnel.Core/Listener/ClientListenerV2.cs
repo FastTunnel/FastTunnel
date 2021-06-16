@@ -45,7 +45,7 @@ namespace FastTunnel.Core.Listener
             _heartHandler = new HeartMessageHandler();
             _swapMsgHandler = new SwapMessageHandler(_logger);
 
-            server = new Server.Server(1000, 10);
+            server = new Server.Server(1000, 1024);
         }
 
         public void Start(int backlog = 100)

@@ -86,7 +86,7 @@ namespace FastTunnel.Core.Dispatchers
             }
 
             var msgid = Guid.NewGuid().ToString();
-            _fastTunnelServer.newRequest.TryAdd(msgid, new NewRequest
+            _fastTunnelServer.RequestTemp.TryAdd(msgid, new NewRequest
             {
                 CustomerClient = token.Socket,
                 Buffer = token.Recived

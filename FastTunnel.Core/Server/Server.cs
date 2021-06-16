@@ -148,6 +148,7 @@ namespace FastTunnel.Core.Server
             ((AsyncUserToken)readEventArgs.UserToken).Socket = e.AcceptSocket;
             ((AsyncUserToken)readEventArgs.UserToken).MassgeTemp = null;
 
+            Console.WriteLine("ReceiveAsync");
             // As soon as the client is connected, post a receive to the connection
             bool willRaiseEvent = e.AcceptSocket.ReceiveAsync(readEventArgs);
             if (!willRaiseEvent)
@@ -164,6 +165,7 @@ namespace FastTunnel.Core.Server
         // <param name="e">SocketAsyncEventArg associated with the completed receive operation</param>
         void IO_Completed(object sender, SocketAsyncEventArgs e)
         {
+            Console.WriteLine("IO_Completed");
             // determine which type of operation just completed and call the associated handler
             switch (e.LastOperation)
             {
@@ -184,6 +186,7 @@ namespace FastTunnel.Core.Server
         //
         private void ProcessReceive(SocketAsyncEventArgs e)
         {
+            Console.WriteLine("ProcessReceive");
             // check if the remote host closed the connection
             AsyncUserToken token = (AsyncUserToken)e.UserToken;
             if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
@@ -227,7 +230,7 @@ namespace FastTunnel.Core.Server
                         else
                         {
                             // ÊÍ·Å×ÊÔ´
-                            m_readWritePool.Push(e);
+                            release(e);
                             return;
                         }
                     }
@@ -286,6 +289,11 @@ namespace FastTunnel.Core.Server
             catch (Exception) { }
             token.Socket.Close();
 
+            release(e);
+        }
+
+        private void release(SocketAsyncEventArgs e)
+        {
             // decrement the counter keeping track of the total number of clients connected to the server
             Interlocked.Decrement(ref m_numConnectedSockets);
 
@@ -293,7 +301,6 @@ namespace FastTunnel.Core.Server
             m_readWritePool.Push(e);
 
             m_maxNumberAcceptedClients.Release();
-            // Console.WriteLine("A client has been disconnected from the server. There are {0} clients connected to the server", m_numConnectedSockets);
         }
     }
 }

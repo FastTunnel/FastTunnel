@@ -14,7 +14,12 @@ namespace FastTunnel.Core.Client
 {
     public class FastTunnelServer
     {
-        public ConcurrentDictionary<string, NewRequest> newRequest = new ConcurrentDictionary<string, NewRequest>();
+        /// <summary>
+        /// 外部请求，需要定期清理
+        /// TODO:是否可以实现LRU
+        /// </summary>
+        public ConcurrentDictionary<string, NewRequest> RequestTemp = new ConcurrentDictionary<string, NewRequest>();
+
         public ConcurrentDictionary<string, WebInfo> WebList = new ConcurrentDictionary<string, WebInfo>();
         public ConcurrentDictionary<int, SSHInfo<SSHHandlerArg>> SSHList = new ConcurrentDictionary<int, SSHInfo<SSHHandlerArg>>();
 

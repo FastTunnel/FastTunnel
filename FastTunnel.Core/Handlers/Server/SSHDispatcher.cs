@@ -27,7 +27,7 @@ namespace FastTunnel.Core.Handlers.Server
         {
             var msgid = Guid.NewGuid().ToString();
             _client.Send(new Message<NewSSHRequest> { MessageType = MessageType.S_NewSSH, Content = new NewSSHRequest { MsgId = msgid, SSHConfig = _config } });
-            _server.newRequest.TryAdd(msgid, new NewRequest
+            _server.RequestTemp.TryAdd(msgid, new NewRequest
             {
                 CustomerClient = _socket,
             });

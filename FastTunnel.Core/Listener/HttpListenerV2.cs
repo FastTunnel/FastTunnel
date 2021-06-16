@@ -36,7 +36,7 @@ namespace FastTunnel.Core.Listener
             this.ListenIp = ip;
             this.ListenPort = port;
 
-            server = new Server.Server(1000, 10);
+            server = new Server.Server(1000, 1024);
         }
 
         private void OnOffLine(Socket socket)

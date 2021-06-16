@@ -144,7 +144,7 @@ namespace FastTunnel.Core.Dispatchers
                 tempBuffer.Read(byteArray, 0, (int)tempBuffer.Length);
 
                 tempBuffer.Close();
-                _fastTunnelServer.newRequest.TryAdd(msgid, new NewRequest
+                _fastTunnelServer.RequestTemp.TryAdd(msgid, new NewRequest
                 {
                     CustomerClient = httpClient,
                     Buffer = byteArray

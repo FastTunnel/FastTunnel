@@ -22,6 +22,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="AsyncSocketSwap.cs" />
     <Compile Remove="Client\SuiDaoServer.cs.BASE.cs" />
     <Compile Remove="Client\SuiDaoServer.cs.LOCAL.cs" />
     <Compile Remove="Client\SuiDaoServer.cs.REMOTE.cs" />
