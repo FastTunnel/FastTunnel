@@ -147,6 +147,7 @@ namespace FastTunnel.Core.Server
             SocketAsyncEventArgs readEventArgs = m_readWritePool.Pop();
             ((AsyncUserToken)readEventArgs.UserToken).Socket = e.AcceptSocket;
             ((AsyncUserToken)readEventArgs.UserToken).MassgeTemp = null;
+            ((AsyncUserToken)readEventArgs.UserToken).Recived = null;
 
             Console.WriteLine("ReceiveAsync");
             // As soon as the client is connected, post a receive to the connection
@@ -229,7 +230,7 @@ namespace FastTunnel.Core.Server
                         }
                         else
                         {
-                            // 释放资源
+                            // 脢脥路脜脳脢脭麓
                             release(e);
                             return;
                         }
