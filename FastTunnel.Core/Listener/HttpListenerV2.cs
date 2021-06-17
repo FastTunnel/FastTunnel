@@ -36,7 +36,7 @@ namespace FastTunnel.Core.Listener
             this.ListenIp = ip;
             this.ListenPort = port;
 
-            server = new Server.Server(1000, 1024);
+            server = new Server.Server(1000, 512);
         }
 
         private void OnOffLine(Socket socket)
@@ -142,6 +142,7 @@ namespace FastTunnel.Core.Listener
 
         private bool handle(AsyncUserToken token, string words)
         {
+            Console.WriteLine(words);
             _requestDispatcher.Dispatch(token, words);
             return false;
         }

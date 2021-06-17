@@ -89,16 +89,10 @@ namespace FastTunnel.Core
             if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
             {
                 Console.WriteLine("ProcessReceive:" + e.BytesTransferred);
-                e.SetBuffer(e.Offset, e.BytesTransferred);
-                try
+                e.SetBuffer(e.Offset, 512);
+                if (!token.Sender.SendAsync(e))
                 {
-                    if (!token.Sender.SendAsync(e))
-                    {
-                        ProcessSend(e);
-                    }
-                }
-                catch (Exception)
-                {
+                    ProcessSend(e);
                 }
             }
             else
@@ -117,6 +111,7 @@ namespace FastTunnel.Core
 
                 if (!token.Reciver.ReceiveAsync(e))
                 {
+                    e.SetBuffer(e.Offset, 512);
                     ProcessReceive(e);
                 }
             }

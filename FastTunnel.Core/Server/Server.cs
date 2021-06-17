@@ -28,6 +28,7 @@ namespace FastTunnel.Core.Server
 
         Func<AsyncUserToken, string, bool> m_handller;
         string m_sectionFlag;
+        bool showLog;
 
         // Create an uninitialized server instance.
         // To start the server listening for connection requests
@@ -97,8 +98,6 @@ namespace FastTunnel.Core.Server
 
             // post accepts on the listening socket
             StartAccept(null);
-
-            //Console.WriteLine("{0} connected sockets with one outstanding receive posted to each....press any key", m_outstandingReadCount);
         }
 
         // Begins an operation to accept a connection request from the client
@@ -137,10 +136,6 @@ namespace FastTunnel.Core.Server
         private void ProcessAccept(SocketAsyncEventArgs e)
         {
             Interlocked.Increment(ref m_numConnectedSockets);
-            Console.WriteLine("Client connection accepted. There are {0} clients connected to the server",
-                m_numConnectedSockets);
-
-            // new PipeHepler(e.AcceptSocket, processLine).ProcessLinesAsync();
 
             // Get the socket for the accepted client connection and put it into the
             //ReadEventArg object user token
@@ -166,7 +161,6 @@ namespace FastTunnel.Core.Server
         // <param name="e">SocketAsyncEventArg associated with the completed receive operation</param>
         void IO_Completed(object sender, SocketAsyncEventArgs e)
         {
-            Console.WriteLine("IO_Completed");
             // determine which type of operation just completed and call the associated handler
             switch (e.LastOperation)
             {
@@ -187,8 +181,6 @@ namespace FastTunnel.Core.Server
         //
         private void ProcessReceive(SocketAsyncEventArgs e)
         {
-            Console.WriteLine("ProcessReceive");
-            // check if the remote host closed the connection
             AsyncUserToken token = (AsyncUserToken)e.UserToken;
             if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
             {
@@ -210,9 +202,10 @@ namespace FastTunnel.Core.Server
 
                 bool needRecive = false;
                 var words = e.Buffer.GetString(e.Offset, e.BytesTransferred);
-                if (words.Contains(m_sectionFlag))
+                var sum = token.MassgeTemp + words;
+                if (sum.Contains(m_sectionFlag))
                 {
-                    var array = (token.MassgeTemp + words).Split(m_sectionFlag);
+                    var array = (sum).Split(m_sectionFlag);
                     token.MassgeTemp = null;
                     var fullMsg = words.EndsWith(m_sectionFlag);
 
@@ -238,9 +231,10 @@ namespace FastTunnel.Core.Server
                 }
                 else
                 {
-                    token.MassgeTemp += words;
+                    token.MassgeTemp = sum;
                 }
 
+                e.SetBuffer(e.Offset, m_receiveBufferSize);
                 bool willRaiseEvent = token.Socket.ReceiveAsync(e);
                 if (!willRaiseEvent)
                 {
@@ -265,6 +259,7 @@ namespace FastTunnel.Core.Server
                 // done echoing data back to the client
                 AsyncUserToken token = (AsyncUserToken)e.UserToken;
                 // read the next block of data send from the client
+                e.SetBuffer(e.Offset, m_receiveBufferSize);
                 bool willRaiseEvent = token.Socket.ReceiveAsync(e);
                 if (!willRaiseEvent)
                 {

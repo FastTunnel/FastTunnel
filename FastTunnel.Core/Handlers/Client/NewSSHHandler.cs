@@ -20,7 +20,7 @@ namespace FastTunnel.Core.Handlers.Client
             var localConnecter_ssh = new Connecter(request_ssh.SSHConfig.LocalIp, request_ssh.SSHConfig.LocalPort, 5000);
             localConnecter_ssh.Connect();
 
-            new AsyncSocketSwap(connecter_ssh.Socket, localConnecter_ssh.Socket).StartSwapAsync();
+            new SocketSwap(connecter_ssh.Socket, localConnecter_ssh.Socket).StartSwapAsync();
         }
     }
 }
