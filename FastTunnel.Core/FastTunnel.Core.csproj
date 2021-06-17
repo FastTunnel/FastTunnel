@@ -26,7 +26,10 @@
     <Compile Remove="Client\SuiDaoServer.cs.BASE.cs" />
     <Compile Remove="Client\SuiDaoServer.cs.LOCAL.cs" />
     <Compile Remove="Client\SuiDaoServer.cs.REMOTE.cs" />
+    <Compile Remove="Dispatchers\HttpDispatcher.cs" />
     <Compile Remove="Listener.cs" />
+    <Compile Remove="Listener\ClientListener.cs" />
+    <Compile Remove="Listener\HttpListener.cs" />
     <Compile Remove="Server.cs" />
   </ItemGroup>
 

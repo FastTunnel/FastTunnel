@@ -14,6 +14,7 @@ using System.Threading;
 using Microsoft.Extensions.Logging;
 using FastTunnel.Core.Handlers.Client;
 using Microsoft.Extensions.Configuration;
+using FastTunnel.Core.Server;
 
 namespace FastTunnel.Core.Client
 {
@@ -232,8 +233,23 @@ namespace FastTunnel.Core.Client
             timer_heart.Start();
             timer_timeout.Start();
 
-            th = new Thread(ReceiveServer);
-            th.Start(socket);
+            //th = new Thread(ReceiveServer);
+            //th.Start(socket);
+
+            ReceiveServerV2(socket);
+        }
+
+        private void ReceiveServerV2(object obj)
+        {
+            var client = obj as Socket;
+            new PipeHepler(client, ProceccLine).ProcessLinesAsync();
+        }
+
+        private bool ProceccLine(Socket socket, byte[] line)
+        {
+            var cmd = Encoding.UTF8.GetString(line);
+            HandleServerRequest(cmd);
+            return true;
         }
 
         private void ReceiveServer(object obj)

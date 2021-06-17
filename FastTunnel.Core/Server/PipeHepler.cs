@@ -28,7 +28,7 @@ namespace FastTunnel.Core.Server
             await Task.WhenAll(reading, writing);
         }
 
-        public async Task FillPipeAsync(PipeWriter writer)
+        private async Task FillPipeAsync(PipeWriter writer)
         {
             const int minimumBufferSize = 512;
 
@@ -64,7 +64,7 @@ namespace FastTunnel.Core.Server
             await writer.CompleteAsync();
         }
 
-        public async Task ReadPipeAsync(PipeReader reader)
+        private async Task ReadPipeAsync(PipeReader reader)
         {
             while (true)
             {

@@ -45,7 +45,7 @@ namespace FastTunnel.Core.Listener
             _heartHandler = new HeartMessageHandler();
             _swapMsgHandler = new SwapMessageHandler(_logger);
 
-            server = new Server.Server(1000, 1024);
+            server = new Server.Server(1000, 100);
         }
 
         public void Start(int backlog = 100)
@@ -60,6 +60,8 @@ namespace FastTunnel.Core.Listener
 
         private bool handle(AsyncUserToken token, string words)
         {
+            //Console.WriteLine($"[Client请求] {words}");
+
             Message<JObject> msg = JsonConvert.DeserializeObject<Message<JObject>>(words);
 
             IClientMessageHandler handler = null;

@@ -32,6 +32,8 @@ namespace FastTunnel.Core.Dispatchers
 
         public void Dispatch(AsyncUserToken token, string words)
         {
+            Console.WriteLine("=======Dispatch HTTP========");
+
             // 1.检查白名单
             try
             {
@@ -52,6 +54,8 @@ namespace FastTunnel.Core.Dispatchers
                 _logger.LogError(ex);
             }
 
+            Console.WriteLine("=======Dispatch Matches========");
+
             string Host;
             MatchCollection collection = Regex.Matches(words, pattern);
             if (collection.Count == 0)
@@ -70,6 +74,8 @@ namespace FastTunnel.Core.Dispatchers
             _logger.LogDebug(Host.Replace("\r", ""));
             var domain = Host.Split(":")[1].Trim();
 
+            Console.WriteLine($"=======Dispatch domain:{domain}========");
+
             // 判断是否为ip
             if (IsIpDomian(domain))
             {
@@ -81,10 +87,12 @@ namespace FastTunnel.Core.Dispatchers
             WebInfo web;
             if (!_fastTunnelServer.WebList.TryGetValue(domain, out web))
             {
+                Console.WriteLine($"=======Dispatch 未登录========");
                 HandlerClientNotOnLine(token.Socket, domain);
                 return;
             }
 
+            Console.WriteLine($"=======Dispatch 已找到========");
             var msgid = Guid.NewGuid().ToString();
             _fastTunnelServer.RequestTemp.TryAdd(msgid, new NewRequest
             {
@@ -92,15 +100,23 @@ namespace FastTunnel.Core.Dispatchers
                 Buffer = token.Recived
             });
 
+            Console.WriteLine($"=======Dispatch 发送msg========");
+
             try
             {
-                _logger.LogDebug($"OK");
+                _logger.LogDebug($"=======OK========");
                 web.Socket.Send(new Message<NewCustomerMassage> { MessageType = MessageType.S_NewCustomer, Content = new NewCustomerMassage { MsgId = msgid, WebConfig = web.WebConfig } });
+
+                Console.WriteLine($"=======Dispatch OK========");
             }
             catch (Exception)
             {
                 HandlerClientNotOnLine(token.Socket, domain);
-                throw;
+
+                Console.WriteLine($"=======Dispatch 移除========");
+
+                // 移除
+                _fastTunnelServer.WebList.TryRemove(domain, out _);
             }
         }
 

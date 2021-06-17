@@ -67,7 +67,8 @@ namespace FastTunnel.Core.Handlers
                 }
             }
 
-            var sb = new StringBuilder($"{Environment.NewLine}=====隧道已建立成功，可通过以下方式访问内网服务====={Environment.NewLine}");
+            var sb = new StringBuilder($"{Environment.NewLine}=====隧道已建立成功，可通过以下方式访问内网服务====={Environment.NewLine}{Environment.NewLine}");
+            sb.Append($"穿透协议 | 映射关系（公网=>内网）{Environment.NewLine}");
             if (requet.Webs != null && requet.Webs.Count() > 0)
             {
                 hasTunnel = true;
@@ -78,8 +79,8 @@ namespace FastTunnel.Core.Handlers
 
                     _logger.LogDebug($"new domain '{hostName}'");
                     server.WebList.AddOrUpdate(hostName, info, (key, oldInfo) => { return info; });
-                    sb.Append($"{Environment.NewLine} http://{hostName}{(server.ServerSettings.WebHasNginxProxy ? string.Empty : ":" + server.ServerSettings.WebProxyPort)} => {item.LocalIp}:{item.LocalPort}");
-
+                    sb.Append($"  HTTP   | http://{hostName}{(server.ServerSettings.WebHasNginxProxy ? string.Empty : ":" + server.ServerSettings.WebProxyPort)} => {item.LocalIp}:{item.LocalPort}");
+                    sb.Append(Environment.NewLine);
                     if (item.WWW != null)
                     {
                         foreach (var www in item.WWW)
@@ -88,7 +89,8 @@ namespace FastTunnel.Core.Handlers
                             _logger.LogInformation($"WWW {www}");
 
                             server.WebList.AddOrUpdate(www, info, (key, oldInfo) => { return info; });
-                            sb.Append($"{Environment.NewLine}  http://{www}{(server.ServerSettings.WebHasNginxProxy ? string.Empty : ":" + server.ServerSettings.WebProxyPort)} => {item.LocalIp}:{item.LocalPort}");
+                            sb.Append($"  HTTP   | http://{www}{(server.ServerSettings.WebHasNginxProxy ? string.Empty : ":" + server.ServerSettings.WebProxyPort)} => {item.LocalIp}:{item.LocalPort}");
+                            sb.Append(Environment.NewLine);
                         }
                     }
                 }
@@ -131,7 +133,8 @@ namespace FastTunnel.Core.Handlers
                         server.SSHList.TryAdd(item.RemotePort, new SSHInfo<SSHHandlerArg> { Listener = ls, Socket = client, SSHConfig = item });
                         _logger.LogDebug($"SSH proxy success: {item.RemotePort} => {item.LocalIp}:{item.LocalPort}");
 
-                        sb.Append($"{Environment.NewLine}  {server.ServerSettings.WebDomain}:{item.RemotePort} => {item.LocalIp}:{item.LocalPort}");
+                        sb.Append($"  TCP    | {server.ServerSettings.WebDomain}:{item.RemotePort} => {item.LocalIp}:{item.LocalPort}");
+                        sb.Append(Environment.NewLine);
                     }
                     catch (Exception ex)
                     {
@@ -149,7 +152,7 @@ namespace FastTunnel.Core.Handlers
             }
             else
             {
-                sb.Append($"{Environment.NewLine}{Environment.NewLine}====================================================");
+                sb.Append($"{Environment.NewLine}====================================================");
                 client.Send(new Message<LogMassage> { MessageType = MessageType.Log, Content = new LogMassage(LogMsgType.Info, sb.ToString()) });
             }
         }
