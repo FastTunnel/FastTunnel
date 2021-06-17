@@ -32,7 +32,7 @@ namespace FastTunnel.Core.Handlers.Server
                 server.RequestTemp.TryRemove(SwapMsg.msgId, out _);
 
                 // Join
-                new AsyncSocketSwap(request.CustomerClient, client)
+                new AsyncSocketSwapV2(request.CustomerClient, client)
                    .BeforeSwap(() =>
                    {
                        if (request.Buffer != null) client.Send(request.Buffer);
