@@ -3,9 +3,6 @@ using FastTunnel.Core.Filters;
 using FastTunnel.Core.Handlers.Client;
 using FastTunnel.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace FastTunnel.Core.Extensions
 {

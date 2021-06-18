@@ -25,7 +25,7 @@ namespace FastTunnel.Core.Services
         {
             return Task.Run(() =>
             {
-                _fastTunnelClient.Start(new { Token = "123" });
+                _fastTunnelClient.Start();
             }, cancellationToken);
         }
 

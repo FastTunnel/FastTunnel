@@ -13,7 +13,7 @@ namespace FastTunnel.Server.Filters
     {
         public bool Authentication(FastTunnelServer server, LogInMassage requet)
         {
-            return (requet.CustomInfo as JObject)["Token"].ToString() == "123";
+            return true;
         }
     }
 }

@@ -20,26 +20,26 @@ namespace FastTunnel.Core.Client
 {
     public class FastTunnelClient
     {
-        Connecter _client;
+        Socket _client;
 
-        ILogger<FastTunnelClient> _logger;
+        protected ILogger<FastTunnelClient> _logger;
 
         System.Timers.Timer timer_timeout;
         System.Timers.Timer timer_heart;
 
         double heartInterval = 10 * 1000; // 10 秒心跳
         public DateTime lastHeart;
-        Thread th;
 
         int reTrySpan = 10 * 1000; // 登陆失败后重试间隔
         HttpRequestHandler _newCustomerHandler;
         NewSSHHandler _newSSHHandler;
         LogHandler _logHandler;
         ClientHeartHandler _clientHeartHandler;
-        Func<Connecter> lastLogin;
+        Func<Socket> lastLogin;
         Message<LogInMassage> loginMsg;
+        IConfiguration _configuration;
 
-        public IClientConfig ClientConfig { get; set; }
+        public SuiDaoServer Server { get; protected set; }
 
         public FastTunnelClient(
             ILogger<FastTunnelClient> logger,
@@ -53,7 +53,7 @@ namespace FastTunnel.Core.Client
             _newSSHHandler = newSSHHandler;
             _logHandler = logHandler;
             _clientHeartHandler = clientHeartHandler;
-            ClientConfig = configuration.Get<AppSettings>().ClientSettings;
+            _configuration = configuration;
             initailTimer();
         }
 
@@ -112,7 +112,7 @@ namespace FastTunnel.Core.Client
                 await reConnectAsync();
             }
 
-            LogSuccess(_client.Socket);
+            LogSuccess(_client);
         }
 
         private void HeartElapsed(object sender, ElapsedEventArgs e)
@@ -138,20 +138,9 @@ namespace FastTunnel.Core.Client
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="customLoginMsg">自定义登录信息，可进行扩展业务</param>
-        public void Start(object customLoginMsg)
+        public void Start()
         {
             _logger.LogInformation("===== FastTunnel Client Start =====");
-
-            loginMsg = new Message<LogInMassage>
-            {
-                MessageType = MessageType.C_LogIn,
-                Content = new LogInMassage
-                {
-                    Webs = ClientConfig.Webs,
-                    SSH = ClientConfig.SSH,
-                    CustomInfo = customLoginMsg,
-                },
-            };
 
             lastLogin = login;
 
@@ -168,18 +157,21 @@ namespace FastTunnel.Core.Client
                 return;
             }
 
-            LogSuccess(_client.Socket);
+            LogSuccess(_client);
         }
 
-        private Connecter login()
+        protected virtual Socket login()
         {
+            var ClientConfig = _configuration.Get<AppSettings>().ClientSettings;
+            Server = ClientConfig.Server;
+
             Connecter _client;
-            _logger.LogInformation($"正在连接服务端 {ClientConfig.Server.ServerAddr}:{ClientConfig.Server.ServerPort}");
+            _logger.LogInformation($"正在连接服务端 {Server.ServerAddr}:{Server.ServerPort}");
 
             try
             {
                 // 连接到的目标IP
-                _client = new Connecter(ClientConfig.Server.ServerAddr, ClientConfig.Server.ServerPort);
+                _client = new Connecter(Server.ServerAddr, Server.ServerPort);
                 _client.Connect();
 
                 _logger.LogInformation("连接成功");
@@ -190,10 +182,20 @@ namespace FastTunnel.Core.Client
                 throw;
             }
 
+            loginMsg = new Message<LogInMassage>
+            {
+                MessageType = MessageType.C_LogIn,
+                Content = new LogInMassage
+                {
+                    Webs = ClientConfig.Webs,
+                    SSH = ClientConfig.SSH,
+                },
+            };
+
             // 登录
             _client.Send(loginMsg);
 
-            return _client;
+            return _client.Socket;
         }
 
         void Close()
@@ -203,9 +205,9 @@ namespace FastTunnel.Core.Client
 
             try
             {
-                if (_client != null && _client.Socket.Connected)
+                if (_client != null && _client.Connected)
                 {
-                    _client.Socket.Shutdown(SocketShutdown.Both);
+                    _client.Shutdown(SocketShutdown.Both);
                 }
             }
             catch (Exception ex)
@@ -216,7 +218,7 @@ namespace FastTunnel.Core.Client
             {
                 if (_client != null)
                 {
-                    _client.Socket.Close();
+                    _client.Close();
                 }
 
                 _logger.LogDebug("已退出登录\n");
@@ -250,84 +252,6 @@ namespace FastTunnel.Core.Client
             var cmd = Encoding.UTF8.GetString(line);
             HandleServerRequest(cmd);
             return true;
-        }
-
-        private void ReceiveServer(object obj)
-        {
-            var client = obj as Socket;
-            byte[] buffer = new byte[1024];
-
-            string lastBuffer = string.Empty;
-            int n = 0;
-
-            while (true)
-            {
-                try
-                {
-                    n = client.Receive(buffer);
-                    if (n == 0)
-                    {
-                        client.Shutdown(SocketShutdown.Both);
-                        break;
-                    }
-                }
-                /// <see cref="https://docs.microsoft.com/zh-cn/windows/win32/winsock/windows-sockets-error-codes-2"/>
-                catch (SocketException socketEx)
-                {
-                    // Connection timed out.
-                    if (socketEx.ErrorCode == 10060)
-                    {
-                        _logger.LogInformation("Connection timed out");
-                    }
-                    else
-                    {
-                        _logger.LogError(socketEx);
-                    }
-
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex);
-                    break;
-                }
-
-                string words = Encoding.UTF8.GetString(buffer, 0, n);
-                if (!string.IsNullOrEmpty(lastBuffer))
-                {
-                    words = lastBuffer + words;
-                    lastBuffer = null;
-                }
-
-                var msgs = words.Split("\n");
-
-                _logger.LogDebug("recive from server:" + words);
-
-                try
-                {
-                    foreach (var item in msgs)
-                    {
-                        if (string.IsNullOrEmpty(item))
-                            continue;
-
-                        if (item.EndsWith("}"))
-                        {
-                            HandleServerRequest(item);
-                        }
-                        else
-                        {
-                            lastBuffer = item;
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex.Message);
-                    continue;
-                }
-            }
-
-            _logger.LogInformation("stop receive from server");
         }
 
         private IClientHandler HandleServerRequest(string words)

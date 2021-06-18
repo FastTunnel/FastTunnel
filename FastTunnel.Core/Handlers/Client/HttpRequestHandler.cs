@@ -17,7 +17,7 @@ namespace FastTunnel.Core.Handlers.Client
         public void HandlerMsg(FastTunnelClient cleint, Message<JObject> Msg)
         {
             var request = Msg.Content.ToObject<NewCustomerMassage>();
-            var connecter = new Connecter(cleint.ClientConfig.Server.ServerAddr, cleint.ClientConfig.Server.ServerPort);
+            var connecter = new Connecter(cleint.Server.ServerAddr, cleint.Server.ServerPort);
 
             connecter.Connect();
             connecter.Send(new Message<SwapMassage> { MessageType = MessageType.C_SwapMsg, Content = new SwapMassage(request.MsgId) });

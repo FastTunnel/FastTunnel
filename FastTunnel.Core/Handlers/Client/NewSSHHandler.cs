@@ -13,7 +13,7 @@ namespace FastTunnel.Core.Handlers.Client
         public void HandlerMsg(FastTunnelClient cleint, Message<JObject> Msg)
         {
             var request_ssh = Msg.Content.ToObject<NewSSHRequest>();
-            var connecter_ssh = new Connecter(cleint.ClientConfig.Server.ServerAddr, cleint.ClientConfig.Server.ServerPort);
+            var connecter_ssh = new Connecter(cleint.Server.ServerAddr, cleint.Server.ServerPort);
             connecter_ssh.Connect();
             connecter_ssh.Send(new Message<SwapMassage> { MessageType = MessageType.C_SwapMsg, Content = new SwapMassage(request_ssh.MsgId) });
 
