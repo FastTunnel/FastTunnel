@@ -16,7 +16,7 @@ using System.Threading;
 
 namespace FastTunnel.Core.Listener
 {
-    public class ClientListenerV2 : IListener
+    public class ClientListenerV2
     {
         ILogger _logger;
 
@@ -24,9 +24,6 @@ namespace FastTunnel.Core.Listener
 
         public int ListenPort { get; set; }
 
-        public event OnClientChangeLine OnClientsChange;
-
-        public IList<ClientConnection> ConnectedSockets = new List<ClientConnection>();
         FastTunnelServer _fastTunnelServer;
         Server.Server server;
 
@@ -60,8 +57,6 @@ namespace FastTunnel.Core.Listener
 
         private bool handle(AsyncUserToken token, string words)
         {
-            //Console.WriteLine($"[Client请求] {words}");
-
             Message<JObject> msg = JsonConvert.DeserializeObject<Message<JObject>>(words);
 
             IClientMessageHandler handler = null;

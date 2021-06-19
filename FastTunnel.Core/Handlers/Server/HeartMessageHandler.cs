@@ -15,7 +15,7 @@ namespace FastTunnel.Core.Handlers.Server
 
         public void HandlerMsg(FastTunnelServer server, Socket client, Message<JObject> msg)
         {
-            client.Send(new Message<HeartMassage>() { MessageType = MessageType.Heart, Content = null });
+            client.SendCmd(new Message<HeartMassage>() { MessageType = MessageType.Heart, Content = null });
         }
     }
 }

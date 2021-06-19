@@ -8,7 +8,7 @@ using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Text;
 
-namespace FastTunnel.Core.Handlers.Server
+namespace FastTunnel.Core.Dispatchers
 {
     public class SSHDispatcher : IListenerDispatcher
     {
@@ -26,16 +26,11 @@ namespace FastTunnel.Core.Handlers.Server
         public void Dispatch(Socket _socket)
         {
             var msgid = Guid.NewGuid().ToString();
-            _client.Send(new Message<NewSSHRequest> { MessageType = MessageType.S_NewSSH, Content = new NewSSHRequest { MsgId = msgid, SSHConfig = _config } });
+            _client.SendCmd(new Message<NewSSHRequest> { MessageType = MessageType.S_NewSSH, Content = new NewSSHRequest { MsgId = msgid, SSHConfig = _config } });
             _server.RequestTemp.TryAdd(msgid, new NewRequest
             {
                 CustomerClient = _socket,
             });
-        }
-
-        public void Dispatch(Socket httpClient, Action<Socket> onOffLine)
-        {
-            Dispatch(httpClient);
         }
 
         public void Dispatch(AsyncUserToken token, string words)

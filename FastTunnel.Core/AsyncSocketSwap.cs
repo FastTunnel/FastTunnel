@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace FastTunnel.Core
 {
-    public class AsyncSocketSwapV2
+    public class AsyncSocketSwap
     {
         private Socket m_sockt1;
         private Socket m_sockt2;
@@ -18,7 +18,7 @@ namespace FastTunnel.Core
         SocketAsyncEventArgs e1;
         SocketAsyncEventArgs e2;
 
-        public AsyncSocketSwapV2(Socket sockt1, Socket sockt2)
+        public AsyncSocketSwap(Socket sockt1, Socket sockt2)
         {
             m_sockt1 = sockt1;
             m_sockt2 = sockt2;
@@ -35,7 +35,7 @@ namespace FastTunnel.Core
             e2.SetBuffer(m_buffer, 512, 512);
         }
 
-        public AsyncSocketSwapV2 BeforeSwap(Action fun)
+        public AsyncSocketSwap BeforeSwap(Action fun)
         {
             if (m_swaping)
                 throw new Exception("BeforeSwap must be invoked before StartSwap!");

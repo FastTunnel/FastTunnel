@@ -21,6 +21,5 @@ namespace FastTunnel.Core.Listener
 
         void Close();
 
-        event OnClientChangeLine OnClientsChange;
     }
 }

@@ -88,7 +88,7 @@ namespace FastTunnel.Core.Services
         {
             return Task.Run(() =>
             {
-                _server.Stop(cancellationToken);
+                _server.Stop();
             }, cancellationToken);
         }
     }

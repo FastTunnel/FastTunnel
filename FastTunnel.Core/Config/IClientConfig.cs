@@ -1,12 +1,11 @@
-﻿using FastTunnel.Core.Config;
-using FastTunnel.Core.Models;
+﻿using FastTunnel.Core.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace FastTunnel.Core.Client
+namespace FastTunnel.Core.Config
 {
     public interface IClientConfig
     {

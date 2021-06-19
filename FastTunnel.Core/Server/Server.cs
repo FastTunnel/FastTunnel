@@ -28,7 +28,6 @@ namespace FastTunnel.Core.Server
 
         Func<AsyncUserToken, string, bool> m_handller;
         string m_sectionFlag;
-        bool showLog;
 
         // Create an uninitialized server instance.
         // To start the server listening for connection requests

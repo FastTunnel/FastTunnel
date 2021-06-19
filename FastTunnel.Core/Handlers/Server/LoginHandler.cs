@@ -1,4 +1,5 @@
 ﻿using FastTunnel.Core.Client;
+using FastTunnel.Core.Dispatchers;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Filters;
 using FastTunnel.Core.Global;
@@ -56,7 +57,7 @@ namespace FastTunnel.Core.Handlers
                     var result = item.Authentication(server, requet);
                     if (!result)
                     {
-                        client.Send(new Message<LogMassage>
+                        client.SendCmd(new Message<LogMassage>
                         {
                             MessageType = MessageType.Log,
                             Content = new LogMassage(LogMsgType.Error, "认证失败")
@@ -140,7 +141,7 @@ namespace FastTunnel.Core.Handlers
                     {
                         _logger.LogError($"SSH proxy error: {item.RemotePort} => {item.LocalIp}:{item.LocalPort}");
                         _logger.LogError(ex.Message);
-                        client.Send(new Message<LogMassage> { MessageType = MessageType.Log, Content = new LogMassage(LogMsgType.Info, ex.Message) });
+                        client.SendCmd(new Message<LogMassage> { MessageType = MessageType.Log, Content = new LogMassage(LogMsgType.Info, ex.Message) });
                         continue;
                     }
                 }
@@ -148,12 +149,12 @@ namespace FastTunnel.Core.Handlers
 
             if (!hasTunnel)
             {
-                client.Send(new Message<LogMassage> { MessageType = MessageType.Log, Content = new LogMassage(LogMsgType.Info, TunnelResource.NoTunnel) });
+                client.SendCmd(new Message<LogMassage> { MessageType = MessageType.Log, Content = new LogMassage(LogMsgType.Info, TunnelResource.NoTunnel) });
             }
             else
             {
                 sb.Append($"{Environment.NewLine}====================================================");
-                client.Send(new Message<LogMassage> { MessageType = MessageType.Log, Content = new LogMassage(LogMsgType.Info, sb.ToString()) });
+                client.SendCmd(new Message<LogMassage> { MessageType = MessageType.Log, Content = new LogMassage(LogMsgType.Info, sb.ToString()) });
             }
         }
     }

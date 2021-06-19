@@ -19,8 +19,6 @@ namespace FastTunnel.Core.Listener
 
         int m_numConnectedSockets;
 
-        public event OnClientChangeLine OnClientsChange;
-
         bool shutdown = false;
         IListenerDispatcher _requestDispatcher;
         Socket listenSocket;
@@ -37,18 +35,6 @@ namespace FastTunnel.Core.Listener
 
             listenSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             listenSocket.Bind(localEndPoint);
-        }
-
-        private void OnOffLine(Socket socket)
-        {
-            if (ConnectedSockets.Remove(socket))
-                OnClientsChange?.Invoke(socket, ConnectedSockets.Count, true);
-        }
-
-        private void OnAccept(Socket socket)
-        {
-            ConnectedSockets.Add(socket);
-            OnClientsChange?.Invoke(socket, ConnectedSockets.Count, false);
         }
 
         public void Start(IListenerDispatcher requestDispatcher, int backlog = 100)
@@ -110,7 +96,6 @@ namespace FastTunnel.Core.Listener
             if (e.SocketError == SocketError.Success)
             {
                 var accept = e.AcceptSocket;
-                OnAccept(accept);
 
                 Interlocked.Increment(ref m_numConnectedSockets);
 
@@ -121,7 +106,7 @@ namespace FastTunnel.Core.Listener
                 StartAccept(e);
 
                 // 将此客户端交由Dispatcher进行管理
-                _requestDispatcher.Dispatch(accept, this.OnOffLine);
+                _requestDispatcher.Dispatch(accept);
             }
             else
             {
