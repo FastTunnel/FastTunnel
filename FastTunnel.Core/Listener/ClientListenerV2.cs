@@ -57,7 +57,18 @@ namespace FastTunnel.Core.Listener
 
         private bool handle(AsyncUserToken token, string words)
         {
-            Message<JObject> msg = JsonConvert.DeserializeObject<Message<JObject>>(words);
+            Message<JObject> msg;
+
+            try
+            {
+                msg = JsonConvert.DeserializeObject<Message<JObject>>(words);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogCritical(ex, $"【异常的指令】{words}");
+                token.Socket.Close();
+                return false;
+            }
 
             IClientMessageHandler handler = null;
             switch (msg.MessageType)

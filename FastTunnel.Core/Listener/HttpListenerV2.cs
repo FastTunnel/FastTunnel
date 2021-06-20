@@ -47,8 +47,17 @@ namespace FastTunnel.Core.Listener
 
         private bool handle(AsyncUserToken token, string words)
         {
-            Console.WriteLine(words);
-            _requestDispatcher.Dispatch(token, words);
+            try
+            {
+                Console.WriteLine(words);
+                _requestDispatcher.Dispatch(token, words);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogCritical(ex, $"【处理HTTP请求异常】{words}");
+            }
+
             return false;
         }
 

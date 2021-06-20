@@ -28,7 +28,7 @@ namespace FastTunnel.Core.Dispatchers
             _fastTunnelServer = fastTunnelServer;
         }
 
-        static string pattern = @"[hH]ost:.+[\r\n]";
+        static string pattern = @"[hH]ost:.+";
 
         public void Dispatch(AsyncUserToken token, string words)
         {
@@ -60,7 +60,7 @@ namespace FastTunnel.Core.Dispatchers
             MatchCollection collection = Regex.Matches(words, pattern);
             if (collection.Count == 0)
             {
-                _logger.LogError($"Host异常：{words}");
+                _logger.LogError($"【Host异常】：{words}");
 
                 // 返回错误页
                 HandlerHostRequired(token.Socket);
