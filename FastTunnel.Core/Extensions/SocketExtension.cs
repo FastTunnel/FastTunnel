@@ -11,7 +11,14 @@ namespace FastTunnel.Core.Extensions
         public static void Send<T>(this Socket socket, Message<T> message)
             where T : TunnelMassage
         {
-            socket.Send(Encoding.UTF8.GetBytes(message.ToJson() + "\n"));
+            try
+            {
+                socket.Send(Encoding.UTF8.GetBytes(message.ToJson() + "\n"));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+            }
         }
     }
 }
