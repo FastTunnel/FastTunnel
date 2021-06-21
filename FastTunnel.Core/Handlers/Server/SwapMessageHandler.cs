@@ -29,15 +29,13 @@ namespace FastTunnel.Core.Handlers.Server
 
             if (!string.IsNullOrEmpty(SwapMsg.msgId) && server.RequestTemp.TryGetValue(SwapMsg.msgId, out request))
             {
-                // Swap
+                server.RequestTemp.TryRemove(SwapMsg.msgId, out _);
                 new SocketSwap(request.CustomerClient, client)
                    .BeforeSwap(() =>
                    {
                        if (request.Buffer != null) client.Send(request.Buffer);
                    })
                    .StartSwapAsync();
-
-                server.RequestTemp.TryRemove(SwapMsg.msgId, out _);
             }
             else
             {

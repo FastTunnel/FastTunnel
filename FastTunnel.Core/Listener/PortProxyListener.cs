@@ -105,8 +105,15 @@ namespace FastTunnel.Core.Listener
                 // Accept the next connection request
                 StartAccept(e);
 
-                // 将此客户端交由Dispatcher进行管理
-                _requestDispatcher.Dispatch(accept);
+                try
+                {
+                    // 将此客户端交由Dispatcher进行管理
+                    _requestDispatcher.Dispatch(accept);
+                }
+                catch (Exception ex)
+                {
+                    _logerr.LogError(ex, "RequestDispatcher Fail");
+                }
             }
             else
             {
