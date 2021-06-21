@@ -22,10 +22,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="AsyncSocketSwap.cs" />
     <Compile Remove="Client\SuiDaoServer.cs.BASE.cs" />
     <Compile Remove="Client\SuiDaoServer.cs.LOCAL.cs" />
     <Compile Remove="Client\SuiDaoServer.cs.REMOTE.cs" />
+    <Compile Remove="Dispatchers\ClientDispatcher.cs" />
     <Compile Remove="Dispatchers\HttpDispatcher.cs" />
     <Compile Remove="Listener.cs" />
     <Compile Remove="Listener\ClientListener.cs" />
@@ -44,8 +44,6 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="6.0.0-preview.4.21253.7" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="6.0.0-preview.4.21253.7" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
-    <PackageReference Include="NLog" Version="4.7.10" />
-    <PackageReference Include="NLog.Extensions.Logging" Version="1.7.2" />
     <PackageReference Include="System.IO.Pipelines" Version="5.0.1" />
     <PackageReference Include="System.Private.ServiceModel" Version="4.8.1" />
   </ItemGroup>

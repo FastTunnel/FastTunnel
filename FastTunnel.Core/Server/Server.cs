@@ -28,7 +28,6 @@ namespace FastTunnel.Core.Server
 
         Func<AsyncUserToken, string, bool> m_handller;
         string m_sectionFlag;
-        bool showLog;
 
         // Create an uninitialized server instance.
         // To start the server listening for connection requests
@@ -43,7 +42,7 @@ namespace FastTunnel.Core.Server
             m_numConnections = numConnections;
             m_receiveBufferSize = receiveBufferSize;
             // allocate buffers such that the maximum number of sockets can have one outstanding read and
-            //write posted to the socket simultaneously
+            // write posted to the socket simultaneously
             m_bufferManager = new BufferManager(receiveBufferSize * numConnections * opsToPreAlloc,
                 receiveBufferSize);
 

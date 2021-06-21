@@ -26,13 +26,13 @@ namespace FastTunnel.Core.Handlers.Client
                 switch (msg.MsgType)
                 {
                     case LogMsgType.Info:
-                        _logger.LogInformation("From Server:" + msg.Msg);
+                        _logger.LogInformation($"[Server Info]:{msg.Msg}");
                         break;
                     case LogMsgType.Error:
-                        _logger.LogError("From Server:" + msg.Msg);
+                        _logger.LogError($"[Server Error]:{msg.Msg}");
                         break;
                     case LogMsgType.Debug:
-                        _logger.LogDebug("From Server:" + msg.Msg);
+                        _logger.LogDebug($"[Server Debug]:{msg.Msg}");
                         break;
                     default:
                         break;

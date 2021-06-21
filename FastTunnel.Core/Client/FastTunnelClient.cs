@@ -24,7 +24,6 @@ namespace FastTunnel.Core.Client
 
         protected ILogger<FastTunnelClient> _logger;
 
-        System.Timers.Timer timer_timeout;
         System.Timers.Timer timer_heart;
 
         double heartInterval = 10 * 1000; // 10 秒心跳
@@ -54,65 +53,33 @@ namespace FastTunnel.Core.Client
             _logHandler = logHandler;
             _clientHeartHandler = clientHeartHandler;
             _configuration = configuration;
-            initailTimer();
-        }
 
-        private void initailTimer()
-        {
             timer_heart = new System.Timers.Timer();
             timer_heart.AutoReset = false;
             timer_heart.Interval = heartInterval;
             timer_heart.Elapsed += HeartElapsed;
-
-            timer_timeout = new System.Timers.Timer();
-            timer_timeout.AutoReset = false;
-            timer_timeout.Interval = heartInterval + heartInterval / 2;
-            timer_timeout.Elapsed += TimeoutElapsed;
         }
 
-        private void TimeoutElapsed(object sender, ElapsedEventArgs e)
-        {
-            timer_timeout.Enabled = false;
-
-            try
-            {
-                var timer = sender as System.Timers.Timer;
-                var span = (DateTime.Now - lastHeart).TotalMilliseconds;
-                if (span > timer.Interval)
-                {
-                    _logger.LogDebug($"last heart recived {span / 1000}s ago");
-
-                    // 重新登录
-                    reConnectAsync().Wait();
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex);
-            }
-            finally
-            {
-                timer_timeout.Enabled = true;
-            }
-        }
-
-        private async Task reConnectAsync()
+        private void reConn()
         {
             Close();
-            try
+            while (true)
             {
-                _logger.LogInformation("登录重试...");
-                _client = lastLogin.Invoke();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex.Message);
+                try
+                {
+                    _logger.LogInformation("登录重试...");
+                    _client = lastLogin.Invoke();
 
-                Thread.Sleep(reTrySpan);
-                await reConnectAsync();
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex.Message);
+                    Thread.Sleep(reTrySpan);
+                }
             }
 
-            LogSuccess(_client);
+            connSuccessAsync();
         }
 
         private void HeartElapsed(object sender, ElapsedEventArgs e)
@@ -121,11 +88,12 @@ namespace FastTunnel.Core.Client
 
             try
             {
-                _client.Send(new Message<HeartMassage> { MessageType = MessageType.Heart, Content = null });
+                _client.SendCmd(new Message<HeartMassage> { MessageType = MessageType.Heart, Content = null });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                _logger.LogError(ex.Message);
+                // 与服务端断开连接
+                reConn();
             }
             finally
             {
@@ -153,11 +121,11 @@ namespace FastTunnel.Core.Client
                 _logger.LogError(ex.Message);
 
                 Thread.Sleep(reTrySpan);
-                reConnectAsync().Wait();
+                reConn();
                 return;
             }
 
-            LogSuccess(_client);
+            _ = connSuccessAsync();
         }
 
         protected virtual Socket login()
@@ -201,60 +169,44 @@ namespace FastTunnel.Core.Client
         void Close()
         {
             timer_heart.Stop();
-            timer_timeout.Stop();
 
             try
             {
-                if (_client != null && _client.Connected)
-                {
-                    _client.Shutdown(SocketShutdown.Both);
-                }
+                _client.Shutdown(SocketShutdown.Both);
+            }
+            catch (Exception)
+            {
+            }
+
+            _client.Close();
+        }
+
+        private async Task connSuccessAsync()
+        {
+            _logger.LogDebug("通信已建立");
+
+            // 心跳开始
+            timer_heart.Start();
+
+            await new PipeHepler(_client, ProceccLine).ProcessLinesAsync();
+        }
+
+        private bool ProceccLine(Socket socket, byte[] line)
+        {
+            try
+            {
+                var cmd = Encoding.UTF8.GetString(line);
+                HandleServerRequest(cmd);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex);
             }
-            finally
-            {
-                if (_client != null)
-                {
-                    _client.Close();
-                }
 
-                _logger.LogDebug("已退出登录\n");
-            }
-        }
-
-        private void LogSuccess(Socket socket)
-        {
-            _logger.LogDebug("通信已建立");
-
-            lastHeart = DateTime.Now;
-
-            // 心跳开始
-            timer_heart.Start();
-            timer_timeout.Start();
-
-            //th = new Thread(ReceiveServer);
-            //th.Start(socket);
-
-            ReceiveServerV2(socket);
-        }
-
-        private void ReceiveServerV2(object obj)
-        {
-            var client = obj as Socket;
-            new PipeHepler(client, ProceccLine).ProcessLinesAsync();
-        }
-
-        private bool ProceccLine(Socket socket, byte[] line)
-        {
-            var cmd = Encoding.UTF8.GetString(line);
-            HandleServerRequest(cmd);
             return true;
         }
 
-        private IClientHandler HandleServerRequest(string words)
+        private void HandleServerRequest(string words)
         {
             var Msg = JsonConvert.DeserializeObject<Message<JObject>>(words);
             IClientHandler handler;
@@ -277,7 +229,6 @@ namespace FastTunnel.Core.Client
             }
 
             handler.HandlerMsg(this, Msg);
-            return handler;
         }
     }
 }

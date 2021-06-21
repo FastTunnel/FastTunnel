@@ -46,7 +46,7 @@ namespace FastTunnel.Core.Server
                     // Tell the PipeWriter how much was read from the Socket.
                     writer.Advance(bytesRead);
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     break;
                 }

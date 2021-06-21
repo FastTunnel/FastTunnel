@@ -5,7 +5,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using NLog.Web;
 using System;
 
 namespace FastTunnel.Server
@@ -14,22 +13,7 @@ namespace FastTunnel.Server
     {
         public static void Main(string[] args)
         {
-            var logger = NLogBuilder.ConfigureNLog("nlog.config").GetCurrentClassLogger();
-            try
-            {
-                CreateHostBuilder(args).Build().Run();
-            }
-            catch (Exception exception)
-            {
-                //NLog: catch setup errors
-                logger.Error(exception, "Stopped program because of exception");
-                throw;
-            }
-            finally
-            {
-                // Ensure to flush and stop internal timers/threads before application-exit (Avoid segmentation fault on Linux)
-                NLog.LogManager.Shutdown();
-            }
+            CreateHostBuilder(args).Build().Run();
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>
@@ -58,7 +42,7 @@ namespace FastTunnel.Server
                 {
                     logging.ClearProviders();
                     logging.SetMinimumLevel(LogLevel.Trace);
-                })
-                .UseNLog();  // NLog: Setup NLog for Dependency injection
+                    logging.AddLog4Net();
+                });
     }
 }

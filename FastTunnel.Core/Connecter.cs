@@ -47,7 +47,7 @@ namespace FastTunnel.Core
         public void Send<T>(Message<T> msg)
             where T : TunnelMassage
         {
-            Socket.Send(msg);
+            Socket.SendCmd(msg);
         }
 
         public void Close()

@@ -18,15 +18,19 @@ namespace FastTunnel.Core.Client
         /// 外部请求，需要定期清理
         /// TODO:是否可以实现LRU
         /// </summary>
-        public ConcurrentDictionary<string, NewRequest> RequestTemp = new ConcurrentDictionary<string, NewRequest>();
+        public ConcurrentDictionary<string, NewRequest> RequestTemp { get; private set; }
+            = new ConcurrentDictionary<string, NewRequest>();
 
-        public ConcurrentDictionary<string, WebInfo> WebList = new ConcurrentDictionary<string, WebInfo>();
-        public ConcurrentDictionary<int, SSHInfo<SSHHandlerArg>> SSHList = new ConcurrentDictionary<int, SSHInfo<SSHHandlerArg>>();
+        public ConcurrentDictionary<string, WebInfo> WebList { get; private set; }
+            = new ConcurrentDictionary<string, WebInfo>();
+
+        public ConcurrentDictionary<int, SSHInfo<SSHHandlerArg>> SSHList { get; private set; }
+            = new ConcurrentDictionary<int, SSHInfo<SSHHandlerArg>>();
 
         public readonly IServerConfig ServerSettings;
         readonly ILogger _logger;
-        ClientListenerV2 clientListener;
-        HttpListenerV2 http_listener;
+        readonly ClientListenerV2 clientListener;
+        readonly HttpListenerV2 http_listener;
 
         public FastTunnelServer(ILogger<FastTunnelServer> logger, IConfiguration configuration)
         {
@@ -35,8 +39,6 @@ namespace FastTunnel.Core.Client
 
             clientListener = new ClientListenerV2(this, ServerSettings.BindAddr, ServerSettings.BindPort, _logger);
             http_listener = new HttpListenerV2(ServerSettings.BindAddr, ServerSettings.WebProxyPort, _logger);
-
-            clientListener.OnClientsChange += Client_listener_OnClientsChange;
         }
 
         public void Run()
@@ -67,19 +69,12 @@ namespace FastTunnel.Core.Client
             http_listener.Start(new HttpDispatcherV2(this, _logger, ServerSettings));
         }
 
-        private void Client_listener_OnClientsChange(System.Net.Sockets.Socket socket, int count, bool is_oofline)
-        {
-            if (is_oofline)
-                _logger.LogDebug($"客户端 {socket.RemoteEndPoint} 已断开，当前连接数：{count}");
-            else
-                _logger.LogDebug($"客户端 {socket.RemoteEndPoint} 已连接，当前连接数：{count}");
-        }
-
-        public void Stop(CancellationToken cancellationToken)
+        public void Stop()
         {
             _logger.LogInformation("===== FastTunnel Server Stoping =====");
 
-            // TODO:释放资源和线程
+            clientListener.Stop();
+            http_listener.Stop();
         }
     }
 }

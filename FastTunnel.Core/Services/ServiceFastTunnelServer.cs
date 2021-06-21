@@ -55,6 +55,10 @@ namespace FastTunnel.Core.Services
             {
                 // nlog第一次找不到文件的错误，跳过
             }
+            else if (e.Exception is PlatformNotSupportedException)
+            {
+                // log4net
+            }
             else if (e.Exception is IOException && e.Exception.Source == "System.Net.Security")
             {
             }
@@ -88,7 +92,7 @@ namespace FastTunnel.Core.Services
         {
             return Task.Run(() =>
             {
-                _server.Stop(cancellationToken);
+                _server.Stop();
             }, cancellationToken);
         }
     }
