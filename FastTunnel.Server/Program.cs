@@ -18,6 +18,7 @@ namespace FastTunnel.Server
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
+                .UseWindowsService()
                 .ConfigureWebHost(webHostBuilder =>
                 {
                     webHostBuilder.ConfigureAppConfiguration((hostingContext, config) =>
@@ -25,7 +26,6 @@ namespace FastTunnel.Server
                         var env = hostingContext.HostingEnvironment;
                         config.AddJsonFile("config/appsettings.json", optional: true, reloadOnChange: true)
                               .AddJsonFile($"config/appsettings.{env.EnvironmentName}.json", optional: true, reloadOnChange: true);
-
                     });
                 })
                 .ConfigureServices((hostContext, services) =>
