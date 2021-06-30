@@ -18,6 +18,10 @@ FROM build AS publish
 RUN dotnet publish "FastTunnel.Server.csproj" -c Release -o /app/publish
 
 FROM base AS final
+#RUN mkdir -p /vols
 WORKDIR /app
+COPY --from=publish /app/publish/config /vols/config
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "FastTunnel.Server.dll"]
+COPY ./start.sh .
+ENTRYPOINT ["/bin/bash","start.sh"]
+#ENTRYPOINT ["dotnet", "FastTunnel.Server.dll"]
