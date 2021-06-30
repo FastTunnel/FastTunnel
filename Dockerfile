@@ -23,5 +23,5 @@ WORKDIR /app
 COPY --from=publish /app/publish/config /vols/config
 COPY --from=publish /app/publish .
 COPY ./start.sh .
-ENTRYPOINT ["/bin/bash","start.sh"]
+ENTRYPOINT ["/bin/bash","./start.sh"]
 #ENTRYPOINT ["dotnet", "FastTunnel.Server.dll"]
