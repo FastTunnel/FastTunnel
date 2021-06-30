@@ -134,7 +134,9 @@ ssh -oPort=12701 root@x.x.x.x
 - run fasttunnel.client
 
 ## contributors
-[![contributors](https://whnb.wang/contributors/Hgui/FastTunnel)](https://whnb.wang)
+<a href = "https://github.com/FastTunnel/FastTunnel/graphs/contributors">
+  <img src = "https://contrib.rocks/image?repo=FastTunnel/FastTunnel"/>
+</a>
 
 ## Join QQ Group
 
