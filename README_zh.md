@@ -132,7 +132,9 @@ ssh -oPort=12701 root@x.x.x.x
 - 启动 fasttunnel.client
 - 
 ## 感谢以下贡献者
-[![contributors](https://whnb.wang/contributors/Hgui/FastTunnel)](https://whnb.wang)
+<a href = "https://github.com/FastTunnel/FastTunnel/graphs/contributors">
+  <img src = "https://contrib.rocks/image?repo=FastTunnel/FastTunnel"/>
+</a>  
 
 ## 加入QQ群
 
