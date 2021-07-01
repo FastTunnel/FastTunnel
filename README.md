@@ -47,6 +47,18 @@ Gitee: [FastTunnel](https://gitee.com/Hgui/FastTunnel)
 3. Run FastTunnel.Server
 4. Run FastTunnel.Cient
 
+## Install FastTunel.Sever using Docker Engine
+Configuration files and log files are mounted through volume. If this image has been run before, docker may not update to the latest image. Please delete the existing image manually, and then execute the following command
+
+```
+docker run --detach \
+  --publish 1270:1270 --publish 1271:1271 \
+  --name FastTunnel \
+  --restart always \
+  --volume /var/FastTunnel/config:/app/config \
+  --volume /var/FastTunnel/Logs:/app/Logs \
+  springhgui/fasttunnel:latest
+```
 ## Run on Linux/Mac os？
 #### Windows
 Double click directly `FastTunnel.Client.exe` to run
