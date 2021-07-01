@@ -4,7 +4,6 @@
 
 [![License](https://img.shields.io/badge/license-Apache%202-green.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Build status](https://github.com/anjoy8/blog.core/workflows/.NET%20Core/badge.svg)](https://github.com/SpringHgui/FastTunnel/actions)
-[![CircleCI](https://circleci.com/gh/SpringHgui/FastTunnel.svg?style=svg)](https://circleci.com/gh/SpringHgui/FastTunnel)
 [![Nuget](https://img.shields.io/nuget/v/FastTunnel.Core)](https://www.nuget.org/packages/FastTunnel.Core/)
 [![Nuget](https://img.shields.io/nuget/dt/FastTunnel.Core)](https://www.nuget.org/packages/FastTunnel.Core/)
 
@@ -46,6 +45,19 @@ Gitee: [FastTunnel](https://gitee.com/Hgui/FastTunnel)
 2. 根据自己的需求修改客户端以及服务端配置文件`appsettings.json`
 3. 服务端运行FastTunnel.Server
 4. 客户端运行FastTunnel.Cient
+
+## 使用Docker安装
+配置文件和日志文件通过volume挂载，如果之前运行过本镜像，docker可能不会更新至最新的镜像，请手动删除已存在的镜像，然后执行以下命令
+
+```
+docker run --detach \
+  --publish 1270:1270 --publish 1271:1271 \
+  --name FastTunnel \
+  --restart always \
+  --volume /var/FastTunnel/config:/app/config \
+  --volume /var/FastTunnel/Logs:/app/Logs \
+  springhgui/fasttunnel:latest
+```
 
 ## 如何在 Linux/Mac系统运行？
 #### Windows
