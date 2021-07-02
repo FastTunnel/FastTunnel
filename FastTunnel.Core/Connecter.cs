@@ -15,22 +15,12 @@ namespace FastTunnel.Core
 
         public Socket Socket { get; set; }
 
-        public Connecter(string v1, int v2, int? sendTimeout = null)
+        public Connecter(string v1, int v2)
         {
             this._host = v1;
             this._port = v2;
 
             Socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-
-            if (sendTimeout.HasValue)
-            {
-                Socket.ReceiveTimeout = sendTimeout.Value;
-                Socket.SendTimeout = sendTimeout.Value;
-            }
-            else
-            {
-                Socket.SendTimeout = 2000;
-            }
         }
 
         public void Connect()
