@@ -31,7 +31,7 @@ namespace FastTunnel.Core.Services
             _logger = logger;
             _authenticationFilter = authenticationFilter;
             _server = fastTunnelServer;
-            AppDomain.CurrentDomain.FirstChanceException += CurrentDomain_FirstChanceException;
+            //AppDomain.CurrentDomain.FirstChanceException += CurrentDomain_FirstChanceException;
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
         }
 

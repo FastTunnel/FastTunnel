@@ -9,6 +9,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using FastTunnel.Core.Sockets;
 
 namespace FastTunnel.Core.Handlers.Client
 {
@@ -17,12 +18,12 @@ namespace FastTunnel.Core.Handlers.Client
         public void HandlerMsg(FastTunnelClient cleint, Message<JObject> Msg)
         {
             var request = Msg.Content.ToObject<NewCustomerMassage>();
-            var connecter = new Connecter(cleint.Server.ServerAddr, cleint.Server.ServerPort);
+            var connecter = new DnsSocket(cleint.Server.ServerAddr, cleint.Server.ServerPort);
 
             connecter.Connect();
             connecter.Send(new Message<SwapMassage> { MessageType = MessageType.C_SwapMsg, Content = new SwapMassage(request.MsgId) });
 
-            var localConnecter = new Connecter(request.WebConfig.LocalIp, request.WebConfig.LocalPort);
+            var localConnecter = new DnsSocket(request.WebConfig.LocalIp, request.WebConfig.LocalPort);
 
             try
             {
@@ -59,7 +60,7 @@ namespace FastTunnel.Core.Handlers.Client
                 throw;
             }
 
-            new SocketSwap(connecter.Socket, localConnecter.Socket).StartSwapAsync();
+            new SocketSwap(connecter.Socket, localConnecter.Socket).StartSwap();
         }
     }
 }

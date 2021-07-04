@@ -23,7 +23,7 @@ namespace FastTunnel.Core.Services
             _logger = logger;
             _fastTunnelClient = fastTunnelClient;
 
-            AppDomain.CurrentDomain.FirstChanceException += CurrentDomain_FirstChanceException;
+            //AppDomain.CurrentDomain.FirstChanceException += CurrentDomain_FirstChanceException;
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
         }
 

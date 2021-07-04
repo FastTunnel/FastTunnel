@@ -6,16 +6,16 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 
-namespace FastTunnel.Core
+namespace FastTunnel.Core.Sockets
 {
-    public class Connecter
+    public class DnsSocket
     {
         private string _host;
         private int _port;
 
         public Socket Socket { get; set; }
 
-        public Connecter(string v1, int v2)
+        public DnsSocket(string v1, int v2)
         {
             this._host = v1;
             this._port = v2;

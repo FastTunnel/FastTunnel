@@ -1,6 +1,7 @@
 ﻿using FastTunnel.Core.Client;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Models;
+using FastTunnel.Core.Sockets;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
 using System;
@@ -35,7 +36,7 @@ namespace FastTunnel.Core.Handlers.Server
                    {
                        if (request.Buffer != null) client.Send(request.Buffer);
                    })
-                   .StartSwapAsync();
+                   .StartSwap();
             }
             else
             {

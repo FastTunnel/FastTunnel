@@ -3,8 +3,6 @@ using Newtonsoft.Json.Linq;
 using FastTunnel.Core.Config;
 using FastTunnel.Core.Models;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
@@ -15,6 +13,7 @@ using Microsoft.Extensions.Logging;
 using FastTunnel.Core.Handlers.Client;
 using Microsoft.Extensions.Configuration;
 using FastTunnel.Core.Server;
+using FastTunnel.Core.Sockets;
 
 namespace FastTunnel.Core.Client
 {
@@ -63,10 +62,13 @@ namespace FastTunnel.Core.Client
         private void reConn()
         {
             Close();
-            while (true)
+
+            do
             {
                 try
                 {
+                    Thread.Sleep(reTrySpan);
+
                     _logger.LogInformation("登录重试...");
                     _client = lastLogin.Invoke();
 
@@ -75,9 +77,8 @@ namespace FastTunnel.Core.Client
                 catch (Exception ex)
                 {
                     _logger.LogError(ex.Message);
-                    Thread.Sleep(reTrySpan);
                 }
-            }
+            } while (true);
 
             connSuccessAsync();
         }
@@ -120,7 +121,6 @@ namespace FastTunnel.Core.Client
             {
                 _logger.LogError(ex.Message);
 
-                Thread.Sleep(reTrySpan);
                 reConn();
                 return;
             }
@@ -133,20 +133,23 @@ namespace FastTunnel.Core.Client
             var ClientConfig = _configuration.Get<AppSettings>().ClientSettings;
             Server = ClientConfig.Server;
 
-            Connecter _client;
+            DnsSocket _client = null;
             _logger.LogInformation($"正在连接服务端 {Server.ServerAddr}:{Server.ServerPort}");
 
             try
             {
                 // 连接到的目标IP
-                _client = new Connecter(Server.ServerAddr, Server.ServerPort);
+                if (_client == null)
+                {
+                    _client = new DnsSocket(Server.ServerAddr, Server.ServerPort);
+                }
+
                 _client.Connect();
 
                 _logger.LogInformation("连接成功");
             }
             catch (Exception)
             {
-                Thread.Sleep(5000);
                 throw;
             }
 
@@ -172,13 +175,13 @@ namespace FastTunnel.Core.Client
 
             try
             {
-                _client.Shutdown(SocketShutdown.Both);
+                _client?.Shutdown(SocketShutdown.Both);
             }
             catch (Exception)
             {
             }
 
-            _client.Close();
+            _client?.Close();
         }
 
         private async Task connSuccessAsync()

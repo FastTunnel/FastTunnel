@@ -1,4 +1,5 @@
-﻿using System;
+﻿using FastTunnel.Core.Dispatchers;
+using System;
 using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Runtime.ExceptionServices;
@@ -6,9 +7,13 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace FastTunnel.Core
+namespace FastTunnel.Core.Sockets
 {
-    public class AsyncSocketSwap
+    /// <summary>
+    /// 异步数据交换
+    /// 存在大文件下载时，导致栈溢出的问题
+    /// </summary>
+    public class AsyncSocketSwap : ISocketSwap
     {
         private Socket m_sockt1;
         private Socket m_sockt2;
@@ -35,7 +40,7 @@ namespace FastTunnel.Core
             e2.SetBuffer(m_buffer, 512, 512);
         }
 
-        public AsyncSocketSwap BeforeSwap(Action fun)
+        public ISocketSwap BeforeSwap(Action fun)
         {
             if (m_swaping)
                 throw new Exception("BeforeSwap must be invoked before StartSwap!");
@@ -44,7 +49,7 @@ namespace FastTunnel.Core
             return this;
         }
 
-        public void StartSwapAsync()
+        public void StartSwap()
         {
             try
             {
@@ -133,20 +138,6 @@ namespace FastTunnel.Core
                 }
                 catch (Exception) { }
                 socket.Close();
-
-                //try
-                //{
-                //    m_sockt1.Shutdown(SocketShutdown.Both);
-                //}
-                //catch (Exception) { }
-                //m_sockt1.Close();
-
-                //try
-                //{
-                //    m_sockt2.Shutdown(SocketShutdown.Both);
-                //}
-                //catch (Exception) { }
-                //m_sockt2.Close();
             }
             catch (Exception ex)
             {

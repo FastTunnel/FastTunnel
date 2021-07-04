@@ -1,12 +1,13 @@
-﻿using System;
+﻿using FastTunnel.Core.Dispatchers;
+using System;
 using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 
-namespace FastTunnel.Core
+namespace FastTunnel.Core.Sockets
 {
-    public class SocketSwap
+    public class SocketSwap : ISocketSwap
     {
         private Socket _sockt1;
         private Socket _sockt2;
@@ -25,7 +26,7 @@ namespace FastTunnel.Core
             _sockt2 = sockt2;
         }
 
-        public void StartSwapAsync()
+        public void StartSwap()
         {
             Swaped = true;
             ThreadPool.QueueUserWorkItem(swapCallback, new Channel
@@ -111,7 +112,7 @@ namespace FastTunnel.Core
             }
         }
 
-        internal SocketSwap BeforeSwap(Action fun)
+        public ISocketSwap BeforeSwap(Action fun)
         {
             if (Swaped)
             {
