@@ -41,7 +41,6 @@ namespace FastTunnel.Core.Services
             return Task.CompletedTask;
         }
 
-
         private void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
             try

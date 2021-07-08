@@ -1,6 +1,9 @@
 ﻿using FastTunnel.Core.Dispatchers;
+using FastTunnel.Core.Utility.Extensions;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
@@ -9,9 +12,12 @@ namespace FastTunnel.Core.Sockets
 {
     public class SocketSwap : ISocketSwap
     {
-        private Socket _sockt1;
-        private Socket _sockt2;
-        bool Swaped = false;
+        private readonly Socket m_sockt1;
+        private readonly Socket m_sockt2;
+        private readonly string m_msgId = null;
+        private readonly ILogger m_logger;
+
+        private bool Swaped = false;
 
         private class Channel
         {
@@ -20,100 +26,116 @@ namespace FastTunnel.Core.Sockets
             public Socket Receive { get; set; }
         }
 
-        public SocketSwap(Socket sockt1, Socket sockt2)
+        public SocketSwap(Socket sockt1, Socket sockt2, ILogger logger, string msgId)
         {
-            _sockt1 = sockt1;
-            _sockt2 = sockt2;
+            m_sockt1 = sockt1;
+            m_sockt2 = sockt2;
+            m_msgId = msgId;
+            m_logger = logger;
         }
 
         public void StartSwap()
         {
+            m_logger?.LogDebug($"StartSwap {m_msgId}");
+
             Swaped = true;
             ThreadPool.QueueUserWorkItem(swapCallback, new Channel
             {
-                Send = _sockt1,
-                Receive = _sockt2
+                Send = m_sockt1,
+                Receive = m_sockt2
             });
 
             ThreadPool.QueueUserWorkItem(swapCallback, new Channel
             {
-                Send = _sockt2,
-                Receive = _sockt1
+                Send = m_sockt2,
+                Receive = m_sockt1
             });
         }
 
         private void swapCallback(object state)
         {
+            m_logger?.LogDebug($"swapCallback {m_msgId}");
             var chanel = state as Channel;
-            byte[] result = new byte[1024];
+            byte[] result = new byte[512];
 
             while (true)
             {
+                int num;
+
                 try
                 {
-                    if (!chanel.Receive.Connected)
+                    try
+                    {
+                        num = chanel.Receive.Receive(result, result.Length, SocketFlags.None);
+                    }
+                    catch (Exception)
+                    {
+                        closeSocket("Revice Fail");
                         break;
-                    int num = chanel.Receive.Receive(result, result.Length, SocketFlags.None);
+                    }
 
                     if (num == 0)
                     {
-                        chanel.Receive.Close();
-
-                        try
-                        {
-                            // Release the socket.//
-                            chanel.Send.Shutdown(SocketShutdown.Both);
-                        }
-                        catch { }
-                        finally
-                        {
-                            chanel.Send.Close();
-                        }
+                        closeSocket("Normal Close");
                         break;
-                    }
-
-                    if (!chanel.Send.Connected)
-                        break;
-
-                    // var str = Encoding.UTF8.GetString(result, 0, num);
-
-                    chanel.Send.Send(result, num, SocketFlags.None);
-                }
-                catch (SocketException)
-                {
-                    //  Interrupted function call. 10004
-                    // An existing connection was forcibly closed by the remote host. 10054
-                    try
-                    {
-                        chanel.Send.Shutdown(SocketShutdown.Both);
-                    }
-                    catch { }
-                    finally
-                    {
-                        chanel.Send.Close();
                     }
 
                     try
                     {
-                        chanel.Receive.Shutdown(SocketShutdown.Both);
+                        chanel.Send.Send(result, num, SocketFlags.None);
                     }
-                    catch { }
-                    finally
+                    catch (Exception)
                     {
-                        chanel.Receive.Close();
+                        closeSocket("Send Fail");
+                        break;
                     }
-                    break;
                 }
                 catch (Exception ex)
                 {
-                    Console.Write(ex.ToString());
-                    throw;
+                    m_logger.LogCritical(ex, "致命异常");
+                    break;
                 }
             }
+
+            var interval = long.Parse(DateTime.Now.GetChinaTicks()) - long.Parse(m_msgId.Split('_')[0]);
+            m_logger?.LogDebug($"endSwap {m_msgId} 交互时常：{interval}ms");
+        }
+
+        private void closeSocket(string msg)
+        {
+            m_logger.LogDebug($"【closeSocket】：{msg}");
+
+            try
+            {
+                m_sockt1.Shutdown(SocketShutdown.Both);
+            }
+            catch (Exception)
+            {
+            }
+            finally
+            {
+                m_sockt1.Close();
+            }
+
+            try
+            {
+                m_sockt2.Shutdown(SocketShutdown.Both);
+
+            }
+            catch (Exception)
+            {
+            }
+            finally
+            {
+                m_sockt2.Close();
+            }
+
         }
 
         public ISocketSwap BeforeSwap(Action fun)
         {
+            m_logger?.LogDebug($"BeforeSwap {m_msgId}");
+
             if (Swaped)
             {
                 throw new Exception("BeforeSwap must be invoked before StartSwap!");

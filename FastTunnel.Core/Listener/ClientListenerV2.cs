@@ -42,10 +42,10 @@ namespace FastTunnel.Core.Listener
             _heartHandler = new HeartMessageHandler();
             _swapMsgHandler = new SwapMessageHandler(_logger);
 
-            server = new Server.Server(1000, 100);
+            server = new Server.Server(2000, 100, _logger);
         }
 
-        public void Start(int backlog = 100)
+        public void Start()
         {
             IPAddress ipa = IPAddress.Parse(ListenIp);
             IPEndPoint localEndPoint = new IPEndPoint(ipa, ListenPort);

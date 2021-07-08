@@ -14,5 +14,7 @@ namespace FastTunnel.Core.Server
         public string MassgeTemp { get; set; }
 
         public byte[] Recived { get; set; }
+
+        public string RequestId { get; set; }
     }
 }

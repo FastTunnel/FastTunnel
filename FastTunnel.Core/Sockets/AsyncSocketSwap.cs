@@ -93,7 +93,6 @@ namespace FastTunnel.Core.Sockets
             var token = e.UserToken as SwapUserToken;
             if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
             {
-                Console.WriteLine("ProcessReceive:" + e.BytesTransferred);
                 e.SetBuffer(e.Offset, 512);
                 if (!token.Sender.SendAsync(e))
                 {

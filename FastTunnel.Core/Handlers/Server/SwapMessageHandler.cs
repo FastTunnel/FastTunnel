@@ -28,10 +28,14 @@ namespace FastTunnel.Core.Handlers.Server
             var SwapMsg = msg.Content.ToObject<SwapMassage>();
             NewRequest request;
 
+            _logger.LogDebug($"响应NewCustomer：{SwapMsg.msgId}");
             if (!string.IsNullOrEmpty(SwapMsg.msgId) && server.RequestTemp.TryGetValue(SwapMsg.msgId, out request))
             {
                 server.RequestTemp.TryRemove(SwapMsg.msgId, out _);
-                new SocketSwap(request.CustomerClient, client)
+
+                _logger.LogDebug($"SwapMassage：{SwapMsg.msgId}");
+
+                new SocketSwap(request.CustomerClient, client, _logger, SwapMsg.msgId)
                    .BeforeSwap(() =>
                    {
                        if (request.Buffer != null) client.Send(request.Buffer);

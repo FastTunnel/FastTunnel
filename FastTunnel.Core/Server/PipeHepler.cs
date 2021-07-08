@@ -13,6 +13,7 @@ namespace FastTunnel.Core.Server
     {
         Socket m_socket;
         Func<Socket, byte[], bool> processLine;
+        const int minimumBufferSize = 512;
 
         public PipeHepler(Socket socket, Func<Socket, byte[], bool> processLine)
         {
@@ -30,8 +31,6 @@ namespace FastTunnel.Core.Server
 
         private async Task FillPipeAsync(PipeWriter writer)
         {
-            const int minimumBufferSize = 512;
-
             while (true)
             {
                 // Allocate at least 512 bytes from the PipeWriter.
@@ -77,7 +76,7 @@ namespace FastTunnel.Core.Server
                     if (!processLine(m_socket, line.ToArray()))
                     {
                         // 停止继续监听
-
+                        break;
                     }
                 }
 

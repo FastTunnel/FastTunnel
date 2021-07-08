@@ -3,6 +3,8 @@
 // is sent back to the client. The read and echo back to the client pattern
 // is continued until the client disconnects.
 using FastTunnel.Core.Extensions;
+using FastTunnel.Core.Utility.Extensions;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Linq;
 using System.Net;
@@ -28,6 +30,9 @@ namespace FastTunnel.Core.Server
 
         Func<AsyncUserToken, string, bool> m_handller;
         string m_sectionFlag;
+        IPEndPoint _localEndPoint;
+
+        ILogger _logger;
 
         // Create an uninitialized server instance.
         // To start the server listening for connection requests
@@ -35,8 +40,9 @@ namespace FastTunnel.Core.Server
         //
         // <param name="numConnections">the maximum number of connections the sample is designed to handle simultaneously</param>
         // <param name="receiveBufferSize">buffer size to use for each socket I/O operation</param>
-        public Server(int numConnections, int receiveBufferSize)
+        public Server(int numConnections, int receiveBufferSize, ILogger logger)
         {
+            _logger = logger;
             //m_totalBytesRead = 0;
             m_numConnectedSockets = 0;
             m_numConnections = numConnections;
@@ -47,6 +53,7 @@ namespace FastTunnel.Core.Server
                 receiveBufferSize);
 
             m_readWritePool = new SocketAsyncEventArgsPool(numConnections);
+
             m_maxNumberAcceptedClients = new Semaphore(numConnections, numConnections);
         }
 
@@ -88,12 +95,13 @@ namespace FastTunnel.Core.Server
         {
             m_handller = handller;
             m_sectionFlag = sectionFlag;
+            _localEndPoint = localEndPoint;
 
             // create the socket which listens for incoming connections
             listenSocket = new Socket(localEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             listenSocket.Bind(localEndPoint);
             // start the server with a listen backlog of 100 connections
-            listenSocket.Listen(100);
+            listenSocket.Listen();
 
             // post accepts on the listening socket
             StartAccept(null);
@@ -117,6 +125,7 @@ namespace FastTunnel.Core.Server
             }
 
             m_maxNumberAcceptedClients.WaitOne();
+
             bool willRaiseEvent = listenSocket.AcceptAsync(acceptEventArg);
             if (!willRaiseEvent)
             {
@@ -126,7 +135,6 @@ namespace FastTunnel.Core.Server
 
         // This method is the callback method associated with Socket.AcceptAsync
         // operations and is invoked when an accept operation is complete
-        //
         void AcceptEventArg_Completed(object sender, SocketAsyncEventArgs e)
         {
             ProcessAccept(e);
@@ -135,15 +143,19 @@ namespace FastTunnel.Core.Server
         private void ProcessAccept(SocketAsyncEventArgs e)
         {
             Interlocked.Increment(ref m_numConnectedSockets);
+            _logger.LogInformation($"[当前连接数]:{_localEndPoint.Port} | {m_numConnectedSockets}");
 
             // Get the socket for the accepted client connection and put it into the
             //ReadEventArg object user token
             SocketAsyncEventArgs readEventArgs = m_readWritePool.Pop();
-            ((AsyncUserToken)readEventArgs.UserToken).Socket = e.AcceptSocket;
-            ((AsyncUserToken)readEventArgs.UserToken).MassgeTemp = null;
-            ((AsyncUserToken)readEventArgs.UserToken).Recived = null;
+            var token = readEventArgs.UserToken as AsyncUserToken;
+            token.Socket = e.AcceptSocket;
+            token.MassgeTemp = null;
+            token.Recived = null;
+            token.RequestId = $"{DateTime.Now.GetChinaTicks()}_{Guid.NewGuid().ToString().Replace("-", string.Empty)}";
 
-            Console.WriteLine("ReceiveAsync");
+            _logger.LogDebug($"Accept {token.RequestId}");
+
             // As soon as the client is connected, post a receive to the connection
             bool willRaiseEvent = e.AcceptSocket.ReceiveAsync(readEventArgs);
             if (!willRaiseEvent)
@@ -181,10 +193,11 @@ namespace FastTunnel.Core.Server
         private void ProcessReceive(SocketAsyncEventArgs e)
         {
             AsyncUserToken token = (AsyncUserToken)e.UserToken;
+            _logger.LogDebug($"[ProcessReceive]: {_localEndPoint.Port} | {token.RequestId}");
             if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
             {
-                //increment the count of the total bytes receive by the server
-                //Interlocked.Add(ref m_totalBytesRead, e.BytesTransferred);
+                // increment the count of the total bytes receive by the server
+                // Interlocked.Add(ref m_totalBytesRead, e.BytesTransferred);
                 if (token.Recived != null)
                 {
                     byte[] resArr = new byte[token.Recived.Length + e.BytesTransferred];
@@ -292,6 +305,7 @@ namespace FastTunnel.Core.Server
             // decrement the counter keeping track of the total number of clients connected to the server
             Interlocked.Decrement(ref m_numConnectedSockets);
 
+            _logger.LogInformation($"[SocketCount]:{_localEndPoint.Port} | {m_numConnectedSockets}");
             // Free the SocketAsyncEventArg so they can be reused by another client
             m_readWritePool.Push(e);
 

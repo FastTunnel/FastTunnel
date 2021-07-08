@@ -40,7 +40,6 @@ namespace FastTunnel.Core.Server
         // <returns>true if the buffer was successfully set, else false</returns>
         public bool SetBuffer(SocketAsyncEventArgs args)
         {
-
             if (m_freeIndexPool.Count > 0)
             {
                 args.SetBuffer(m_buffer, m_freeIndexPool.Pop(), m_bufferSize);
@@ -51,6 +50,7 @@ namespace FastTunnel.Core.Server
                 {
                     return false;
                 }
+
                 args.SetBuffer(m_buffer, m_currentIndex, m_bufferSize);
                 m_currentIndex += m_bufferSize;
             }

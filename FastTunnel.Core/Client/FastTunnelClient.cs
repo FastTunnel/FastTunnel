@@ -191,20 +191,103 @@ namespace FastTunnel.Core.Client
             // 心跳开始
             timer_heart.Start();
 
-            await new PipeHepler(_client, ProceccLine).ProcessLinesAsync();
+            var th = new Thread(ReceiveServer);
+            th.Start(_client);
+            //await new PipeHepler(_client, ProceccLine).ProcessLinesAsync();
+        }
+
+        private void ReceiveServer(object obj)
+        {
+            var client = obj as Socket;
+            byte[] buffer = new byte[1024];
+
+            string lastBuffer = string.Empty;
+            int n = 0;
+
+            while (true)
+            {
+                try
+                {
+                    n = client.Receive(buffer);
+                    if (n == 0)
+                    {
+                        client.Shutdown(SocketShutdown.Both);
+                        break;
+                    }
+                }
+                /// <see cref="https://docs.microsoft.com/zh-cn/windows/win32/winsock/windows-sockets-error-codes-2"/>
+                catch (SocketException socketEx)
+                {
+                    // Connection timed out.
+                    if (socketEx.ErrorCode == 10060)
+                    {
+                        _logger.LogInformation("Connection timed out");
+                    }
+                    else
+                    {
+                        _logger.LogError(socketEx);
+                    }
+
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex);
+                    break;
+                }
+
+                string words = Encoding.UTF8.GetString(buffer, 0, n);
+                if (!string.IsNullOrEmpty(lastBuffer))
+                {
+                    words = lastBuffer + words;
+                    lastBuffer = null;
+                }
+
+                var msgs = words.Split("\n");
+
+                _logger.LogDebug("recive from server:" + words);
+
+                try
+                {
+                    foreach (var item in msgs)
+                    {
+                        if (string.IsNullOrEmpty(item))
+                            continue;
+
+                        if (item.EndsWith("}"))
+                        {
+                            HandleServerRequest(item);
+                        }
+                        else
+                        {
+                            lastBuffer = item;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex.Message);
+                    continue;
+                }
+            }
+
+            _logger.LogInformation("stop receive from server");
         }
 
         private bool ProceccLine(Socket socket, byte[] line)
         {
-            try
+            Task.Run(() =>
             {
-                var cmd = Encoding.UTF8.GetString(line);
-                HandleServerRequest(cmd);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex);
-            }
+                try
+                {
+                    var cmd = Encoding.UTF8.GetString(line);
+                    HandleServerRequest(cmd);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex);
+                }
+            });
 
             return true;
         }
@@ -212,6 +295,11 @@ namespace FastTunnel.Core.Client
         private void HandleServerRequest(string words)
         {
             var Msg = JsonConvert.DeserializeObject<Message<JObject>>(words);
+            if (Msg.MessageType!= MessageType.Heart)
+            {
+                _logger.LogDebug($"HandleServerRequest {words}");
+            }
+            
             IClientHandler handler;
             switch (Msg.MessageType)
             {
