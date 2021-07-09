@@ -1,4 +1,6 @@
-<p align="center"><img src="images/logo.png" width="150" align=center /></p>
+<div align="center">
+
+<img src="images/logo.png" width="150" align=center />
 
 ## FastTunnel-内网穿透
 
@@ -8,6 +10,8 @@
 [![Nuget](https://img.shields.io/nuget/dt/FastTunnel.Core)](https://www.nuget.org/packages/FastTunnel.Core/)
 
 [README](README.md) | [中文文档](README_zh.md)
+  
+</div>
 
 ***
 
