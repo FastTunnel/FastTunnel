@@ -31,6 +31,7 @@ namespace FastTunnel.Core.Server
         Func<AsyncUserToken, string, bool> m_handller;
         string m_sectionFlag;
         IPEndPoint _localEndPoint;
+        bool m_isHttpServer;
 
         ILogger _logger;
 
@@ -40,8 +41,9 @@ namespace FastTunnel.Core.Server
         //
         // <param name="numConnections">the maximum number of connections the sample is designed to handle simultaneously</param>
         // <param name="receiveBufferSize">buffer size to use for each socket I/O operation</param>
-        public Server(int numConnections, int receiveBufferSize, ILogger logger)
+        public Server(int numConnections, int receiveBufferSize, bool isHttpServer, ILogger logger)
         {
+            m_isHttpServer = isHttpServer;
             _logger = logger;
             //m_totalBytesRead = 0;
             m_numConnectedSockets = 0;
@@ -146,15 +148,19 @@ namespace FastTunnel.Core.Server
             _logger.LogInformation($"[当前连接数]:{_localEndPoint.Port} | {m_numConnectedSockets}");
 
             // Get the socket for the accepted client connection and put it into the
-            //ReadEventArg object user token
+            // ReadEventArg object user token
             SocketAsyncEventArgs readEventArgs = m_readWritePool.Pop();
             var token = readEventArgs.UserToken as AsyncUserToken;
             token.Socket = e.AcceptSocket;
             token.MassgeTemp = null;
             token.Recived = null;
-            token.RequestId = $"{DateTime.Now.GetChinaTicks()}_{Guid.NewGuid().ToString().Replace("-", string.Empty)}";
 
-            _logger.LogDebug($"Accept {token.RequestId}");
+            // 客户端请求不需要分配msgid
+            if (m_isHttpServer)
+            {
+                token.RequestId = $"{DateTime.Now.GetChinaTicks()}_{Guid.NewGuid().ToString().Replace("-", string.Empty)}";
+                _logger.LogDebug($"Accept {token.RequestId}");
+            }
 
             // As soon as the client is connected, post a receive to the connection
             bool willRaiseEvent = e.AcceptSocket.ReceiveAsync(readEventArgs);
@@ -196,25 +202,28 @@ namespace FastTunnel.Core.Server
             _logger.LogDebug($"[ProcessReceive]: {_localEndPoint.Port} | {token.RequestId}");
             if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
             {
-                // increment the count of the total bytes receive by the server
-                // Interlocked.Add(ref m_totalBytesRead, e.BytesTransferred);
-                if (token.Recived != null)
-                {
-                    byte[] resArr = new byte[token.Recived.Length + e.BytesTransferred];
-                    token.Recived.CopyTo(resArr, 0);
-                    Array.Copy(e.Buffer, e.Offset, resArr, token.Recived.Length, e.BytesTransferred);
-                    token.Recived = resArr;
-                }
-                else
-                {
-                    byte[] resArr = new byte[e.BytesTransferred];
-                    Array.Copy(e.Buffer, e.Offset, resArr, 0, e.BytesTransferred);
-                    token.Recived = resArr;
-                }
-
                 bool needRecive = false;
                 var words = e.Buffer.GetString(e.Offset, e.BytesTransferred);
                 var sum = token.MassgeTemp + words;
+
+                // 只有http请求需要对已发送字节进行存储
+                if (m_isHttpServer)
+                {
+                    if (token.Recived != null)
+                    {
+                        byte[] resArr = new byte[token.Recived.Length + e.BytesTransferred];
+                        token.Recived.CopyTo(resArr, 0);
+                        Array.Copy(e.Buffer, e.Offset, resArr, token.Recived.Length, e.BytesTransferred);
+                        token.Recived = resArr;
+                    }
+                    else
+                    {
+                        byte[] resArr = new byte[e.BytesTransferred];
+                        Array.Copy(e.Buffer, e.Offset, resArr, 0, e.BytesTransferred);
+                        token.Recived = resArr;
+                    }
+                }
+
                 if (sum.Contains(m_sectionFlag))
                 {
                     var array = (sum).Split(m_sectionFlag);
@@ -246,7 +255,6 @@ namespace FastTunnel.Core.Server
                     token.MassgeTemp = sum;
                 }
 
-                e.SetBuffer(e.Offset, m_receiveBufferSize);
                 bool willRaiseEvent = token.Socket.ReceiveAsync(e);
                 if (!willRaiseEvent)
                 {

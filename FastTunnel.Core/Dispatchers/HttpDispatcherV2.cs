@@ -73,7 +73,6 @@ namespace FastTunnel.Core.Dispatchers
                 Host = collection[0].Value;
             }
 
-            _logger.LogDebug(Host.Replace("\r", ""));
             var domain = Host.Split(":")[1].Trim();
 
             _logger.LogDebug($"=======Dispatch domain:{domain} {token.RequestId} ========");
@@ -94,34 +93,26 @@ namespace FastTunnel.Core.Dispatchers
                 return;
             }
 
-            _logger.LogDebug($"=======找到映射的站点 {token.RequestId}========");
-            _fastTunnelServer.RequestTemp.TryAdd(token.RequestId, new NewRequest
-            {
-                CustomerClient = token.Socket,
-                Buffer = token.Recived
-            });
-
             try
             {
-                sw.Stop();
-                _logger.LogDebug($"[寻找路由耗时]：{sw.ElapsedMilliseconds}ms");
-
-                sw.Restart();
+                // 发送指令给客户端，等待建立隧道
                 web.Socket.SendCmd(new Message<NewCustomerMassage> { MessageType = MessageType.S_NewCustomer, Content = new NewCustomerMassage { MsgId = token.RequestId, WebConfig = web.WebConfig } });
-
-                sw.Stop();
-                _logger.LogDebug($"[发送NewCustomer指令耗时]：{sw.ElapsedMilliseconds}");
-
-                _logger.LogDebug($"=======发送请求成功 {token.RequestId}========");
             }
             catch (Exception)
             {
-                _logger.LogDebug($"=======客户端不在线 {token.RequestId}========");
+                _logger.LogDebug($"[客户端不在线] {token.RequestId}");
                 HandlerClientNotOnLine(token.Socket, domain);
 
                 // 移除
                 _fastTunnelServer.WebList.TryRemove(domain, out _);
             }
+
+            // 将等待的http请求
+            _fastTunnelServer.RequestTemp.TryAdd(token.RequestId, new NewRequest
+            {
+                CustomerClient = token.Socket,
+                Buffer = token.Recived
+            });
         }
 
         public void Dispatch(Socket httpClient)

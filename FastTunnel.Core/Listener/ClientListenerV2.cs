@@ -42,7 +42,7 @@ namespace FastTunnel.Core.Listener
             _heartHandler = new HeartMessageHandler();
             _swapMsgHandler = new SwapMessageHandler(_logger);
 
-            server = new Server.Server(2000, 100, _logger);
+            server = new Server.Server(2000, 100, false, _logger);
         }
 
         public void Start()
@@ -86,7 +86,15 @@ namespace FastTunnel.Core.Listener
                     throw new Exception($"未知的通讯指令 {msg.MessageType}");
             }
 
-            handler.HandlerMsg(this._fastTunnelServer, token.Socket, msg);
+            try
+            {
+                handler.HandlerMsg(this._fastTunnelServer, token.Socket, msg);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "处理客户端消息失败");
+            }
+
             return handler.NeedRecive;
         }
 

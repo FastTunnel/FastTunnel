@@ -21,6 +21,7 @@ namespace FastTunnel.Core.Sockets
             this._port = v2;
 
             Socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            Socket.NoDelay = true;
         }
 
         public void Connect()

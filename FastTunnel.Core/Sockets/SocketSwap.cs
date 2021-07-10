@@ -17,7 +17,7 @@ namespace FastTunnel.Core.Sockets
         private readonly string m_msgId = null;
         private readonly ILogger m_logger;
 
-        private bool Swaped = false;
+        private bool swapeStarted = false;
 
         private class Channel
         {
@@ -28,6 +28,8 @@ namespace FastTunnel.Core.Sockets
 
         public SocketSwap(Socket sockt1, Socket sockt2, ILogger logger, string msgId)
         {
+            //sockt1.NoDelay = true;
+            //sockt2.NoDelay = true;
             m_sockt1 = sockt1;
             m_sockt2 = sockt2;
             m_msgId = msgId;
@@ -36,9 +38,9 @@ namespace FastTunnel.Core.Sockets
 
         public void StartSwap()
         {
-            m_logger?.LogDebug($"StartSwap {m_msgId}");
+            m_logger?.LogDebug($"[StartSwapStart] {m_msgId}");
+            swapeStarted = true;
 
-            Swaped = true;
             ThreadPool.QueueUserWorkItem(swapCallback, new Channel
             {
                 Send = m_sockt1,
@@ -50,6 +52,8 @@ namespace FastTunnel.Core.Sockets
                 Send = m_sockt2,
                 Receive = m_sockt1
             });
+
+            m_logger?.LogDebug($"[StartSwapEnd] {m_msgId}");
         }
 
         private void swapCallback(object state)
@@ -66,7 +70,7 @@ namespace FastTunnel.Core.Sockets
                 {
                     try
                     {
-                        num = chanel.Receive.Receive(result, result.Length, SocketFlags.None);
+                        num = chanel.Receive.Receive(result, 0, result.Length, SocketFlags.None);
                     }
                     catch (Exception)
                     {
@@ -82,7 +86,7 @@ namespace FastTunnel.Core.Sockets
 
                     try
                     {
-                        chanel.Send.Send(result, num, SocketFlags.None);
+                        chanel.Send.Send(result, 0, num, SocketFlags.None);
                     }
                     catch (Exception)
                     {
@@ -136,7 +140,7 @@ namespace FastTunnel.Core.Sockets
         {
             m_logger?.LogDebug($"BeforeSwap {m_msgId}");
 
-            if (Swaped)
+            if (swapeStarted)
             {
                 throw new Exception("BeforeSwap must be invoked before StartSwap!");
             }

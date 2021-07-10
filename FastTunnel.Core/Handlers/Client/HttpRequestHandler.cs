@@ -29,11 +29,11 @@ namespace FastTunnel.Core.Handlers.Client
             var request = Msg.Content.ToObject<NewCustomerMassage>();
             var interval = long.Parse(DateTime.Now.GetChinaTicks()) - long.Parse(request.MsgId.Split('_')[0]);
 
-            _logger.LogDebug($"Start SwapMassage {request.MsgId} 延迟时间：{interval}ms");
+            _logger.LogDebug($"Start SwapMassage {request.MsgId} 服务端耗时：{interval}ms");
 
             var connecter = new DnsSocket(cleint.Server.ServerAddr, cleint.Server.ServerPort);
-
             connecter.Connect();
+
             connecter.Send(new Message<SwapMassage> { MessageType = MessageType.C_SwapMsg, Content = new SwapMassage(request.MsgId) });
 
             _logger.LogDebug($"连接server成功 {request.MsgId}");

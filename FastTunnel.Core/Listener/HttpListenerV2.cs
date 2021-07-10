@@ -30,7 +30,7 @@ namespace FastTunnel.Core.Listener
             this.ListenIp = ip;
             this.ListenPort = port;
 
-            server = new Server.Server(500, 512, _logger);
+            server = new Server.Server(1000, 512, true, _logger);
         }
 
         public void Start(IListenerDispatcher requestDispatcher, int backlog = 100)
