@@ -28,9 +28,13 @@ namespace FastTunnel.Core.Handlers.Server
         {
             var SwapMsg = msg.Content.ToObject<SwapMassage>();
             NewRequest request;
-            var interval = long.Parse(DateTime.Now.GetChinaTicks()) - long.Parse(SwapMsg.msgId.Split('_')[0]);
 
-            _logger.LogDebug($"[开始转发HTTP]：{SwapMsg.msgId} 客户端耗时：{interval}ms");
+            if (SwapMsg.msgId.Contains("_"))
+            {
+                var interval = long.Parse(DateTime.Now.GetChinaTicks()) - long.Parse(SwapMsg.msgId.Split('_')[0]);
+                _logger.LogDebug($"[开始转发HTTP]：{SwapMsg.msgId} 客户端耗时：{interval}ms");
+            }
+
             if (!string.IsNullOrEmpty(SwapMsg.msgId) && server.RequestTemp.TryGetValue(SwapMsg.msgId, out request))
             {
                 server.RequestTemp.TryRemove(SwapMsg.msgId, out _);

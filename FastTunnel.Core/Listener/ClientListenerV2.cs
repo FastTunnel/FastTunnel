@@ -92,7 +92,7 @@ namespace FastTunnel.Core.Listener
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "处理客户端消息失败");
+                _logger.LogError(ex, $"处理客户端消息失败：msg={msg.ToJson()}");
             }
 
             return handler.NeedRecive;

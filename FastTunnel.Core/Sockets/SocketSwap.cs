@@ -101,8 +101,11 @@ namespace FastTunnel.Core.Sockets
                 }
             }
 
-            var interval = long.Parse(DateTime.Now.GetChinaTicks()) - long.Parse(m_msgId.Split('_')[0]);
-            m_logger?.LogDebug($"endSwap {m_msgId} 交互时常：{interval}ms");
+            if (m_msgId.Contains("_"))
+            {
+                var interval = long.Parse(DateTime.Now.GetChinaTicks()) - long.Parse(m_msgId.Split('_')[0]);
+                m_logger?.LogDebug($"endSwap {m_msgId} 交互时常：{interval}ms");
+            }
         }
 
         private void closeSocket(string msg)
