@@ -35,7 +35,7 @@ namespace FastTunnel.Core.Client
         ClientHeartHandler _clientHeartHandler;
         Func<Socket> lastLogin;
         Message<LogInMassage> loginMsg;
-        IConfiguration _configuration;
+        protected readonly IConfiguration _configuration;
 
         public SuiDaoServer Server { get; protected set; }
 
@@ -295,11 +295,11 @@ namespace FastTunnel.Core.Client
         private void HandleServerRequest(string words)
         {
             var Msg = JsonConvert.DeserializeObject<Message<JObject>>(words);
-            if (Msg.MessageType!= MessageType.Heart)
+            if (Msg.MessageType != MessageType.Heart)
             {
                 _logger.LogDebug($"HandleServerRequest {words}");
             }
-            
+
             IClientHandler handler;
             switch (Msg.MessageType)
             {
