@@ -9,8 +9,10 @@
 [![Nuget](https://img.shields.io/nuget/v/FastTunnel.Core)](https://www.nuget.org/packages/FastTunnel.Core/)
 [![Nuget](https://img.shields.io/nuget/dt/FastTunnel.Core)](https://www.nuget.org/packages/FastTunnel.Core/)
 
-[README](README.md) | [中文文档](README_zh.md)
-  
+[README](README.md) | [中文文档](README_zh.md)  
+    
+**本项目支持任何商用和二次开发行为，但对于剽窃复制本项目代码、实现方案或架构重新开源包装成自己的开源作品，严重鄙视。**
+
 </div>
 
 ***
@@ -25,10 +27,9 @@ GitHub : [FastTunnel](https://github.com/SpringHgui/FastTunnel)
 Gitee: [FastTunnel](https://gitee.com/Hgui/FastTunnel)
 
 **有帮助的朋友点下右上角项目的⭐Star支持一下本项目，有需求和bug请提交issue，同时欢迎各位coder进行PR**
+### 获得GVP称号
 
-***
 ![img1](images/gvp.png)
-***
 
 ## FastTunnel有哪些特性
 - [x] 在任何地方远程内网计算机(公司或家里的计算机) Windows/Linux/Mac
@@ -152,7 +153,7 @@ ssh -oPort=12701 root@x.x.x.x
   <img src = "https://contrib.rocks/image?repo=FastTunnel/FastTunnel"/>
 </a>  
 
-## 加入QQ群
+## QQ群交流群
 
 <div align="center"><img src="images/qqgroup.png" width="150" align=center /></div>
 

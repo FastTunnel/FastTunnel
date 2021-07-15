@@ -9,8 +9,17 @@
 [![Nuget](https://img.shields.io/nuget/dt/FastTunnel.Core)](https://www.nuget.org/packages/FastTunnel.Core/)
 
 [README](README.md) | [中文文档](README_zh.md)
-
+  
+  ***This project supports any commercial and secondary development activities, but seriously despises plagiarizing and copying the code, implementation scheme or architecture of this project and repackaging them into their own open source works.***
+  
 </div>
+
+
+## What is FastTunnel？
+- FastTunnel is a high-performance cross-platform intranet penetration tool. With it, you can expose intranet services to the public network for yourself or anyone to access.
+- Unlike other penetration tools, the FastTunnel project is committed to creating an easy-to-extensible and easy-to-maintain intranet penetration framework.
+- You can build your own penetration application by referencing the nuget package of `FastTunnel.Core`, and target the business extension functions you need.
+
 
 ***
 
@@ -24,16 +33,12 @@ OpenSource：
 GitHub : [FastTunnel](https://github.com/SpringHgui/FastTunnel)  
 Gitee: [FastTunnel](https://gitee.com/Hgui/FastTunnel)
 
-***
-
 **If helpful, click on ⭐Star to support this project, please submit an issue if you have needs and bugs, and welcome coder to PR**
+
+## Get GVP
+
 ![img1](images/gvp.png)
 ***
-
-## What is FastTunnel？
-- FastTunnel is a high-performance cross-platform intranet penetration tool. With it, you can expose intranet services to the public network for yourself or anyone to access.
-- Unlike other penetration tools, the FastTunnel project is committed to creating an easy-to-extensible and easy-to-maintain intranet penetration framework.
-- You can build your own penetration application by referencing the nuget package of `FastTunnel.Core`, and target the business extension functions you need.
 
 ## What can FastTunel do？
 - [x] Remote intranet computer Windows/Linux/Mac
