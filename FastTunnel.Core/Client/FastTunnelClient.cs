@@ -14,6 +14,7 @@ using FastTunnel.Core.Handlers.Client;
 using Microsoft.Extensions.Configuration;
 using FastTunnel.Core.Server;
 using FastTunnel.Core.Sockets;
+using Microsoft.Extensions.Options;
 
 namespace FastTunnel.Core.Client
 {
@@ -35,7 +36,7 @@ namespace FastTunnel.Core.Client
         ClientHeartHandler _clientHeartHandler;
         Func<Socket> lastLogin;
         Message<LogInMassage> loginMsg;
-        protected readonly IConfiguration _configuration;
+        protected readonly IOptionsMonitor<DefaultClientConfig> _configuration;
 
         public SuiDaoServer Server { get; protected set; }
 
@@ -43,7 +44,7 @@ namespace FastTunnel.Core.Client
             ILogger<FastTunnelClient> logger,
             HttpRequestHandler newCustomerHandler,
             NewSSHHandler newSSHHandler, LogHandler logHandler,
-            IConfiguration configuration,
+            IOptionsMonitor<DefaultClientConfig> configuration,
             ClientHeartHandler clientHeartHandler)
         {
             _logger = logger;
@@ -130,8 +131,7 @@ namespace FastTunnel.Core.Client
 
         protected virtual Socket login()
         {
-            var ClientConfig = _configuration.Get<AppSettings>().ClientSettings;
-            Server = ClientConfig.Server;
+            Server = _configuration.CurrentValue.Server;
 
             DnsSocket _client = null;
             _logger.LogInformation($"正在连接服务端 {Server.ServerAddr}:{Server.ServerPort}");
@@ -158,8 +158,8 @@ namespace FastTunnel.Core.Client
                 MessageType = MessageType.C_LogIn,
                 Content = new LogInMassage
                 {
-                    Webs = ClientConfig.Webs,
-                    SSH = ClientConfig.SSH,
+                    Webs = _configuration.CurrentValue.Webs,
+                    SSH = _configuration.CurrentValue.SSH,
                 },
             };
 

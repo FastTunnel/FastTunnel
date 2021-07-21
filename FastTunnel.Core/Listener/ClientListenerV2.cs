@@ -70,32 +70,33 @@ namespace FastTunnel.Core.Listener
                 return false;
             }
 
-            IClientMessageHandler handler = null;
-            switch (msg.MessageType)
-            {
-                case MessageType.C_LogIn: // 登录
-                    handler = _loginHandler;
-                    break;
-                case MessageType.Heart:   // 心跳
-                    handler = _heartHandler;
-                    break;
-                case MessageType.C_SwapMsg: // 交换数据
-                    handler = _swapMsgHandler;
-                    break;
-                default:
-                    throw new Exception($"未知的通讯指令 {msg.MessageType}");
-            }
-
             try
             {
+                IClientMessageHandler handler = null;
+                switch (msg.MessageType)
+                {
+                    case MessageType.C_LogIn: // 登录
+                        handler = _loginHandler;
+                        break;
+                    case MessageType.Heart:   // 心跳
+                        handler = _heartHandler;
+                        break;
+                    case MessageType.C_SwapMsg: // 交换数据
+                        handler = _swapMsgHandler;
+                        break;
+                    default:
+                        throw new Exception($"未知的通讯指令 {msg.MessageType}");
+                }
+
                 handler.HandlerMsg(this._fastTunnelServer, token.Socket, msg);
+                return handler.NeedRecive;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"处理客户端消息失败：msg={msg.ToJson()}");
+                _logger.LogError(ex, $"处理客户端消息失败：msg={msg?.ToJson()}");
+                token.Socket.Close();
+                return false;
             }
-
-            return handler.NeedRecive;
         }
 
         public void Stop()

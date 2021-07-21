@@ -31,7 +31,7 @@ namespace FastTunnel.Server
                 .ConfigureServices((hostContext, services) =>
                 {
                     // -------------------FastTunnel START------------------
-                    services.AddFastTunnelServer();
+                    services.AddFastTunnelServer(hostContext.Configuration.GetSection("ServerSettings"));
                     // -------------------FastTunnel END--------------------
                 })
                 .ConfigureWebHostDefaults(webBuilder =>

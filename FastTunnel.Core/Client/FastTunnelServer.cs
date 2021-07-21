@@ -9,6 +9,7 @@ using FastTunnel.Core.Dispatchers;
 using System.Threading.Tasks;
 using System.Threading;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace FastTunnel.Core.Client
 {
@@ -27,36 +28,26 @@ namespace FastTunnel.Core.Client
         public ConcurrentDictionary<int, SSHInfo<SSHHandlerArg>> SSHList { get; private set; }
             = new ConcurrentDictionary<int, SSHInfo<SSHHandlerArg>>();
 
-        public readonly IServerConfig ServerSettings;
         readonly ILogger _logger;
         readonly ClientListenerV2 clientListener;
         readonly HttpListenerV2 http_listener;
+        public readonly IOptionsMonitor<DefaultServerConfig> serverOption;
 
-        public FastTunnelServer(ILogger<FastTunnelServer> logger, IConfiguration configuration)
+        public FastTunnelServer(ILogger<FastTunnelServer> logger, IOptionsMonitor<DefaultServerConfig> serverSettings)
         {
             _logger = logger;
-            ServerSettings = configuration.Get<AppSettings>().ServerSettings;
+            serverOption = serverSettings;
 
-            clientListener = new ClientListenerV2(this, ServerSettings.BindAddr, ServerSettings.BindPort, _logger);
-            http_listener = new HttpListenerV2(ServerSettings.BindAddr, ServerSettings.WebProxyPort, _logger);
+            clientListener = new ClientListenerV2(this, "0.0.0.0", serverOption.CurrentValue.BindPort, _logger);
+            http_listener = new HttpListenerV2("0.0.0.0", serverOption.CurrentValue.WebProxyPort, _logger);
         }
 
         public void Run()
         {
             _logger.LogInformation("===== FastTunnel Server Starting =====");
 
-            checkSettins();
-
             listenClient();
             listenHttp();
-        }
-
-        private void checkSettins()
-        {
-            if (string.IsNullOrEmpty(ServerSettings.WebDomain))
-            {
-                throw new Exception("[WebDomain] 配置不能为空");
-            }
         }
 
         private void listenClient()
@@ -66,7 +57,7 @@ namespace FastTunnel.Core.Client
 
         private void listenHttp()
         {
-            http_listener.Start(new HttpDispatcherV2(this, _logger, ServerSettings));
+            http_listener.Start(new HttpDispatcherV2(this, _logger, serverOption));
         }
 
         public void Stop()

@@ -17,7 +17,7 @@ namespace FastTunnel.Client
                 .ConfigureServices((hostContext, services) =>
                 {
                     // -------------------FastTunnel START------------------
-                    services.AddFastTunnelClient();
+                    services.AddFastTunnelClient(hostContext.Configuration.GetSection("ClientSettings"));
                     // -------------------FastTunnel EDN--------------------
                 })
                 .ConfigureLogging((HostBuilderContext context, ILoggingBuilder logging) =>

@@ -75,12 +75,12 @@ namespace FastTunnel.Core.Handlers
                 hasTunnel = true;
                 foreach (var item in requet.Webs)
                 {
-                    var hostName = $"{item.SubDomain}.{server.ServerSettings.WebDomain}".Trim();
+                    var hostName = $"{item.SubDomain}.{server.serverOption.CurrentValue.WebDomain}".Trim();
                     var info = new WebInfo { Socket = client, WebConfig = item };
 
                     _logger.LogDebug($"new domain '{hostName}'");
                     server.WebList.AddOrUpdate(hostName, info, (key, oldInfo) => { return info; });
-                    sb.Append($"  HTTP   | http://{hostName}{(server.ServerSettings.WebHasNginxProxy ? string.Empty : ":" + server.ServerSettings.WebProxyPort)} => {item.LocalIp}:{item.LocalPort}");
+                    sb.Append($"  HTTP   | http://{hostName}{(server.serverOption.CurrentValue.WebHasNginxProxy ? string.Empty : ":" + server.serverOption.CurrentValue.WebProxyPort)} => {item.LocalIp}:{item.LocalPort}");
                     sb.Append(Environment.NewLine);
                     if (item.WWW != null)
                     {
@@ -90,7 +90,7 @@ namespace FastTunnel.Core.Handlers
                             _logger.LogInformation($"WWW {www}");
 
                             server.WebList.AddOrUpdate(www, info, (key, oldInfo) => { return info; });
-                            sb.Append($"  HTTP   | http://{www}{(server.ServerSettings.WebHasNginxProxy ? string.Empty : ":" + server.ServerSettings.WebProxyPort)} => {item.LocalIp}:{item.LocalPort}");
+                            sb.Append($"  HTTP   | http://{www}{(server.serverOption.CurrentValue.WebHasNginxProxy ? string.Empty : ":" + server.serverOption.CurrentValue.WebProxyPort)} => {item.LocalIp}:{item.LocalPort}");
                             sb.Append(Environment.NewLine);
                         }
                     }
@@ -106,13 +106,13 @@ namespace FastTunnel.Core.Handlers
                 {
                     try
                     {
-                        if (item.RemotePort.Equals(server.ServerSettings.BindPort))
+                        if (item.RemotePort.Equals(server.serverOption.CurrentValue.BindPort))
                         {
                             _logger.LogError($"RemotePort can not be same with BindPort: {item.RemotePort}");
                             continue;
                         }
 
-                        if (item.RemotePort.Equals(server.ServerSettings.WebProxyPort))
+                        if (item.RemotePort.Equals(server.serverOption.CurrentValue.WebProxyPort))
                         {
                             _logger.LogError($"RemotePort can not be same with ProxyPort_HTTP: {item.RemotePort}");
                             continue;
@@ -134,7 +134,7 @@ namespace FastTunnel.Core.Handlers
                         server.SSHList.TryAdd(item.RemotePort, new SSHInfo<SSHHandlerArg> { Listener = ls, Socket = client, SSHConfig = item });
                         _logger.LogDebug($"SSH proxy success: {item.RemotePort} => {item.LocalIp}:{item.LocalPort}");
 
-                        sb.Append($"  TCP    | {server.ServerSettings.WebDomain}:{item.RemotePort} => {item.LocalIp}:{item.LocalPort}");
+                        sb.Append($"  TCP    | {server.serverOption.CurrentValue.WebDomain}:{item.RemotePort} => {item.LocalIp}:{item.LocalPort}");
                         sb.Append(Environment.NewLine);
                     }
                     catch (Exception ex)

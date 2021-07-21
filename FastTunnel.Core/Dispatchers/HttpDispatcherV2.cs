@@ -13,19 +13,20 @@ using System.Net.Http;
 using System.IO;
 using FastTunnel.Core.Server;
 using System.Diagnostics;
+using Microsoft.Extensions.Options;
 
 namespace FastTunnel.Core.Dispatchers
 {
     public class HttpDispatcherV2 : IListenerDispatcher
     {
         readonly ILogger _logger;
-        readonly IServerConfig _serverSettings;
+        readonly IOptionsMonitor<DefaultServerConfig> _serverOption;
         readonly FastTunnelServer _fastTunnelServer;
 
-        public HttpDispatcherV2(FastTunnelServer fastTunnelServer, ILogger logger, IServerConfig serverSettings)
+        public HttpDispatcherV2(FastTunnelServer fastTunnelServer, ILogger logger, IOptionsMonitor<DefaultServerConfig> serverSettings)
         {
             _logger = logger;
-            _serverSettings = serverSettings;
+            _serverOption = serverSettings;
             _fastTunnelServer = fastTunnelServer;
         }
 
@@ -44,9 +45,9 @@ namespace FastTunnel.Core.Dispatchers
                 var endpoint = token.Socket.RemoteEndPoint as System.Net.IPEndPoint;
                 _logger.LogInformation($"Receive HTTP Request {endpoint.Address}:{endpoint.Port}");
 
-                if (_serverSettings.WebAllowAccessIps != null)
+                if (_serverOption.CurrentValue.WebAllowAccessIps != null)
                 {
-                    if (!_serverSettings.WebAllowAccessIps.Contains(endpoint.Address.ToString()))
+                    if (!_serverOption.CurrentValue.WebAllowAccessIps.Contains(endpoint.Address.ToString()))
                     {
                         HandlerHostNotAccess(token.Socket);
                         return;

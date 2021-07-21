@@ -6,8 +6,6 @@ namespace FastTunnel.Core.Config
 {
     public interface IServerConfig
     {
-        string BindAddr { get; set; }
-
         int BindPort { get; set; }
 
         #region Web相关配置
