@@ -59,6 +59,12 @@ namespace FastTunnel.Core.Listener
         {
             Message<JObject> msg;
 
+            if (token == null)
+            {
+                _logger.LogError($"无效的token -> 【异常的指令】{words}");
+                return false;
+            }
+
             try
             {
                 msg = JsonConvert.DeserializeObject<Message<JObject>>(words);
