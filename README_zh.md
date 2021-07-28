@@ -5,7 +5,7 @@
 ## FastTunnel-内网穿透
 
 [![License](https://img.shields.io/badge/license-Apache%202-green.svg)](https://www.apache.org/licenses/LICENSE-2.0)
-[![Build status](https://github.com/anjoy8/blog.core/workflows/.NET%20Core/badge.svg)](https://github.com/SpringHgui/FastTunnel/actions)
+[![Build status](https://github.com/anjoy8/blog.core/workflows/.NET%20Core/badge.svg)](https://github.com/FastTunnel/FastTunnel/actions)
 [![Nuget](https://img.shields.io/nuget/v/FastTunnel.Core)](https://www.nuget.org/packages/FastTunnel.Core/)
 [![Nuget](https://img.shields.io/nuget/dt/FastTunnel.Core)](https://www.nuget.org/packages/FastTunnel.Core/)
 
@@ -23,7 +23,7 @@
 - 你可以通过引用`FastTunnel.Core`的nuget包构建出自己的穿透应用，并针自己所需的业务扩展功能。
 
 ### 开源仓库地址
-GitHub : [FastTunnel](https://github.com/SpringHgui/FastTunnel)  
+GitHub : [FastTunnel](https://github.com/FastTunnel/FastTunnel)  
 Gitee: [FastTunnel](https://gitee.com/Hgui/FastTunnel)
 
 **有帮助的朋友点下右上角项目的⭐Star支持一下本项目，有需求和bug请提交issue，同时欢迎各位coder进行PR**
