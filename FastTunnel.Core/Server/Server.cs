@@ -146,31 +146,47 @@ namespace FastTunnel.Core.Server
         {
             Interlocked.Increment(ref m_numConnectedSockets);
             _logger.LogInformation($"[当前连接数]:{_localEndPoint.Port} | {m_numConnectedSockets}");
+            _logger.LogDebug($"leftPool: {m_readWritePool.Count}");
 
-            // Get the socket for the accepted client connection and put it into the
-            // ReadEventArg object user token
-            SocketAsyncEventArgs readEventArgs = m_readWritePool.Pop();
-            var token = readEventArgs.UserToken as AsyncUserToken;
-            token.Socket = e.AcceptSocket;
-            token.MassgeTemp = null;
-            token.Recived = null;
-
-            // 客户端请求不需要分配msgid
-            if (m_isHttpServer)
+            try
             {
-                token.RequestId = $"{DateTime.Now.GetChinaTicks()}_{Guid.NewGuid().ToString().Replace("-", string.Empty)}";
-                _logger.LogDebug($"Accept {token.RequestId}");
-            }
+                // Get the socket for the accepted client connection and put it into the
+                // ReadEventArg object user token
+                SocketAsyncEventArgs readEventArgs = m_readWritePool.Pop();
+                if (readEventArgs == null)
+                {
+                    _logger.LogCritical($"Pop result is Null {m_readWritePool.Count}");
+                    release(e);
+                    return;
+                }
 
-            // As soon as the client is connected, post a receive to the connection
-            bool willRaiseEvent = e.AcceptSocket.ReceiveAsync(readEventArgs);
-            if (!willRaiseEvent)
+                var token = readEventArgs.UserToken as AsyncUserToken;
+                token.Socket = e.AcceptSocket;
+                token.MassgeTemp = null;
+                token.Recived = null;
+
+                // 客户端请求不需要分配msgid
+                if (m_isHttpServer)
+                {
+                    token.RequestId = $"{DateTime.Now.GetChinaTicks()}_{Guid.NewGuid().ToString().Replace("-", string.Empty)}";
+                    _logger.LogDebug($"Accept {token.RequestId}");
+                }
+
+                // As soon as the client is connected, post a receive to the connection
+                bool willRaiseEvent = e.AcceptSocket.ReceiveAsync(readEventArgs);
+                if (!willRaiseEvent)
+                {
+                    ProcessReceive(readEventArgs);
+                }
+
+                // Accept the next connection request
+                StartAccept(e);
+            }
+            catch (Exception ex)
             {
-                ProcessReceive(readEventArgs);
+                _logger.LogCritical(ex, "[ProcessAccept error]");
+                release(e);
             }
-
-            // Accept the next connection request
-            StartAccept(e);
         }
 
         // This method is called whenever a receive or send operation is completed on a socket
@@ -318,6 +334,8 @@ namespace FastTunnel.Core.Server
             m_readWritePool.Push(e);
 
             m_maxNumberAcceptedClients.Release();
+
+            _logger.LogDebug($"release ok");
         }
     }
 }
