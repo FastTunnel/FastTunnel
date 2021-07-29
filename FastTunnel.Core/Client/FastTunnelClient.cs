@@ -145,7 +145,6 @@ namespace FastTunnel.Core.Client
                 }
 
                 _client.Connect();
-
                 _logger.LogInformation("连接成功");
             }
             catch (Exception)
@@ -160,6 +159,7 @@ namespace FastTunnel.Core.Client
                 {
                     Webs = ClientConfig.Webs,
                     SSH = ClientConfig.SSH,
+                    Token = ClientConfig.Attach
                 },
             };
 

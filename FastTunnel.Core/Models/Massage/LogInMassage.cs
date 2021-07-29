@@ -16,5 +16,10 @@ namespace FastTunnel.Core.Models
         /// 端口转发隧道列表
         /// </summary>
         public IEnumerable<SSHConfig> SSH { get; set; }
+
+        /// <summary>
+        /// 客户端附加信息
+        /// </summary>
+        public string Token { get; set; }
     }
 }

@@ -31,5 +31,7 @@ namespace FastTunnel.Core.Config
         #endregion
 
         bool SSHEnabled { get; set; }
+
+        public string Token { get; set; }
     }
 }
