@@ -27,9 +27,12 @@ namespace FastTunnel.Core.Handlers.Client
         public void HandlerMsg(FastTunnelClient cleint, Message<JObject> Msg)
         {
             var request = Msg.Content.ToObject<NewCustomerMassage>();
-            var interval = long.Parse(DateTime.Now.GetChinaTicks()) - long.Parse(request.MsgId.Split('_')[0]);
+            if (request.MsgId.Contains("_"))
+            {
+                var interval = long.Parse(DateTime.Now.GetChinaTicks()) - long.Parse(request.MsgId.Split('_')[0]);
 
-            _logger.LogDebug($"Start SwapMassage {request.MsgId} 服务端耗时：{interval}ms");
+                _logger.LogDebug($"Start SwapMassage {request.MsgId} 服务端耗时：{interval}ms");
+            }
 
             var connecter = new DnsSocket(cleint.Server.ServerAddr, cleint.Server.ServerPort);
             connecter.Connect();
@@ -44,7 +47,7 @@ namespace FastTunnel.Core.Handlers.Client
                 localConnecter.Connect();
                 _logger.LogDebug($"连接本地成功 {request.MsgId}");
 
-                new SocketSwap(connecter.Socket, localConnecter.Socket, _logger, request.MsgId).StartSwap();
+                new SocketSwap(connecter.Socket, localConnecter.Socket, _logger, request.MsgId).StartSwapAsync();
             }
             catch (SocketException sex)
             {

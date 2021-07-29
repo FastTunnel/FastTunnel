@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using Yarp.ReverseProxy.Configuration;
 
 namespace FastTunnel.Core.Listener
 {
@@ -31,14 +32,14 @@ namespace FastTunnel.Core.Listener
         readonly HeartMessageHandler _heartHandler;
         readonly SwapMessageHandler _swapMsgHandler;
 
-        public ClientListenerV2(FastTunnelServer fastTunnelServer, string ip, int port, ILogger logerr)
+        public ClientListenerV2(FastTunnelServer fastTunnelServer, IProxyConfigProvider proxyConfig, string ip, int port, ILogger logerr)
         {
             _fastTunnelServer = fastTunnelServer;
             _logger = logerr;
             this.ListenIp = ip;
             this.ListenPort = port;
 
-            _loginHandler = new LoginHandler(_logger);
+            _loginHandler = new LoginHandler(_logger, proxyConfig);
             _heartHandler = new HeartMessageHandler();
             _swapMsgHandler = new SwapMessageHandler(_logger);
 

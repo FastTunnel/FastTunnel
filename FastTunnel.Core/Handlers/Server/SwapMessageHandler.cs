@@ -27,26 +27,19 @@ namespace FastTunnel.Core.Handlers.Server
         public void HandlerMsg(FastTunnelServer server, Socket client, Message<JObject> msg)
         {
             var SwapMsg = msg.Content.ToObject<SwapMassage>();
-            NewRequest request;
-
             if (SwapMsg.msgId.Contains("_"))
             {
                 var interval = long.Parse(DateTime.Now.GetChinaTicks()) - long.Parse(SwapMsg.msgId.Split('_')[0]);
                 _logger.LogDebug($"[开始转发HTTP]：{SwapMsg.msgId} 客户端耗时：{interval}ms");
             }
 
-            if (!string.IsNullOrEmpty(SwapMsg.msgId) && server.RequestTemp.TryGetValue(SwapMsg.msgId, out request))
+            if (!string.IsNullOrEmpty(SwapMsg.msgId) && server.ResponseTasks.TryGetValue(SwapMsg.msgId, out var response))
             {
-                server.RequestTemp.TryRemove(SwapMsg.msgId, out _);
+                server.ResponseTasks.TryRemove(SwapMsg.msgId, out _);
 
                 _logger.LogDebug($"SwapMassage：{SwapMsg.msgId}");
 
-                new SocketSwap(request.CustomerClient, client, _logger, SwapMsg.msgId)
-                   .BeforeSwap(() =>
-                   {
-                       if (request.Buffer != null) client.Send(request.Buffer);
-                   })
-                   .StartSwap();
+                response.SetResult(new NetworkStream(client));
             }
             else
             {

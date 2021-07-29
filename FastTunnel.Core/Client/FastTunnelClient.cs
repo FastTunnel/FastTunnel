@@ -18,7 +18,7 @@ using Microsoft.Extensions.Options;
 
 namespace FastTunnel.Core.Client
 {
-    public class FastTunnelClient
+    public class FastTunnelClient : IFastTunnelClient
     {
         Socket _client;
 
@@ -266,30 +266,12 @@ namespace FastTunnel.Core.Client
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex.Message);
+                    _logger.LogError(ex, "HandleMsg Error");
                     continue;
                 }
             }
 
             _logger.LogInformation("stop receive from server");
-        }
-
-        private bool ProceccLine(Socket socket, byte[] line)
-        {
-            Task.Run(() =>
-            {
-                try
-                {
-                    var cmd = Encoding.UTF8.GetString(line);
-                    HandleServerRequest(cmd);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex);
-                }
-            });
-
-            return true;
         }
 
         private void HandleServerRequest(string words)

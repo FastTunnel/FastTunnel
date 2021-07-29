@@ -35,15 +35,38 @@ namespace FastTunnel.Core.Sockets
             m_logger = logger;
         }
 
-        public void StartSwap()
+        public async Task StartSwapAsync()
         {
+            m_logger.LogDebug($"StartSwap start {m_msgId}");
             var st1 = new NetworkStream(m_sockt1, ownsSocket: true);
             var st2 = new NetworkStream(m_sockt2, ownsSocket: true);
 
             var taskX = st1.CopyToAsync(st2);
             var taskY = st2.CopyToAsync(st1);
 
-            Task.WhenAny(taskX, taskY);
+            await Task.WhenAny(taskX, taskY);
+            m_logger.LogDebug($"StartSwap end {m_msgId}");
+
+            try
+            {
+                st1.Close();
+                // m_sockt1.Close();
+            }
+            catch (Exception ex)
+            {
+
+            }
+
+            try
+            {
+                st2.Close();
+                m_sockt2.Close();
+            }
+            catch (Exception)
+            {
+
+            }
+
         }
 
         public ISocketSwap BeforeSwap(Action fun)

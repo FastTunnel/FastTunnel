@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using FastTunnel.Core.Extensions;
+using Microsoft.Extensions.DependencyInjection;
+using FastTunnel.Core.Client;
 
 namespace FastTunnel.Client
 {
@@ -18,6 +20,8 @@ namespace FastTunnel.Client
                 {
                     // -------------------FastTunnel START------------------
                     services.AddFastTunnelClient(hostContext.Configuration.GetSection("ClientSettings"));
+
+                    services.AddSingleton<IFastTunnelClient, FastTunnelClient>();
                     // -------------------FastTunnel EDN--------------------
                 })
                 .ConfigureLogging((HostBuilderContext context, ILoggingBuilder logging) =>

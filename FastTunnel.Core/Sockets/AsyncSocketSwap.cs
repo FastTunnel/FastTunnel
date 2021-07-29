@@ -49,7 +49,7 @@ namespace FastTunnel.Core.Sockets
             return this;
         }
 
-        public void StartSwap()
+        public Task StartSwapAsync()
         {
             try
             {
@@ -65,11 +65,14 @@ namespace FastTunnel.Core.Sockets
                 {
                     ProcessReceive(e2);
                 }
+
+                return Task.CompletedTask;
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex.ToString());
                 ExceptionDispatchInfo.Capture(ex).Throw();
+                return Task.CompletedTask;
             }
         }
 

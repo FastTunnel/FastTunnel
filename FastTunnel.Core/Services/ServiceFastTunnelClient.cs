@@ -16,9 +16,9 @@ namespace FastTunnel.Core.Services
     public class ServiceFastTunnelClient : IHostedService
     {
         readonly ILogger<ServiceFastTunnelClient> _logger;
-        readonly FastTunnelClient _fastTunnelClient;
+        readonly IFastTunnelClient _fastTunnelClient;
 
-        public ServiceFastTunnelClient(ILogger<ServiceFastTunnelClient> logger, FastTunnelClient fastTunnelClient)
+        public ServiceFastTunnelClient(ILogger<ServiceFastTunnelClient> logger, IFastTunnelClient fastTunnelClient)
         {
             _logger = logger;
             _fastTunnelClient = fastTunnelClient;

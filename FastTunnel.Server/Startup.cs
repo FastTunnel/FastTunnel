@@ -1,17 +1,16 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using FastTunnel.Core.Filters;
-using FastTunnel.Server.Filters;
+using FastTunnel.Core.Extensions;
+using FastTunnel.Core.Forwarder;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
+using Yarp.ReverseProxy.Configuration;
+using Yarp.ReverseProxy.Forwarder;
+using Yarp.Sample;
 
 namespace FastTunnel.Server
 {
@@ -27,14 +26,15 @@ namespace FastTunnel.Server
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddControllers();
-            services.AddSwaggerGen(c =>
-            {
-                c.SwaggerDoc("v1", new OpenApiInfo { Title = "FastTunel.Core.WebApi", Version = "v1" });
-            });
+            // -------------------FastTunnel START------------------
+            services.AddFastTunnelServer(Configuration.GetSection("ServerSettings"));
+            // -------------------FastTunnel END--------------------
+
+            // Add the reverse proxy to capability to the server
+            services.AddReverseProxy().LoadFromMemory();
 
             // ------------------------Custom Business------------------------------
-            services.AddTransient<IAuthenticationFilter, TestAuthenticationFilter>();
+            services.AddSingleton<IForwarderHttpClientFactory, FastTunnelForwarderHttpClientFactory>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -42,20 +42,14 @@ namespace FastTunnel.Server
         {
             if (env.IsDevelopment())
             {
-                app.UseDeveloperExceptionPage();
-                app.UseSwagger();
-                app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "FastTunel.Core.WebApi v1"));
             }
-
-            app.UseHttpsRedirection();
 
             app.UseRouting();
 
-            app.UseAuthorization();
-
             app.UseEndpoints(endpoints =>
             {
-                endpoints.MapControllers();
+                endpoints.MapReverseProxy();
+                //endpoints.MapControllers();
             });
         }
     }

@@ -1,6 +1,7 @@
 ﻿using FastTunnel.Core.Client;
 using FastTunnel.Core.Config;
 using FastTunnel.Core.Filters;
+using FastTunnel.Core.Handlers;
 using FastTunnel.Core.Handlers.Client;
 using FastTunnel.Core.Services;
 using Microsoft.Extensions.Configuration;
@@ -32,7 +33,7 @@ namespace FastTunnel.Core.Extensions
         {
             services.Configure<DefaultClientConfig>(configurationSection);
 
-            services.AddSingleton<FastTunnelClient>()
+            services.AddSingleton<IFastTunnelClient, FastTunnelClient>()
                 .AddSingleton<ClientHeartHandler>()
                 .AddSingleton<LogHandler>()
                 .AddSingleton<HttpRequestHandler>()

@@ -27,10 +27,12 @@
     <Compile Remove="Client\SuiDaoServer.cs.REMOTE.cs" />
     <Compile Remove="Dispatchers\ClientDispatcher.cs" />
     <Compile Remove="Dispatchers\HttpDispatcher.cs" />
+    <Compile Remove="Dispatchers\HttpDispatcherV2.cs" />
     <Compile Remove="Listener.cs" />
     <Compile Remove="Listener\ClientListener.cs" />
     <Compile Remove="Listener\HttpListener.cs" />
     <Compile Remove="Server.cs" />
+    <Compile Remove="Sockets\AsyncSocketSwap.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -38,6 +40,7 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="5.0.0" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="5.0.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+    <PackageReference Include="Yarp.ReverseProxy" Version="1.0.0-preview.12.21328.2" />
   </ItemGroup>
 
   <ItemGroup>

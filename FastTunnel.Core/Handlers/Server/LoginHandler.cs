@@ -13,6 +13,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
 using System.Text;
+using Yarp.ReverseProxy.Configuration;
+using Yarp.Sample;
 
 namespace FastTunnel.Core.Handlers
 {
@@ -24,12 +26,15 @@ namespace FastTunnel.Core.Handlers
         IConfigHandler _configHandler;
 
         static object _locker = new object();
+        IProxyConfigProvider proxyConfig;
 
-        public LoginHandler(ILogger logger)
+        public LoginHandler(ILogger logger, IProxyConfigProvider proxyConfig)
         {
-            _logger = logger;
+            this.proxyConfig = proxyConfig;
+            this._logger = logger;
+
             var custome = FastTunnelGlobal.GetCustomHandler<IConfigHandler>();
-            _configHandler = custome == null ? new ConfigHandler() : custome;
+            this._configHandler = custome == null ? new ConfigHandler() : custome;
         }
 
         public LogInMassage GetConfig(JObject content)
@@ -80,6 +85,8 @@ namespace FastTunnel.Core.Handlers
 
                     _logger.LogDebug($"new domain '{hostName}'");
                     server.WebList.AddOrUpdate(hostName, info, (key, oldInfo) => { return info; });
+                    (proxyConfig as InMemoryConfigProvider).AddWeb(hostName);
+
                     sb.Append($"  HTTP   | http://{hostName}{(server.serverOption.CurrentValue.WebHasNginxProxy ? string.Empty : ":" + server.serverOption.CurrentValue.WebProxyPort)} => {item.LocalIp}:{item.LocalPort}");
                     sb.Append(Environment.NewLine);
                     if (item.WWW != null)
@@ -90,6 +97,7 @@ namespace FastTunnel.Core.Handlers
                             _logger.LogInformation($"WWW {www}");
 
                             server.WebList.AddOrUpdate(www, info, (key, oldInfo) => { return info; });
+                            (proxyConfig as InMemoryConfigProvider).AddWeb(hostName);
                             sb.Append($"  HTTP   | http://{www}{(server.serverOption.CurrentValue.WebHasNginxProxy ? string.Empty : ":" + server.serverOption.CurrentValue.WebProxyPort)} => {item.LocalIp}:{item.LocalPort}");
                             sb.Append(Environment.NewLine);
                         }
