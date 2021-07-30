@@ -159,7 +159,7 @@ namespace FastTunnel.Core.Client
                 {
                     Webs = ClientConfig.Webs,
                     SSH = ClientConfig.SSH,
-                    Token = ClientConfig.Attach
+                    Token = ClientConfig.Token
                 },
             };
 

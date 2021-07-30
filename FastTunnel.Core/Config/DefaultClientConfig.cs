@@ -14,6 +14,6 @@ namespace FastTunnel.Core.Config
 
         public IEnumerable<SSHConfig> SSH { get; set; }
 
-        public string Attach { get; set; }
+        public string Token { get; set; }
     }
 }
