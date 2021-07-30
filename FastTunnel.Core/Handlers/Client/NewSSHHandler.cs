@@ -28,7 +28,7 @@ namespace FastTunnel.Core.Handlers.Client
             var localConnecter_ssh = new DnsSocket(request_ssh.SSHConfig.LocalIp, request_ssh.SSHConfig.LocalPort);
             localConnecter_ssh.Connect();
 
-            new SocketSwap(connecter_ssh.Socket, localConnecter_ssh.Socket, _logger, request_ssh.MsgId).StartSwapAsync();
+            new SocketSwap(connecter_ssh.Socket, localConnecter_ssh.Socket, _logger, request_ssh.MsgId).StartSwap();
         }
     }
 }

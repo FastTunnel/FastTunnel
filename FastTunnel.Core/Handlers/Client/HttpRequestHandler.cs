@@ -47,7 +47,7 @@ namespace FastTunnel.Core.Handlers.Client
                 localConnecter.Connect();
                 _logger.LogDebug($"连接本地成功 {request.MsgId}");
 
-                new SocketSwap(connecter.Socket, localConnecter.Socket, _logger, request.MsgId).StartSwapAsync();
+                new SocketSwap(connecter.Socket, localConnecter.Socket, _logger, request.MsgId).StartSwap();
             }
             catch (SocketException sex)
             {

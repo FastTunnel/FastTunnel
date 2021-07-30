@@ -29,42 +29,113 @@ namespace FastTunnel.Core.Sockets
 
         public SocketSwap(Socket sockt1, Socket sockt2, ILogger logger, string msgId)
         {
+            //sockt1.NoDelay = true;
+            //sockt2.NoDelay = true;
             m_sockt1 = sockt1;
             m_sockt2 = sockt2;
             m_msgId = msgId;
             m_logger = logger;
         }
 
-        public async Task StartSwapAsync()
+        public void StartSwap()
         {
-            m_logger.LogDebug($"StartSwap start {m_msgId}");
-            var st1 = new NetworkStream(m_sockt1, ownsSocket: true);
-            var st2 = new NetworkStream(m_sockt2, ownsSocket: true);
+            m_logger?.LogDebug($"[StartSwapStart] {m_msgId}");
+            swapeStarted = true;
 
-            var taskX = st1.CopyToAsync(st2);
-            var taskY = st2.CopyToAsync(st1);
+            ThreadPool.QueueUserWorkItem(swapCallback, new Channel
+            {
+                Send = m_sockt1,
+                Receive = m_sockt2
+            });
 
-            await Task.WhenAny(taskX, taskY);
-            m_logger.LogDebug($"StartSwap end {m_msgId}");
+            ThreadPool.QueueUserWorkItem(swapCallback, new Channel
+            {
+                Send = m_sockt2,
+                Receive = m_sockt1
+            });
+
+            m_logger?.LogDebug($"[StartSwapEnd] {m_msgId}");
+        }
+
+        private void swapCallback(object state)
+        {
+            m_logger?.LogDebug($"swapCallback {m_msgId}");
+            var chanel = state as Channel;
+            byte[] result = new byte[512];
+
+            while (true)
+            {
+                int num;
+
+                try
+                {
+                    try
+                    {
+                        num = chanel.Receive.Receive(result, 0, result.Length, SocketFlags.None);
+                    }
+                    catch (Exception)
+                    {
+                        closeSocket("Revice Fail");
+                        break;
+                    }
+
+                    if (num == 0)
+                    {
+                        closeSocket("Normal Close");
+                        break;
+                    }
+
+                    try
+                    {
+                        chanel.Send.Send(result, 0, num, SocketFlags.None);
+                    }
+                    catch (Exception)
+                    {
+                        closeSocket("Send Fail");
+                        break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    m_logger.LogCritical(ex, "致命异常");
+                    break;
+                }
+            }
+
+            if (m_msgId.Contains("_"))
+            {
+                var interval = long.Parse(DateTime.Now.GetChinaTicks()) - long.Parse(m_msgId.Split('_')[0]);
+                m_logger?.LogDebug($"endSwap {m_msgId} 交互时常：{interval}ms");
+            }
+        }
+
+        private void closeSocket(string msg)
+        {
+            m_logger.LogDebug($"【closeSocket】：{msg}");
 
             try
             {
-                st1.Close();
-                // m_sockt1.Close();
-            }
-            catch (Exception ex)
-            {
-
-            }
-
-            try
-            {
-                st2.Close();
-                m_sockt2.Close();
+                m_sockt1.Shutdown(SocketShutdown.Both);
             }
             catch (Exception)
             {
+            }
+            finally
+            {
+                m_sockt1.Close();
+            }
 
+            try
+            {
+                m_sockt2.Shutdown(SocketShutdown.Both);
+
+            }
+            catch (Exception)
+            {
+            }
+            finally
+            {
+                m_sockt2.Close();
             }
 
         }
@@ -81,5 +152,6 @@ namespace FastTunnel.Core.Sockets
             fun?.Invoke();
             return this;
         }
+
     }
 }

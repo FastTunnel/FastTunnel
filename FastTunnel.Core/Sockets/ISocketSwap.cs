@@ -15,6 +15,6 @@ namespace FastTunnel.Core.Sockets
         /// <returns></returns>
         ISocketSwap BeforeSwap(Action fun);
 
-        Task StartSwapAsync();
+        void StartSwap();
     }
 }

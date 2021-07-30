@@ -193,7 +193,14 @@ namespace FastTunnel.Core.Client
 
             var th = new Thread(ReceiveServer);
             th.Start(_client);
-            //await new PipeHepler(_client, ProceccLine).ProcessLinesAsync();
+            // await new PipeHepler(_client, ProceccLine).ProcessLinesAsync();
+        }
+
+        private bool ProceccLine(Socket socket, byte[] line)
+        {
+            var cmd = Encoding.UTF8.GetString(line);
+            HandleServerRequest(cmd);
+            return true;
         }
 
         private void ReceiveServer(object obj)
@@ -249,8 +256,9 @@ namespace FastTunnel.Core.Client
 
                 try
                 {
-                    foreach (var item in msgs)
+                    for (int i = 0; i < msgs.Length - 1; i++)
                     {
+                        var item = msgs[i];
                         if (string.IsNullOrEmpty(item))
                             continue;
 
@@ -263,10 +271,18 @@ namespace FastTunnel.Core.Client
                             lastBuffer = item;
                         }
                     }
+
+                    if (string.IsNullOrEmpty(msgs[msgs.Length - 1]))
+                    {
+                        continue;
+                    }
+
+                    lastBuffer = msgs[msgs.Length - 1];
+                    _logger.LogDebug($"lastBuffer={lastBuffer}");
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "HandleMsg Error");
+                    _logger.LogError(ex, $"HandleMsg Error {msgs.ToJson()}");
                     continue;
                 }
             }
@@ -276,32 +292,35 @@ namespace FastTunnel.Core.Client
 
         private void HandleServerRequest(string words)
         {
-            var Msg = JsonConvert.DeserializeObject<Message<JObject>>(words);
-            if (Msg.MessageType != MessageType.Heart)
+            Task.Run(() =>
             {
-                _logger.LogDebug($"HandleServerRequest {words}");
-            }
+                var Msg = JsonConvert.DeserializeObject<Message<JObject>>(words);
+                if (Msg.MessageType != MessageType.Heart)
+                {
+                    _logger.LogDebug($"HandleServerRequest {words}");
+                }
 
-            IClientHandler handler;
-            switch (Msg.MessageType)
-            {
-                case MessageType.Heart:
-                    handler = _clientHeartHandler;
-                    break;
-                case MessageType.S_NewCustomer:
-                    handler = _newCustomerHandler;
-                    break;
-                case MessageType.S_NewSSH:
-                    handler = _newSSHHandler;
-                    break;
-                case MessageType.Log:
-                    handler = _logHandler;
-                    break;
-                default:
-                    throw new Exception($"未处理的消息：{Msg.MessageType} {Msg.Content}");
-            }
+                IClientHandler handler;
+                switch (Msg.MessageType)
+                {
+                    case MessageType.Heart:
+                        handler = _clientHeartHandler;
+                        break;
+                    case MessageType.S_NewCustomer:
+                        handler = _newCustomerHandler;
+                        break;
+                    case MessageType.S_NewSSH:
+                        handler = _newSSHHandler;
+                        break;
+                    case MessageType.Log:
+                        handler = _logHandler;
+                        break;
+                    default:
+                        throw new Exception($"未处理的消息：{Msg.MessageType} {Msg.Content}");
+                }
 
-            handler.HandlerMsg(this, Msg);
+                handler.HandlerMsg(this, Msg);
+            });
         }
     }
 }

@@ -39,7 +39,7 @@ namespace FastTunnel.Core.Handlers.Server
 
                 _logger.LogDebug($"SwapMassage：{SwapMsg.msgId}");
 
-                response.SetResult(new NetworkStream(client));
+                response.SetResult(new NetworkStream(client, true));
             }
             else
             {
