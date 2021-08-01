@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace FastTunnel.Core.Sockets
 {
@@ -28,6 +29,13 @@ namespace FastTunnel.Core.Sockets
         {
             DnsEndPoint dnsEndPoint = new DnsEndPoint(_host, _port);
             Socket.Connect(dnsEndPoint);
+        }
+
+
+        public async Task ConnectAsync()
+        {
+            DnsEndPoint dnsEndPoint = new DnsEndPoint(_host, _port);
+            await Socket.ConnectAsync(dnsEndPoint);
         }
 
         public void Send(byte[] data)

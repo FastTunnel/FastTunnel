@@ -11,6 +11,6 @@ namespace FastTunnel.Core.Dispatchers
     {
         void Dispatch(AsyncUserToken token, string words);
 
-        Task DispatchAsync(Socket httpClient);
+        void DispatchAsync(Socket httpClient);
     }
 }

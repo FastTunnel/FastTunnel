@@ -18,16 +18,13 @@ namespace FastTunnel.Core.Client
 {
     public class FastTunnelServer
     {
-        [Obsolete("ResponseTasks替换", false)]
-        public ConcurrentDictionary<string, NewRequest> RequestTemp { get; private set; }
-            = new ConcurrentDictionary<string, NewRequest>();
+        public ConcurrentDictionary<string, NewRequest> RequestTemp { get; private set; } = new ConcurrentDictionary<string, NewRequest>();
 
         public ConcurrentDictionary<string, TaskCompletionSource<Stream>> ResponseTasks { get; } = new();
 
-        public ConcurrentDictionary<string, WebInfo> WebList { get; private set; }
-            = new ConcurrentDictionary<string, WebInfo>();
+        public ConcurrentDictionary<string, WebInfo> WebList { get; private set; } = new();
 
-        public ConcurrentDictionary<int, ForwardInfo<ForwardHandlerArg>> SSHList { get; private set; }
+        public ConcurrentDictionary<int, ForwardInfo<ForwardHandlerArg>> ForwardList { get; private set; }
             = new ConcurrentDictionary<int, ForwardInfo<ForwardHandlerArg>>();
 
         readonly ILogger _logger;

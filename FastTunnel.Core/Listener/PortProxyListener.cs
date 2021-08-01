@@ -37,12 +37,12 @@ namespace FastTunnel.Core.Listener
             listenSocket.Bind(localEndPoint);
         }
 
-        public void Start(IListenerDispatcher requestDispatcher, int backlog = 100)
+        public void Start(IListenerDispatcher requestDispatcher)
         {
             shutdown = false;
             _requestDispatcher = requestDispatcher;
 
-            listenSocket.Listen(backlog);
+            listenSocket.Listen();
 
             StartAccept(null);
         }

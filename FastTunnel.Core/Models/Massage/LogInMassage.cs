@@ -15,6 +15,6 @@ namespace FastTunnel.Core.Models
         /// <summary>
         /// 端口转发隧道列表
         /// </summary>
-        public IEnumerable<ForwardConfig> SSH { get; set; }
+        public IEnumerable<ForwardConfig> Forwards { get; set; }
     }
 }

@@ -70,21 +70,14 @@ namespace FastTunnel.Core.Handlers
                 }
             }
 
-
-            if (requet.SSH != null && requet.SSH.Count() > 0)
+            if (requet.Forwards != null && requet.Forwards.Count() > 0)
             {
                 hasTunnel = true;
 
-                foreach (var item in requet.SSH)
+                foreach (var item in requet.Forwards)
                 {
                     try
                     {
-                        //if (item.RemotePort.Equals(server.serverOption.CurrentValue.BindPort))
-                        //{
-                        //    _logger.LogError($"RemotePort can not be same with BindPort: {item.RemotePort}");
-                        //    continue;
-                        //}
-
                         if (item.RemotePort.Equals(server.serverOption.CurrentValue.WebProxyPort))
                         {
                             _logger.LogError($"RemotePort can not be same with ProxyPort_HTTP: {item.RemotePort}");
@@ -92,11 +85,11 @@ namespace FastTunnel.Core.Handlers
                         }
 
                         ForwardInfo<ForwardHandlerArg> old;
-                        if (server.SSHList.TryGetValue(item.RemotePort, out old))
+                        if (server.ForwardList.TryGetValue(item.RemotePort, out old))
                         {
                             _logger.LogDebug($"Remove Listener {old.Listener.ListenIp}:{old.Listener.ListenPort}");
                             old.Listener.Stop();
-                            server.SSHList.TryRemove(item.RemotePort, out ForwardInfo<ForwardHandlerArg> _);
+                            server.ForwardList.TryRemove(item.RemotePort, out ForwardInfo<ForwardHandlerArg> _);
                         }
 
                         var ls = new PortProxyListener("0.0.0.0", item.RemotePort, _logger);
@@ -104,7 +97,7 @@ namespace FastTunnel.Core.Handlers
                         ls.Start(new ForwardDispatcher(server, client, item));
 
                         // listen success
-                        server.SSHList.TryAdd(item.RemotePort, new ForwardInfo<ForwardHandlerArg> { Listener = ls, Socket = client, SSHConfig = item });
+                        server.ForwardList.TryAdd(item.RemotePort, new ForwardInfo<ForwardHandlerArg> { Listener = ls, Socket = client, SSHConfig = item });
                         _logger.LogDebug($"SSH proxy success: {item.RemotePort} => {item.LocalIp}:{item.LocalPort}");
 
                         sb.Append($"  TCP    | {server.serverOption.CurrentValue.WebDomain}:{item.RemotePort} => {item.LocalIp}:{item.LocalPort}");
