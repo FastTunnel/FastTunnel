@@ -2,7 +2,6 @@
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Models;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -53,7 +52,6 @@ namespace FastTunnel.Core.Forwarder
 
         public async ValueTask<Stream> proxyAsync(string host, CancellationToken cancellation)
         {
-
             WebInfo web;
             if (!_fastTunnelServer.WebList.TryGetValue(host, out web))
             {
@@ -63,16 +61,18 @@ namespace FastTunnel.Core.Forwarder
             try
             {
                 var RequestId = Guid.NewGuid().ToString().Replace("-", "");
-                _logger.LogDebug($"[send swap]:{RequestId}");
+                _logger.LogInformation($"[发送swap指令]:{RequestId}");
 
                 // 发送指令给客户端，等待建立隧道
-                web.Socket.SendCmd(new Message<NewCustomerMassage> { MessageType = MessageType.S_NewCustomer, Content = new NewCustomerMassage { MsgId = RequestId, WebConfig = web.WebConfig } });
+                await web.Socket.SendCmdAsync(new Message<NewCustomerMassage> { MessageType = MessageType.S_NewCustomer, Content = new NewCustomerMassage { MsgId = RequestId, WebConfig = web.WebConfig } });
 
                 // TODO:超时处理
                 TaskCompletionSource<Stream> task = new(cancellation);
-
                 _fastTunnelServer.ResponseTasks.TryAdd(RequestId, task);
-                return await task.Task;
+
+                var res = await task.Task;
+                _logger.LogInformation($"[收到swap指令]:{RequestId}");
+                return res;
             }
             catch (Exception ex)
             {

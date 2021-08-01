@@ -4,10 +4,10 @@ using System.Text;
 
 namespace FastTunnel.Core.Models
 {
-    public class NewSSHRequest : TunnelMassage
+    public class NewForwardMessage : TunnelMassage
     {
         public string MsgId { get; set; }
 
-        public SSHConfig SSHConfig { get; set; }
+        public ForwardConfig SSHConfig { get; set; }
     }
 }

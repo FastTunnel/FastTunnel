@@ -13,7 +13,7 @@ namespace FastTunnel.Core.Config
 
         public IEnumerable<WebConfig> Webs { get; set; }
 
-        public IEnumerable<SSHConfig> SSH { get; set; }
+        public IEnumerable<ForwardConfig> Forwards { get; set; }
     }
 
     public class SuiDaoServer

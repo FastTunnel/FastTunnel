@@ -1,6 +1,4 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using FastTunnel.Core.Config;
+﻿using FastTunnel.Core.Config;
 using FastTunnel.Core.Models;
 using System;
 using System.Net.Sockets;
@@ -15,12 +13,15 @@ using Microsoft.Extensions.Configuration;
 using FastTunnel.Core.Server;
 using FastTunnel.Core.Sockets;
 using Microsoft.Extensions.Options;
+using System.Net.WebSockets;
+using System.Text.Json;
 
 namespace FastTunnel.Core.Client
 {
     public class FastTunnelClient : IFastTunnelClient
     {
-        Socket _client;
+        //Socket _client;
+        private IFastTunnelClientSocket socket;
 
         protected ILogger<FastTunnelClient> _logger;
 
@@ -31,19 +32,19 @@ namespace FastTunnel.Core.Client
 
         int reTrySpan = 10 * 1000; // 登陆失败后重试间隔
         HttpRequestHandler _newCustomerHandler;
-        NewSSHHandler _newSSHHandler;
+        NewForwardHandler _newSSHHandler;
         LogHandler _logHandler;
         ClientHeartHandler _clientHeartHandler;
-        Func<Socket> lastLogin;
         Message<LogInMassage> loginMsg;
         protected readonly IOptionsMonitor<DefaultClientConfig> _configuration;
+        private readonly CancellationTokenSource cancellationTokenSource = new();
 
         public SuiDaoServer Server { get; protected set; }
 
         public FastTunnelClient(
             ILogger<FastTunnelClient> logger,
             HttpRequestHandler newCustomerHandler,
-            NewSSHHandler newSSHHandler, LogHandler logHandler,
+            NewForwardHandler newSSHHandler, LogHandler logHandler,
             IOptionsMonitor<DefaultClientConfig> configuration,
             ClientHeartHandler clientHeartHandler)
         {
@@ -60,7 +61,7 @@ namespace FastTunnel.Core.Client
             timer_heart.Elapsed += HeartElapsed;
         }
 
-        private void reConn()
+        private async Task reConnAsync()
         {
             Close();
 
@@ -71,7 +72,7 @@ namespace FastTunnel.Core.Client
                     Thread.Sleep(reTrySpan);
 
                     _logger.LogInformation("登录重试...");
-                    _client = lastLogin.Invoke();
+                    socket = await loginAsync(CancellationToken.None);
 
                     break;
                 }
@@ -90,12 +91,12 @@ namespace FastTunnel.Core.Client
 
             try
             {
-                _client.SendCmd(new Message<HeartMassage> { MessageType = MessageType.Heart, Content = null });
+                socket.SendAsync(new Message<HeartMassage> { MessageType = MessageType.Heart, Content = null }, cancellationTokenSource.Token).Wait();
             }
             catch (Exception)
             {
                 // 与服务端断开连接
-                reConn();
+                reConnAsync();
             }
             finally
             {
@@ -108,43 +109,77 @@ namespace FastTunnel.Core.Client
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="customLoginMsg">自定义登录信息，可进行扩展业务</param>
-        public void Start()
+        public async Task StartAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("===== FastTunnel Client Start =====");
+            CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, this.cancellationTokenSource.Token);
 
-            lastLogin = login;
+            _logger.LogInformation("===== FastTunnel Client Start =====");
 
             try
             {
-                _client = lastLogin.Invoke();
+                socket = await loginAsync(cancellationToken);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex.Message);
 
-                reConn();
+                reConnAsync();
                 return;
             }
 
             _ = connSuccessAsync();
         }
+        //protected virtual Socket login()
+        //{
+        //    Server = _configuration.CurrentValue.Server;
 
-        protected virtual Socket login()
+        //    DnsSocket _client = null;
+        //    _logger.LogInformation($"正在连接服务端 {Server.ServerAddr}:{Server.ServerPort}");
+
+        //    try
+        //    {
+        //        // 连接到的目标IP
+        //        if (_client == null)
+        //        {
+        //            _client = new DnsSocket(Server.ServerAddr, Server.ServerPort);
+        //        }
+
+        //        _client.Connect();
+
+        //        _logger.LogInformation("连接成功");
+        //    }
+        //    catch (Exception)
+        //    {
+        //        throw;
+        //    }
+
+        //    loginMsg = new Message<LogInMassage>
+        //    {
+        //        MessageType = MessageType.C_LogIn,
+        //        Content = new LogInMassage
+        //        {
+        //            Webs = _configuration.CurrentValue.Webs,
+        //            SSH = _configuration.CurrentValue.SSH,
+        //        },
+        //    };
+
+        //    // 登录
+        //    _client.Send(loginMsg);
+
+        //    return _client.Socket;
+        //}
+        protected virtual async Task<IFastTunnelClientSocket> loginAsync(CancellationToken cancellationToken)
         {
             Server = _configuration.CurrentValue.Server;
-
-            DnsSocket _client = null;
             _logger.LogInformation($"正在连接服务端 {Server.ServerAddr}:{Server.ServerPort}");
 
             try
             {
                 // 连接到的目标IP
-                if (_client == null)
-                {
-                    _client = new DnsSocket(Server.ServerAddr, Server.ServerPort);
-                }
+                socket = new DefultClientSocket();
 
-                _client.Connect();
+                await socket.ConnectAsync(
+                    new Uri($"ws://{_configuration.CurrentValue.Server.ServerAddr}:{_configuration.CurrentValue.Server.ServerPort}"), cancellationToken);
 
                 _logger.LogInformation("连接成功");
             }
@@ -159,29 +194,19 @@ namespace FastTunnel.Core.Client
                 Content = new LogInMassage
                 {
                     Webs = _configuration.CurrentValue.Webs,
-                    SSH = _configuration.CurrentValue.SSH,
+                    SSH = _configuration.CurrentValue.Forwards,
                 },
             };
 
             // 登录
-            _client.Send(loginMsg);
-
-            return _client.Socket;
+            await socket.SendAsync(loginMsg, cancellationToken);
+            return socket;
         }
 
         void Close()
         {
             timer_heart.Stop();
-
-            try
-            {
-                _client?.Shutdown(SocketShutdown.Both);
-            }
-            catch (Exception)
-            {
-            }
-
-            _client?.Close();
+            socket.CloseAsync();
         }
 
         private async Task connSuccessAsync()
@@ -192,7 +217,7 @@ namespace FastTunnel.Core.Client
             timer_heart.Start();
 
             var th = new Thread(ReceiveServer);
-            th.Start(_client);
+            th.Start(socket);
             // await new PipeHepler(_client, ProceccLine).ProcessLinesAsync();
         }
 
@@ -205,7 +230,7 @@ namespace FastTunnel.Core.Client
 
         private void ReceiveServer(object obj)
         {
-            var client = obj as Socket;
+            var client = obj as IFastTunnelClientSocket;
             byte[] buffer = new byte[1024];
 
             string lastBuffer = string.Empty;
@@ -215,10 +240,10 @@ namespace FastTunnel.Core.Client
             {
                 try
                 {
-                    n = client.Receive(buffer);
+                    n = client.ReceiveAsync(buffer, cancellationTokenSource.Token).GetAwaiter().GetResult();
                     if (n == 0)
                     {
-                        client.Shutdown(SocketShutdown.Both);
+                        client.CloseAsync();
                         break;
                     }
                 }
@@ -290,36 +315,38 @@ namespace FastTunnel.Core.Client
             _logger.LogInformation("stop receive from server");
         }
 
-        private void HandleServerRequest(string words)
+        private void HandleServerRequest(string lineCmd)
         {
             Task.Run(() =>
             {
-                var Msg = JsonConvert.DeserializeObject<Message<JObject>>(words);
-                if (Msg.MessageType != MessageType.Heart)
-                {
-                    _logger.LogDebug($"HandleServerRequest {words}");
-                }
+                var cmds = lineCmd.Split("||");
+                var type = cmds[0];
 
+                TunnelMassage msg = null;
                 IClientHandler handler;
-                switch (Msg.MessageType)
+                switch (type)
                 {
-                    case MessageType.Heart:
+                    case "Heart":
                         handler = _clientHeartHandler;
+                        msg = JsonSerializer.Deserialize<HeartMassage>(cmds[1]);
                         break;
-                    case MessageType.S_NewCustomer:
+                    case "S_NewCustomer":
                         handler = _newCustomerHandler;
+                        msg = JsonSerializer.Deserialize<NewCustomerMassage>(cmds[1]);
                         break;
-                    case MessageType.S_NewSSH:
+                    case "S_NewSSH":
                         handler = _newSSHHandler;
+                        msg = JsonSerializer.Deserialize<NewForwardMessage>(cmds[1]);
                         break;
-                    case MessageType.Log:
+                    case "Log":
                         handler = _logHandler;
+                        msg = JsonSerializer.Deserialize<LogMassage>(cmds[1]);
                         break;
                     default:
-                        throw new Exception($"未处理的消息：{Msg.MessageType} {Msg.Content}");
+                        throw new Exception($"未处理的消息：{lineCmd}");
                 }
 
-                handler.HandlerMsg(this, Msg);
+                handler.HandlerMsgAsync(this, msg);
             });
         }
     }

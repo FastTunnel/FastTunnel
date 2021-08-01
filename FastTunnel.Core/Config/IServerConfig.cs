@@ -6,7 +6,7 @@ namespace FastTunnel.Core.Config
 {
     public interface IServerConfig
     {
-        int BindPort { get; set; }
+        // int BindPort { get; set; }
 
         #region Web相关配置
 
@@ -28,6 +28,6 @@ namespace FastTunnel.Core.Config
 
         #endregion
 
-        bool SSHEnabled { get; set; }
+        bool EnableForward { get; set; }
     }
 }

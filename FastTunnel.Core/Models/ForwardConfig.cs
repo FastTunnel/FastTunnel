@@ -4,7 +4,7 @@ using System.Text;
 
 namespace FastTunnel.Core.Models
 {
-    public class SSHConfig
+    public class ForwardConfig
     {
         /// <summary>
         /// 局域网IP地址

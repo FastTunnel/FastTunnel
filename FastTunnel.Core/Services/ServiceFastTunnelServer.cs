@@ -5,7 +5,6 @@ using FastTunnel.Core.Global;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -40,7 +39,6 @@ namespace FastTunnel.Core.Services
             try
             {
                 _logger.LogError("【UnhandledException】" + e.ExceptionObject);
-                _logger.LogError("【UnhandledException】" + JsonConvert.SerializeObject(e.ExceptionObject));
                 var type = e.ExceptionObject.GetType();
                 _logger.LogError("ExceptionObject GetType " + type);
             }

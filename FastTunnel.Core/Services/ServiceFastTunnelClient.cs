@@ -7,7 +7,6 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 using System.Runtime.ExceptionServices;
 using System.IO;
 
@@ -31,7 +30,7 @@ namespace FastTunnel.Core.Services
         {
             return Task.Run(() =>
             {
-                _fastTunnelClient.Start();
+                _fastTunnelClient.StartAsync(cancellationToken);
             }, cancellationToken);
         }
 
@@ -46,7 +45,6 @@ namespace FastTunnel.Core.Services
             try
             {
                 _logger.LogError("【UnhandledException】" + e.ExceptionObject);
-                _logger.LogError("【UnhandledException】" + JsonConvert.SerializeObject(e.ExceptionObject));
                 var type = e.ExceptionObject.GetType();
                 _logger.LogError("ExceptionObject GetType " + type);
             }

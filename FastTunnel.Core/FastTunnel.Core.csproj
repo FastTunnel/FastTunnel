@@ -22,14 +22,17 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Client\FastTunnelClient - Copy.cs" />
     <Compile Remove="Client\SuiDaoServer.cs.BASE.cs" />
     <Compile Remove="Client\SuiDaoServer.cs.LOCAL.cs" />
     <Compile Remove="Client\SuiDaoServer.cs.REMOTE.cs" />
     <Compile Remove="Dispatchers\ClientDispatcher.cs" />
     <Compile Remove="Dispatchers\HttpDispatcher.cs" />
     <Compile Remove="Dispatchers\HttpDispatcherV2.cs" />
+    <Compile Remove="Handlers\Server\SwapMessageHandler.cs" />
     <Compile Remove="Listener.cs" />
     <Compile Remove="Listener\ClientListener.cs" />
+    <Compile Remove="Listener\ClientListenerV2.cs" />
     <Compile Remove="Listener\HttpListener.cs" />
     <Compile Remove="Server.cs" />
     <Compile Remove="Sockets\AsyncSocketSwap.cs" />
@@ -39,7 +42,7 @@
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="6.0.0-preview.6.21352.12" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="5.0.0" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="5.0.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+    <PackageReference Include="Microsoft.VisualStudio.Validation" Version="17.0.16-alpha" />
     <PackageReference Include="Yarp.ReverseProxy" Version="1.0.0-preview.12.21328.2" />
   </ItemGroup>
 

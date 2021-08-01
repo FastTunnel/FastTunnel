@@ -37,7 +37,7 @@ namespace FastTunnel.Core.Extensions
                 .AddSingleton<ClientHeartHandler>()
                 .AddSingleton<LogHandler>()
                 .AddSingleton<HttpRequestHandler>()
-                .AddSingleton<NewSSHHandler>();
+                .AddSingleton<NewForwardHandler>();
 
             services.AddHostedService<ServiceFastTunnelClient>();
         }

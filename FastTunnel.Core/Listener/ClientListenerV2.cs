@@ -43,7 +43,7 @@ namespace FastTunnel.Core.Listener
             _heartHandler = new HeartMessageHandler();
             _swapMsgHandler = new SwapMessageHandler(_logger);
 
-            server = new Server.Server(2000, 100, false, _logger);
+            server = new Server.Server(10000, 100, false, _logger);
         }
 
         public void Start()

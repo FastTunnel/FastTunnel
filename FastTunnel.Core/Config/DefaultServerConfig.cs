@@ -7,7 +7,7 @@ namespace FastTunnel.Core.Config
 {
     public class DefaultServerConfig : IServerConfig
     {
-        public int BindPort { get; set; }
+        // public int BindPort { get; set; }
 
         public string WebDomain { get; set; }
 
@@ -17,6 +17,6 @@ namespace FastTunnel.Core.Config
 
         public bool WebHasNginxProxy { get; set; } = false;
 
-        public bool SSHEnabled { get; set; } = false;
+        public bool EnableForward { get; set; } = false;
     }
 }

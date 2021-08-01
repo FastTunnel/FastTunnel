@@ -1,11 +1,12 @@
 ﻿using FastTunnel.Core.Client;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Models;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Net.Sockets;
+using System.Net.WebSockets;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace FastTunnel.Core.Handlers.Server
 {
@@ -13,9 +14,11 @@ namespace FastTunnel.Core.Handlers.Server
     {
         public bool NeedRecive => true;
 
-        public void HandlerMsg(FastTunnelServer server, Socket client, Message<JObject> msg)
+        public async Task<bool> HandlerMsg<T>(FastTunnelServer server, WebSocket client, T msg)
+            where T : TunnelMassage
         {
-            client.SendCmd(new Message<HeartMassage>() { MessageType = MessageType.Heart, Content = null });
+            await client.SendCmdAsync(new Message<HeartMassage>() { MessageType = MessageType.Heart, Content = new HeartMassage { } });
+            return NeedRecive;
         }
     }
 }

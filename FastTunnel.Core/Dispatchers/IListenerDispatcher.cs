@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace FastTunnel.Core.Dispatchers
 {
@@ -10,6 +11,6 @@ namespace FastTunnel.Core.Dispatchers
     {
         void Dispatch(AsyncUserToken token, string words);
 
-        void Dispatch(Socket httpClient);
+        Task DispatchAsync(Socket httpClient);
     }
 }

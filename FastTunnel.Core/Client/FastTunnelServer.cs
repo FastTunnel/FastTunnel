@@ -27,35 +27,37 @@ namespace FastTunnel.Core.Client
         public ConcurrentDictionary<string, WebInfo> WebList { get; private set; }
             = new ConcurrentDictionary<string, WebInfo>();
 
-        public ConcurrentDictionary<int, SSHInfo<SSHHandlerArg>> SSHList { get; private set; }
-            = new ConcurrentDictionary<int, SSHInfo<SSHHandlerArg>>();
+        public ConcurrentDictionary<int, ForwardInfo<ForwardHandlerArg>> SSHList { get; private set; }
+            = new ConcurrentDictionary<int, ForwardInfo<ForwardHandlerArg>>();
 
         readonly ILogger _logger;
-        readonly ClientListenerV2 clientListener;
-        readonly HttpListenerV2 http_listener;
+        //readonly ClientListenerV2 clientListener;
+        //readonly HttpListenerV2 http_listener;
         public readonly IOptionsMonitor<DefaultServerConfig> serverOption;
+        public IProxyConfigProvider proxyConfig;
 
         public FastTunnelServer(ILogger<FastTunnelServer> logger, IProxyConfigProvider proxyConfig, IOptionsMonitor<DefaultServerConfig> serverSettings)
         {
             _logger = logger;
             serverOption = serverSettings;
+            this.proxyConfig = proxyConfig;
 
-            clientListener = new ClientListenerV2(this, proxyConfig, "0.0.0.0", serverOption.CurrentValue.BindPort, _logger);
-            http_listener = new HttpListenerV2("0.0.0.0", serverOption.CurrentValue.WebProxyPort, _logger);
+            //  clientListener = new ClientListenerV2(this, proxyConfig, "0.0.0.0", serverOption.CurrentValue.BindPort, _logger);
+            // http_listener = new HttpListenerV2("0.0.0.0", serverOption.CurrentValue.WebProxyPort, _logger);
         }
 
         public void Run()
         {
             _logger.LogInformation("===== FastTunnel Server Starting =====");
 
-            listenClient();
-            //listenHttp();
+            // listenClient();
+            // listenHttp();
         }
 
-        private void listenClient()
-        {
-            clientListener.Start();
-        }
+        //private void listenClient()
+        //{
+        //    clientListener.Start();
+        //}
 
         //private void listenHttp()
         //{
@@ -66,8 +68,8 @@ namespace FastTunnel.Core.Client
         {
             _logger.LogInformation("===== FastTunnel Server Stoping =====");
 
-            clientListener.Stop();
-            http_listener.Stop();
+            //clientListener.Stop();
+            //http_listener.Stop();
         }
     }
 }

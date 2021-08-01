@@ -5,9 +5,9 @@ using System.Text;
 
 namespace FastTunnel.Core.Models
 {
-    public class SSHHandlerArg
+    public class ForwardHandlerArg
     {
-        public SSHConfig SSHConfig { get; internal set; }
+        public ForwardConfig SSHConfig { get; internal set; }
 
         public Socket LocalClient { get; internal set; }
     }

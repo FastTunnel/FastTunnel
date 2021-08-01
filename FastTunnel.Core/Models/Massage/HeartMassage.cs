@@ -6,5 +6,6 @@ namespace FastTunnel.Core.Models
 {
     public class HeartMassage : TunnelMassage
     {
+        public string Time { get; set; }
     }
 }

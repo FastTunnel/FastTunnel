@@ -1,15 +1,15 @@
 ﻿using FastTunnel.Core.Config;
 using FastTunnel.Core.Client;
 using FastTunnel.Core.Models;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace FastTunnel.Core.Handlers.Client
 {
     public interface IClientHandler
     {
-        public void HandlerMsg(FastTunnelClient cleint, Message<JObject> Msg);
+        Task HandlerMsgAsync<T>(FastTunnelClient cleint, T Msg) where T : TunnelMassage;
     }
 }

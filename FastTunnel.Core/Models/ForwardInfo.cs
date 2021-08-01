@@ -2,15 +2,16 @@
 using System;
 using System.Collections.Generic;
 using System.Net.Sockets;
+using System.Net.WebSockets;
 using System.Text;
 
 namespace FastTunnel.Core.Models
 {
-    public class SSHInfo<T>
+    public class ForwardInfo<T>
     {
-        public Socket Socket { get; set; }
+        public WebSocket Socket { get; set; }
 
-        public SSHConfig SSHConfig { get; set; }
+        public ForwardConfig SSHConfig { get; set; }
 
         public IListener Listener { get; set; }
     }

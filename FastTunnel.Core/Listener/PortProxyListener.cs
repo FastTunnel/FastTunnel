@@ -108,7 +108,7 @@ namespace FastTunnel.Core.Listener
                 try
                 {
                     // 将此客户端交由Dispatcher进行管理
-                    _requestDispatcher.Dispatch(accept);
+                    _requestDispatcher.DispatchAsync(accept);
                 }
                 catch (Exception ex)
                 {

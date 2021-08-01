@@ -1,10 +1,10 @@
 ﻿using FastTunnel.Core.Config;
 using FastTunnel.Core.Models;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json.Linq;
 using System;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Client;
+using System.Threading.Tasks;
 
 namespace FastTunnel.Core.Handlers.Client
 {
@@ -17,11 +17,13 @@ namespace FastTunnel.Core.Handlers.Client
             _logger = logger;
         }
 
-        public void HandlerMsg(FastTunnelClient cleint, Message<JObject> Msg)
+        public async Task HandlerMsgAsync<T>(FastTunnelClient cleint, T Msg)
+            where T : TunnelMassage
         {
             try
             {
-                var msg = Msg.Content.ToObject<LogMassage>();
+                await Task.Yield();
+                var msg = Msg as LogMassage;
 
                 switch (msg.MsgType)
                 {

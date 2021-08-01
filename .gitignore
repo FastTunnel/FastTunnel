@@ -12,3 +12,4 @@ publish
 /SuiDao.Client/Properties/PublishProfiles/FolderProfile.pubxml
 /FastTunnel.Core/*.user
 /build
+/FastTunnel.Server/.config

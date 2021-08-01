@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Forwarder;
+using FastTunnel.Core.Forwarder.MiddleWare;
+using FastTunnel.Core.MiddleWares;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -35,6 +37,8 @@ namespace FastTunnel.Server
 
             // ------------------------Custom Business------------------------------
             services.AddSingleton<IForwarderHttpClientFactory, FastTunnelForwarderHttpClientFactory>();
+            services.AddSingleton<FastTunnelClientHandler, FastTunnelClientHandler>();
+            services.AddSingleton<FastTunnelSwapHandler, FastTunnelSwapHandler>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -43,6 +47,13 @@ namespace FastTunnel.Server
             if (env.IsDevelopment())
             {
             }
+
+            app.UseWebSockets();
+
+            var swapHandler = app.ApplicationServices.GetRequiredService<FastTunnelSwapHandler>();
+            var clientHandler = app.ApplicationServices.GetRequiredService<FastTunnelClientHandler>();
+            app.Use(clientHandler.Handle);
+            app.Use(swapHandler.Handle);
 
             app.UseRouting();
 

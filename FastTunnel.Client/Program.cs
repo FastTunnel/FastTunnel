@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using FastTunnel.Core.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using FastTunnel.Core.Client;
+using System;
 
 namespace FastTunnel.Client
 {
@@ -10,7 +11,14 @@ namespace FastTunnel.Client
     {
         public static void Main(string[] args)
         {
-            CreateHostBuilder(args).Build().Run();
+            try
+            {
+                CreateHostBuilder(args).Build().Run();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>

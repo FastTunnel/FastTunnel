@@ -8,6 +8,7 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Net.Sockets;
+using System.Net.WebSockets;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -38,7 +39,6 @@ namespace FastTunnel.Core.Handlers.Server
                 server.ResponseTasks.TryRemove(SwapMsg.msgId, out _);
 
                 _logger.LogDebug($"SwapMassage：{SwapMsg.msgId}");
-
                 response.SetResult(new NetworkStream(client, true));
             }
             else
@@ -58,6 +58,11 @@ namespace FastTunnel.Core.Handlers.Server
 
                 client.Close();
             }
+        }
+
+        public Task<bool> HandlerMsg(FastTunnelServer server, WebSocket client, Message<JObject> msg)
+        {
+            throw new NotImplementedException();
         }
     }
 }
