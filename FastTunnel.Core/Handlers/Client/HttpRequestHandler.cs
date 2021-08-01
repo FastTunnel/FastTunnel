@@ -15,7 +15,6 @@ using System.Net.WebSockets;
 using FastTunnel.Core.Forwarder;
 using Microsoft;
 using Microsoft.AspNetCore.DataProtection;
-using FastTunnel.Core.Server;
 using System.Data.Common;
 
 namespace FastTunnel.Core.Handlers.Client

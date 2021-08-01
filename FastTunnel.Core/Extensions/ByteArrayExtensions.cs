@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace FastTunnel.Core.Extensions
 {
-    public static class ByteArrayExtension
+    public static class ByteArrayExtensions
     {
         public static string GetString(this byte[] buffer, int offset, int count)
         {

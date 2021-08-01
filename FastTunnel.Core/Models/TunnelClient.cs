@@ -1,7 +1,6 @@
 ﻿using FastTunnel.Core.Client;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Handlers;
-using FastTunnel.Core.Handlers.Server;
 using FastTunnel.Core.Protocol;
 using Microsoft.Extensions.Logging;
 using System;
@@ -20,8 +19,6 @@ namespace FastTunnel.Core.Models
     public class TunnelClient
     {
         readonly LoginHandler _loginHandler;
-        readonly HeartMessageHandler _heartHandler;
-        //readonly SwapMessageHandler _swapMsgHandler;
         FastTunnelServer fastTunnelServer;
         ILogger logger;
         WebSocket webSocket;
@@ -32,8 +29,6 @@ namespace FastTunnel.Core.Models
             this.logger = logger;
             this.fastTunnelServer = fastTunnelServer;
             this._loginHandler = new LoginHandler(logger, fastTunnelServer.proxyConfig);
-            this._heartHandler = new HeartMessageHandler();
-            // this._swapMsgHandler = new SwapMessageHandler(logger);
         }
 
         public async Task ReviceAsync()
@@ -45,6 +40,8 @@ namespace FastTunnel.Core.Models
             {
                 var res = await webSocket.ReceiveAsync(buffer, CancellationToken.None);
                 var cmds = tunnelProtocol.HandleBuffer(buffer, 0, res.Count);
+                if (cmds == null) continue;
+
                 foreach (var item in cmds)
                 {
                     if (!await HandleCmdAsync(webSocket, item))
@@ -70,9 +67,6 @@ namespace FastTunnel.Core.Models
                     case "C_LogIn": // 登录
                         handler = _loginHandler;
                         msg = JsonSerializer.Deserialize<LogInMassage>(cmds[1]);
-                        break;
-                    case "Heart":   // 心跳
-                        handler = _heartHandler;
                         break;
                     default:
                         throw new Exception($"未知的通讯指令 {lineCmd}");

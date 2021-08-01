@@ -1,7 +1,6 @@
 ﻿using FastTunnel.Core.Config;
 using FastTunnel.Core.Models;
 using Microsoft.Extensions.Logging;
-using FastTunnel.Core.Handlers.Server;
 using System.Collections.Concurrent;
 using System;
 using FastTunnel.Core.Listener;
@@ -18,8 +17,6 @@ namespace FastTunnel.Core.Client
 {
     public class FastTunnelServer
     {
-        public ConcurrentDictionary<string, NewRequest> RequestTemp { get; private set; } = new ConcurrentDictionary<string, NewRequest>();
-
         public ConcurrentDictionary<string, TaskCompletionSource<Stream>> ResponseTasks { get; } = new();
 
         public ConcurrentDictionary<string, WebInfo> WebList { get; private set; } = new();
@@ -28,8 +25,6 @@ namespace FastTunnel.Core.Client
             = new ConcurrentDictionary<int, ForwardInfo<ForwardHandlerArg>>();
 
         readonly ILogger _logger;
-        //readonly ClientListenerV2 clientListener;
-        //readonly HttpListenerV2 http_listener;
         public readonly IOptionsMonitor<DefaultServerConfig> serverOption;
         public IProxyConfigProvider proxyConfig;
 

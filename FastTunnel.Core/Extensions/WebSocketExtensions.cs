@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace FastTunnel.Core.Extensions
 {
-    public static class WebSocketExtension
+    public static class WebSocketExtensions
     {
         public static async Task SendCmdAsync<T>(this WebSocket socket, Message<T> message,
             WebSocketMessageType webSocketMessage, bool end, CancellationToken cancellationToken)

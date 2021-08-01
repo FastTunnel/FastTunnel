@@ -26,12 +26,20 @@ namespace FastTunnel.Core.Services
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
         }
 
-        public Task StartAsync(CancellationToken cancellationToken)
+        public async Task StartAsync(CancellationToken cancellationToken)
         {
-            return Task.Run(() =>
+            while (!cancellationToken.IsCancellationRequested)
             {
-                _fastTunnelClient.StartAsync(cancellationToken);
-            }, cancellationToken);
+                try
+                {
+                    await _fastTunnelClient.StartAsync(cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex.Message);
+                    await Task.Delay(TimeSpan.FromSeconds(10), cancellationToken);
+                }
+            }
         }
 
         public Task StopAsync(CancellationToken cancellationToken)

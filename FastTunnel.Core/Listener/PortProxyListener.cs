@@ -1,5 +1,4 @@
 ﻿using FastTunnel.Core.Dispatchers;
-using FastTunnel.Core.Handlers.Server;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -20,7 +19,7 @@ namespace FastTunnel.Core.Listener
         int m_numConnectedSockets;
 
         bool shutdown = false;
-        IListenerDispatcher _requestDispatcher;
+        ForwardHandler _requestDispatcher;
         Socket listenSocket;
         public IList<Socket> ConnectedSockets = new List<Socket>();
 
@@ -37,7 +36,7 @@ namespace FastTunnel.Core.Listener
             listenSocket.Bind(localEndPoint);
         }
 
-        public void Start(IListenerDispatcher requestDispatcher)
+        public void Start(ForwardHandler requestDispatcher)
         {
             shutdown = false;
             _requestDispatcher = requestDispatcher;

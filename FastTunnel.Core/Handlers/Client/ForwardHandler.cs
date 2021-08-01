@@ -2,7 +2,6 @@
 using FastTunnel.Core.Dispatchers;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Models;
-using FastTunnel.Core.Server;
 using Microsoft.AspNetCore.Hosting.Server;
 using System;
 using System.Collections.Generic;
@@ -15,13 +14,13 @@ using System.Threading.Tasks;
 
 namespace FastTunnel.Core.Dispatchers
 {
-    public class ForwardDispatcher : IListenerDispatcher
+    public class ForwardHandler
     {
         private FastTunnelServer _server;
         private WebSocket _client;
         private ForwardConfig _config;
 
-        public ForwardDispatcher(FastTunnelServer server, WebSocket client, ForwardConfig config)
+        public ForwardHandler(FastTunnelServer server, WebSocket client, ForwardConfig config)
         {
             _server = server;
             _client = client;
@@ -45,11 +44,6 @@ namespace FastTunnel.Core.Dispatchers
             catch (Exception)
             {
             }
-        }
-
-        public void Dispatch(AsyncUserToken token, string words)
-        {
-            throw new NotImplementedException();
         }
     }
 }

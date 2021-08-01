@@ -16,7 +16,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\FastTunel.Core.WebApi\FastTunel.Core.WebApi.csproj" />
     <ProjectReference Include="..\FastTunnel.Core\FastTunnel.Core.csproj" />
   </ItemGroup>
 

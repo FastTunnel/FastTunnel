@@ -6,8 +6,6 @@ namespace FastTunnel.Core.Config
 {
     public interface IServerConfig
     {
-        // int BindPort { get; set; }
-
         #region Web相关配置
 
         int WebProxyPort { get; set; }

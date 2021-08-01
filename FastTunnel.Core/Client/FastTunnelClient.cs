@@ -10,7 +10,6 @@ using System.Threading;
 using Microsoft.Extensions.Logging;
 using FastTunnel.Core.Handlers.Client;
 using Microsoft.Extensions.Configuration;
-using FastTunnel.Core.Server;
 using FastTunnel.Core.Sockets;
 using Microsoft.Extensions.Options;
 using System.Net.WebSockets;
@@ -21,11 +20,8 @@ namespace FastTunnel.Core.Client
 {
     public class FastTunnelClient : IFastTunnelClient
     {
-        //Socket _client;
         private IFastTunnelClientSocket socket;
-
         protected ILogger<FastTunnelClient> _logger;
-
         public DateTime lastHeart;
 
         HttpRequestHandler _newCustomerHandler;
@@ -63,17 +59,8 @@ namespace FastTunnel.Core.Client
             CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, this.cancellationTokenSource.Token);
 
             _logger.LogInformation("===== FastTunnel Client Start =====");
-
-            try
-            {
-                socket = await loginAsync(cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex.Message);
-                return;
-            }
-
+            socket = await loginAsync(cancellationToken);
+            _logger.LogInformation($"通讯已建立");
             await ReceiveServerAsync(socket);
         }
 
@@ -144,10 +131,6 @@ namespace FastTunnel.Core.Client
                 IClientHandler handler;
                 switch (type)
                 {
-                    case "Heart":
-                        handler = _clientHeartHandler;
-                        msg = JsonSerializer.Deserialize<HeartMassage>(cmds[1]);
-                        break;
                     case "S_NewCustomer":
                         handler = _newCustomerHandler;
                         msg = JsonSerializer.Deserialize<NewCustomerMassage>(cmds[1]);

@@ -3,7 +3,6 @@ using FastTunnel.Core.Dispatchers;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Filters;
 using FastTunnel.Core.Global;
-using FastTunnel.Core.Handlers.Server;
 using FastTunnel.Core.Listener;
 using FastTunnel.Core.Models;
 using Microsoft.Extensions.Logging;
@@ -94,7 +93,7 @@ namespace FastTunnel.Core.Handlers
 
                         var ls = new PortProxyListener("0.0.0.0", item.RemotePort, _logger);
 
-                        ls.Start(new ForwardDispatcher(server, client, item));
+                        ls.Start(new ForwardHandler(server, client, item));
 
                         // listen success
                         server.ForwardList.TryAdd(item.RemotePort, new ForwardInfo<ForwardHandlerArg> { Listener = ls, Socket = client, SSHConfig = item });

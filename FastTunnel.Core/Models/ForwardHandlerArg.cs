@@ -7,8 +7,8 @@ namespace FastTunnel.Core.Models
 {
     public class ForwardHandlerArg
     {
-        public ForwardConfig SSHConfig { get; internal set; }
+        public ForwardConfig SSHConfig { get; set; }
 
-        public Socket LocalClient { get; internal set; }
+        public Socket LocalClient { get; set; }
     }
 }

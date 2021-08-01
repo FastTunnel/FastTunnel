@@ -6,7 +6,7 @@ using System.Text;
 
 namespace FastTunnel.Core.Extensions
 {
-    public static class SocketExtension
+    public static class SocketExtensions
     {
         public static void SendCmd<T>(this Socket socket, Message<T> message)
             where T : TunnelMassage
