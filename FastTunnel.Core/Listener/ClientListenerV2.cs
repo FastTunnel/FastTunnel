@@ -65,31 +65,33 @@ namespace FastTunnel.Core.Listener
                 return false;
             }
 
+            IClientMessageHandler handler = null;
             try
             {
                 msg = JsonConvert.DeserializeObject<Message<JObject>>(words);
+                //if (msg == null)
+                //    throw new Exception("指令为空！");
+
+                switch (msg.MessageType)
+                {
+                    case MessageType.C_LogIn: // 登录
+                        handler = _loginHandler;
+                        break;
+                    case MessageType.Heart:   // 心跳
+                        handler = _heartHandler;
+                        break;
+                    case MessageType.C_SwapMsg: // 交换数据
+                        handler = _swapMsgHandler;
+                        break;
+                    default:
+                        throw new Exception($"未知的通讯指令 {msg.MessageType}");
+                }
             }
             catch (Exception ex)
             {
                 _logger.LogCritical(ex, $"【异常的指令】{words}");
                 token.Socket.Close();
                 return false;
-            }
-
-            IClientMessageHandler handler = null;
-            switch (msg.MessageType)
-            {
-                case MessageType.C_LogIn: // 登录
-                    handler = _loginHandler;
-                    break;
-                case MessageType.Heart:   // 心跳
-                    handler = _heartHandler;
-                    break;
-                case MessageType.C_SwapMsg: // 交换数据
-                    handler = _swapMsgHandler;
-                    break;
-                default:
-                    throw new Exception($"未知的通讯指令 {msg.MessageType}");
             }
 
             try
