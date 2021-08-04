@@ -36,57 +36,15 @@ namespace FastTunnel.Core.MiddleWares
                 return;
             };
 
-            if (HeaderConst.TYPE_CLIENT.Equals(type))
-            {
-                await Client(context, next);
-            }
-            else if (HeaderConst.TYPE_SWAP.Equals(type))
-            {
-                await Swap(context, next);
-            }
-            else
-            {
-                logger.LogError($"参数异常，ConnectionType类型为{type}");
-            }
+            await handleClient(context, next);
         }
 
-        private async Task Swap(HttpContext context, Func<Task> next)
-        {
-            var requestId = context.Request.Path.Value.Trim('/');
-            if (!fastTunnelServer.ResponseTasks.TryGetValue(requestId, out var response))
-            {
-                logger.LogError($"requestId不存在:{requestId}");
-                return;
-            };
-
-            var lifetime = context.Features.Get<IConnectionLifetimeFeature>();
-            var transport = context.Features.Get<IConnectionTransportFeature>();
-
-            if (lifetime == null || transport == null)
-            {
-                await next();
-                return;
-            }
-
-            using var stream = new WebSocketStream(lifetime, transport);
-            response.TrySetResult(stream);
-
-            logger.LogInformation($"Swap Set {requestId}");
-
-            var closedAwaiter = new TaskCompletionSource();
-            lifetime.ConnectionClosed.Register((task) => { (task as TaskCompletionSource).SetResult(); }, closedAwaiter);
-
-            await closedAwaiter.Task;
-
-            logger.LogInformation($"Swap Completion {requestId}");
-        }
-
-        private async Task Client(HttpContext context, Func<Task> next)
+        private async Task handleClient(HttpContext context, Func<Task> next)
         {
             using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
             var client = new TunnelClient(logger, webSocket, fastTunnelServer);
 
-            this.logger.LogInformation($"{client} 客户端连接成功");
+            this.logger.LogInformation($"{webSocket} 客户端连接成功");
 
             try
             {

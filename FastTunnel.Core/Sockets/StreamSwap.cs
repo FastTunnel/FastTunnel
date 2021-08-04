@@ -14,10 +14,10 @@ namespace FastTunnel.Core.Sockets
     {
         private Stream stream1;
         private Stream stream2;
-        private ILogger<HttpRequestHandler> logger;
+        private ILogger<ForwardHandler> logger;
         private string msgId;
 
-        public StreamSwap(Stream serverConnection, NetworkStream localConn, ILogger<HttpRequestHandler> logger, string msgId)
+        public StreamSwap(Stream serverConnection, NetworkStream localConn, ILogger<ForwardHandler> logger, string msgId)
         {
             this.stream1 = serverConnection;
             this.stream2 = localConn;

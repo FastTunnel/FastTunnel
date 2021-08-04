@@ -15,38 +15,38 @@ using Microsoft.Extensions.Options;
 using System.Net.WebSockets;
 using System.Text.Json;
 using FastTunnel.Core.Protocol;
+using Microsoft.AspNetCore.DataProtection;
 
 namespace FastTunnel.Core.Client
 {
     public class FastTunnelClient : IFastTunnelClient
     {
-        private IFastTunnelClientSocket socket;
+        private ClientWebSocket socket;
         protected ILogger<FastTunnelClient> _logger;
         public DateTime lastHeart;
 
-        HttpRequestHandler _newCustomerHandler;
-        NewForwardHandler _newSSHHandler;
+        ForwardHandler _newCustomerHandler;
         LogHandler _logHandler;
         ClientHeartHandler _clientHeartHandler;
         Message<LogInMassage> loginMsg;
-        protected readonly IOptionsMonitor<DefaultClientConfig> _configuration;
+
+        public DefaultClientConfig ClientConfig { get; private set; }
         private readonly CancellationTokenSource cancellationTokenSource = new();
 
         public SuiDaoServer Server { get; protected set; }
 
         public FastTunnelClient(
             ILogger<FastTunnelClient> logger,
-            HttpRequestHandler newCustomerHandler,
-            NewForwardHandler newSSHHandler, LogHandler logHandler,
+            ForwardHandler newCustomerHandler,
+             LogHandler logHandler,
             IOptionsMonitor<DefaultClientConfig> configuration,
             ClientHeartHandler clientHeartHandler)
         {
             _logger = logger;
             _newCustomerHandler = newCustomerHandler;
-            _newSSHHandler = newSSHHandler;
             _logHandler = logHandler;
             _clientHeartHandler = clientHeartHandler;
-            _configuration = configuration;
+            ClientConfig = configuration.CurrentValue;
         }
 
         /// <summary>
@@ -59,23 +59,26 @@ namespace FastTunnel.Core.Client
             CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, this.cancellationTokenSource.Token);
 
             _logger.LogInformation("===== FastTunnel Client Start =====");
-            socket = await loginAsync(cancellationToken);
+            await loginAsync(cancellationToken);
             _logger.LogInformation($"通讯已建立");
-            await ReceiveServerAsync(socket);
+            await ReceiveServerAsync();
         }
 
-        protected virtual async Task<IFastTunnelClientSocket> loginAsync(CancellationToken cancellationToken)
+        protected virtual async Task loginAsync(CancellationToken cancellationToken)
         {
-            Server = _configuration.CurrentValue.Server;
+            Server = ClientConfig.Server;
             _logger.LogInformation($"正在连接服务端 {Server.ServerAddr}:{Server.ServerPort}");
 
             try
             {
                 // 连接到的目标IP
-                socket = new DefultClientSocket();
+                socket = new ClientWebSocket();
+                socket.Options.RemoteCertificateValidationCallback = delegate { return true; };
+                socket.Options.SetRequestHeader(HeaderConst.FASTTUNNEL_FLAG, "2.0.0");
+                socket.Options.SetRequestHeader(HeaderConst.FASTTUNNEL_TYPE, HeaderConst.TYPE_CLIENT);
 
                 await socket.ConnectAsync(
-                    new Uri($"ws://{_configuration.CurrentValue.Server.ServerAddr}:{_configuration.CurrentValue.Server.ServerPort}"), cancellationToken);
+                    new Uri($"ws://{ClientConfig.Server.ServerAddr}:{ClientConfig.Server.ServerPort}"), cancellationToken);
 
                 _logger.LogInformation("连接成功");
             }
@@ -84,70 +87,48 @@ namespace FastTunnel.Core.Client
                 throw;
             }
 
-            loginMsg = new Message<LogInMassage>
-            {
-                MessageType = MessageType.C_LogIn,
-                Content = new LogInMassage
-                {
-                    Webs = _configuration.CurrentValue.Webs,
-                    Forwards = _configuration.CurrentValue.Forwards,
-                },
-            };
-
             // 登录
-            await socket.SendAsync(loginMsg, cancellationToken);
-            return socket;
+            await socket.SendCmdAsync(MessageType.LogIn, new LogInMassage
+            {
+                Webs = ClientConfig.Webs,
+                Forwards = ClientConfig.Forwards,
+            }.ToJson());
         }
 
-        private async Task ReceiveServerAsync(IFastTunnelClientSocket client)
+        private async Task ReceiveServerAsync()
         {
-            byte[] buffer = new byte[512];
-            var tunnelProtocol = new TunnelProtocol();
+            byte[] buffer = new byte[128];
 
             while (true)
             {
-                var res = await client.ReceiveAsync(buffer, CancellationToken.None);
-                var cmds = tunnelProtocol.HandleBuffer(buffer, 0, res);
-
-                if (cmds == null)
-                    continue;
-
-                foreach (var item in cmds)
-                {
-                    HandleServerRequestAsync(item);
-                }
+                var res = await socket.ReceiveAsync(buffer, CancellationToken.None);
+                var type = buffer[0];
+                var content = Encoding.UTF8.GetString(buffer, 1, res.Count - 1);
+                HandleServerRequestAsync(type, content);
             }
         }
 
-        private async void HandleServerRequestAsync(string lineCmd)
+        private async void HandleServerRequestAsync(byte cmd, string ctx)
         {
             try
             {
-                var cmds = lineCmd.Split("||");
-                var type = cmds[0];
-
-                _logger.LogInformation($"处理 {type}");
-                TunnelMassage msg = null;
                 IClientHandler handler;
-                switch (type)
+                switch ((MessageType)cmd)
                 {
-                    case "S_NewCustomer":
+                    case MessageType.SwapMsg:
                         handler = _newCustomerHandler;
-                        msg = JsonSerializer.Deserialize<NewCustomerMassage>(cmds[1]);
                         break;
-                    case "S_NewSSH":
-                        handler = _newSSHHandler;
-                        msg = JsonSerializer.Deserialize<NewForwardMessage>(cmds[1]);
+                    case MessageType.Forward:
+                        handler = _newCustomerHandler;
                         break;
-                    case "Log":
+                    case MessageType.Log:
                         handler = _logHandler;
-                        msg = JsonSerializer.Deserialize<LogMassage>(cmds[1]);
                         break;
                     default:
-                        throw new Exception($"未处理的消息：{lineCmd}");
+                        throw new Exception($"未处理的消息：cmd={cmd}");
                 }
 
-                await handler.HandlerMsgAsync(this, msg);
+                await handler.HandlerMsgAsync(this, ctx);
             }
             catch (Exception ex)
             {

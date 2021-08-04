@@ -10,6 +10,6 @@ namespace FastTunnel.Core.Handlers.Client
 {
     public interface IClientHandler
     {
-        Task HandlerMsgAsync<T>(FastTunnelClient cleint, T Msg) where T : TunnelMassage;
+        Task HandlerMsgAsync(FastTunnelClient cleint, string msg);
     }
 }

@@ -4,25 +4,18 @@ using System.Text;
 
 namespace FastTunnel.Core.Models
 {
-    public class Message<T>
+    public struct Message<T>
     {
         public MessageType MessageType { get; set; }
 
         public T Content { get; set; }
     }
 
-    public enum MessageType
+    public enum MessageType : byte
     {
-        // client use below
-        C_LogIn,
-        Heart,
-        C_SwapMsg,
-
-        // server use below
-        S_NewCustomer,
-        S_NewSSH,
-
-        // twoway
-        Log,
+        LogIn = 1, // client
+        SwapMsg = 2,
+        Forward = 3,
+        Log = 4,
     }
 }

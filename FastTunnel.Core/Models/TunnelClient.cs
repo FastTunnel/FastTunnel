@@ -57,22 +57,9 @@ namespace FastTunnel.Core.Models
             try
             {
                 logger.LogInformation($"client：{lineCmd}");
-                var cmds = lineCmd.Split("||");
-                var type = cmds[0];
 
-                TunnelMassage msg = null;
-                IClientMessageHandler handler = null;
-                switch (type)
-                {
-                    case "C_LogIn": // 登录
-                        handler = _loginHandler;
-                        msg = JsonSerializer.Deserialize<LogInMassage>(cmds[1]);
-                        break;
-                    default:
-                        throw new Exception($"未知的通讯指令 {lineCmd}");
-                }
-
-                return await handler.HandlerMsg(fastTunnelServer, webSocket, msg);
+                var msg = JsonSerializer.Deserialize<LogInMassage>(lineCmd.Substring(1));
+                return await _loginHandler.HandlerMsg(fastTunnelServer, webSocket, msg);
             }
             catch (Exception ex)
             {

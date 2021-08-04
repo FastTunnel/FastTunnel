@@ -10,7 +10,7 @@ namespace FastTunnel.Core.Handlers.Client
 {
     public class ClientHeartHandler : IClientHandler
     {
-        public async Task HandlerMsgAsync<T>(FastTunnelClient cleint, T Msg) where T : TunnelMassage
+        public async Task HandlerMsgAsync(FastTunnelClient cleint, string msg)
         {
             cleint.lastHeart = DateTime.Now;
             await Task.Yield();

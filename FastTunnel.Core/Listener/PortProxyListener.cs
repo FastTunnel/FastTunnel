@@ -1,10 +1,14 @@
 ﻿using FastTunnel.Core.Dispatchers;
+using FastTunnel.Core.Models;
+using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace FastTunnel.Core.Listener
 {
@@ -19,7 +23,7 @@ namespace FastTunnel.Core.Listener
         int m_numConnectedSockets;
 
         bool shutdown = false;
-        ForwardHandler _requestDispatcher;
+        ForwardDispatcher _requestDispatcher;
         Socket listenSocket;
         public IList<Socket> ConnectedSockets = new List<Socket>();
 
@@ -36,7 +40,7 @@ namespace FastTunnel.Core.Listener
             listenSocket.Bind(localEndPoint);
         }
 
-        public void Start(ForwardHandler requestDispatcher)
+        public void Start(ForwardDispatcher requestDispatcher)
         {
             shutdown = false;
             _requestDispatcher = requestDispatcher;
@@ -119,6 +123,7 @@ namespace FastTunnel.Core.Listener
                 Stop();
             }
         }
+
 
         private void AcceptEventArg_Completed(object sender, SocketAsyncEventArgs e)
         {

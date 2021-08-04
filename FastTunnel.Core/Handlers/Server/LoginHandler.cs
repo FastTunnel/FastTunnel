@@ -37,8 +37,7 @@ namespace FastTunnel.Core.Handlers
         {
             bool hasTunnel = false;
 
-            var sb = new StringBuilder($"{Environment.NewLine}=====隧道已建立成功，可通过以下方式访问内网服务====={Environment.NewLine}{Environment.NewLine}");
-            sb.Append($"穿透协议 | 映射关系（公网=>内网）{Environment.NewLine}");
+            await client.SendCmdAsync(MessageType.Log, $"穿透协议 | 映射关系（公网=>内网）{Environment.NewLine}");
             if (requet.Webs != null && requet.Webs.Count() > 0)
             {
                 hasTunnel = true;
@@ -51,8 +50,8 @@ namespace FastTunnel.Core.Handlers
                     server.WebList.AddOrUpdate(hostName, info, (key, oldInfo) => { return info; });
                     (proxyConfig as InMemoryConfigProvider).AddWeb(hostName);
 
-                    sb.Append($"  HTTP   | http://{hostName}{(server.serverOption.CurrentValue.WebHasNginxProxy ? string.Empty : ":" + server.serverOption.CurrentValue.WebProxyPort)} => {item.LocalIp}:{item.LocalPort}");
-                    sb.Append(Environment.NewLine);
+                    await client.SendCmdAsync(MessageType.Log, $"  HTTP   | http://{hostName}{(server.serverOption.CurrentValue.WebHasNginxProxy ? string.Empty : ":" + server.serverOption.CurrentValue.WebProxyPort)} => {item.LocalIp}:{item.LocalPort}");
+
                     if (item.WWW != null)
                     {
                         foreach (var www in item.WWW)
@@ -62,8 +61,9 @@ namespace FastTunnel.Core.Handlers
 
                             server.WebList.AddOrUpdate(www, info, (key, oldInfo) => { return info; });
                             (proxyConfig as InMemoryConfigProvider).AddWeb(hostName);
-                            sb.Append($"  HTTP   | http://{www}{(server.serverOption.CurrentValue.WebHasNginxProxy ? string.Empty : ":" + server.serverOption.CurrentValue.WebProxyPort)} => {item.LocalIp}:{item.LocalPort}");
-                            sb.Append(Environment.NewLine);
+
+                            await client.SendCmdAsync(MessageType.Log, $"  HTTP   | http://{www}{(server.serverOption.CurrentValue.WebHasNginxProxy ? string.Empty : ":" + server.serverOption.CurrentValue.WebProxyPort)} => {item.LocalIp}:{item.LocalPort}");
+
                         }
                     }
                 }
@@ -93,34 +93,26 @@ namespace FastTunnel.Core.Handlers
 
                         var ls = new PortProxyListener("0.0.0.0", item.RemotePort, _logger);
 
-                        ls.Start(new ForwardHandler(server, client, item));
+                        ls.Start(new ForwardDispatcher(server, client, item));
 
                         // listen success
                         server.ForwardList.TryAdd(item.RemotePort, new ForwardInfo<ForwardHandlerArg> { Listener = ls, Socket = client, SSHConfig = item });
                         _logger.LogDebug($"SSH proxy success: {item.RemotePort} => {item.LocalIp}:{item.LocalPort}");
 
-                        sb.Append($"  TCP    | {server.serverOption.CurrentValue.WebDomain}:{item.RemotePort} => {item.LocalIp}:{item.LocalPort}");
-                        sb.Append(Environment.NewLine);
+                        await client.SendCmdAsync(MessageType.Log, $"  TCP    | {server.serverOption.CurrentValue.WebDomain}:{item.RemotePort} => {item.LocalIp}:{item.LocalPort}");
                     }
                     catch (Exception ex)
                     {
                         _logger.LogError($"SSH proxy error: {item.RemotePort} => {item.LocalIp}:{item.LocalPort}");
                         _logger.LogError(ex.Message);
-                        await client.SendCmdAsync(new Message<LogMassage> { MessageType = MessageType.Log, Content = new LogMassage(LogMsgType.Info, ex.Message) });
+                        await client.SendCmdAsync(MessageType.Log, ex.Message);
                         continue;
                     }
                 }
             }
 
             if (!hasTunnel)
-            {
-                await client.SendCmdAsync(new Message<LogMassage> { MessageType = MessageType.Log, Content = new LogMassage(LogMsgType.Info, TunnelResource.NoTunnel) });
-            }
-            else
-            {
-                sb.Append($"{Environment.NewLine}====================================================");
-                await client.SendCmdAsync(new Message<LogMassage> { MessageType = MessageType.Log, Content = new LogMassage(LogMsgType.Info, sb.ToString()) });
-            }
+                await client.SendCmdAsync(MessageType.Log, TunnelResource.NoTunnel);
         }
 
         public async Task<bool> HandlerMsg<T>(FastTunnelServer server, WebSocket client, T msg)

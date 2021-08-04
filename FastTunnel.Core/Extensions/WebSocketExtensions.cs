@@ -12,19 +12,13 @@ namespace FastTunnel.Core.Extensions
 {
     public static class WebSocketExtensions
     {
-        public static async Task SendCmdAsync<T>(this WebSocket socket, Message<T> message,
-            WebSocketMessageType webSocketMessage, bool end, CancellationToken cancellationToken)
-            where T : TunnelMassage
+        public static async Task SendCmdAsync(this WebSocket socket, MessageType type, string content)
         {
-            var msg = Encoding.UTF8.GetBytes($"{message.MessageType.ToString()}||{message.Content.ToJson()}\n");
-            await socket.SendAsync(msg, webSocketMessage, end, cancellationToken);
-        }
+            var buffer = Encoding.UTF8.GetBytes((char)type + content + "\n");
+            if (type != MessageType.LogIn && buffer.Length > 128)
+                throw new ArgumentOutOfRangeException(nameof(content));
 
-        public static async Task SendCmdAsync<T>(this WebSocket socket, Message<T> message)
-            where T : TunnelMassage
-        {
-            var msg = Encoding.UTF8.GetBytes($"{message.MessageType.ToString()}||{message.Content.ToJson()}\n");
-            await socket.SendAsync(msg, WebSocketMessageType.Binary, false, CancellationToken.None);
+            await socket.SendAsync(buffer, WebSocketMessageType.Binary, false, CancellationToken.None);
         }
     }
 }
