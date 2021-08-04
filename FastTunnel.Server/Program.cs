@@ -37,12 +37,12 @@ namespace FastTunnel.Server
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder.UseStartup<Startup>();
+                })
+                .ConfigureLogging((HostBuilderContext context, ILoggingBuilder logging) =>
+                {
+                    logging.ClearProviders();
+                    logging.SetMinimumLevel(LogLevel.Trace);
+                    logging.AddLog4Net();
                 });
-                //.ConfigureLogging((HostBuilderContext context, ILoggingBuilder logging) =>
-                //{
-                //    logging.ClearProviders();
-                //    logging.SetMinimumLevel(LogLevel.Trace);
-                //    logging.AddLog4Net();
-                //});
     }
 }
