@@ -25,10 +25,8 @@ namespace FastTunnel.Core.Client
         protected ILogger<FastTunnelClient> _logger;
         public DateTime lastHeart;
 
-        ForwardHandler _newCustomerHandler;
+        SwapHandler _newCustomerHandler;
         LogHandler _logHandler;
-        ClientHeartHandler _clientHeartHandler;
-        Message<LogInMassage> loginMsg;
 
         public DefaultClientConfig ClientConfig { get; private set; }
         private readonly CancellationTokenSource cancellationTokenSource = new();
@@ -37,15 +35,13 @@ namespace FastTunnel.Core.Client
 
         public FastTunnelClient(
             ILogger<FastTunnelClient> logger,
-            ForwardHandler newCustomerHandler,
+            SwapHandler newCustomerHandler,
              LogHandler logHandler,
-            IOptionsMonitor<DefaultClientConfig> configuration,
-            ClientHeartHandler clientHeartHandler)
+            IOptionsMonitor<DefaultClientConfig> configuration)
         {
             _logger = logger;
             _newCustomerHandler = newCustomerHandler;
             _logHandler = logHandler;
-            _clientHeartHandler = clientHeartHandler;
             ClientConfig = configuration.CurrentValue;
         }
 
@@ -74,8 +70,8 @@ namespace FastTunnel.Core.Client
                 // 连接到的目标IP
                 socket = new ClientWebSocket();
                 socket.Options.RemoteCertificateValidationCallback = delegate { return true; };
-                socket.Options.SetRequestHeader(HeaderConst.FASTTUNNEL_FLAG, "2.0.0");
-                socket.Options.SetRequestHeader(HeaderConst.FASTTUNNEL_TYPE, HeaderConst.TYPE_CLIENT);
+                socket.Options.SetRequestHeader(FastTunnelConst.FASTTUNNEL_FLAG, "2.0.0");
+                socket.Options.SetRequestHeader(FastTunnelConst.FASTTUNNEL_TYPE, FastTunnelConst.TYPE_CLIENT);
 
                 await socket.ConnectAsync(
                     new Uri($"ws://{ClientConfig.Server.ServerAddr}:{ClientConfig.Server.ServerPort}"), cancellationToken);

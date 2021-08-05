@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace FastTunnel.Core
 {
-    public class HeaderConst
+    public class FastTunnelConst
     {
         public const string FASTTUNNEL_FLAG = "FASTTUNNEL_VERSION";
         public const string FASTTUNNEL_TYPE = "FASTTUNNEL_TYPE";

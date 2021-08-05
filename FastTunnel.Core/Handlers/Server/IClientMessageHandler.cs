@@ -11,10 +11,8 @@ namespace FastTunnel.Core.Handlers
 {
     public interface IClientMessageHandler
     {
-        Boolean NeedRecive { get; }
+        bool NeedRecive { get; }
 
         Task<bool> HandlerMsg<T>(FastTunnelServer server, WebSocket client, T msg) where T : TunnelMassage;
-
-        //void HandlerMsg(FastTunnelServer server, Socket client, Message<JObject> msg);
     }
 }

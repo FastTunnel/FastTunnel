@@ -29,8 +29,8 @@ namespace FastTunnel.Core.MiddleWares
         public async Task Handle(HttpContext context, Func<Task> next)
         {
             if (!context.WebSockets.IsWebSocketRequest
-                || !context.Request.Headers.TryGetValue(HeaderConst.FASTTUNNEL_FLAG, out var version)
-                || !context.Request.Headers.TryGetValue(HeaderConst.FASTTUNNEL_TYPE, out var type))
+                || !context.Request.Headers.TryGetValue(FastTunnelConst.FASTTUNNEL_FLAG, out var version)
+                || !context.Request.Headers.TryGetValue(FastTunnelConst.FASTTUNNEL_TYPE, out var type))
             {
                 await next();
                 return;

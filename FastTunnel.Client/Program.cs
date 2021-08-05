@@ -1,9 +1,10 @@
 ﻿using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using FastTunnel.Core.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using FastTunnel.Core.Client;
 using System;
+using Microsoft.AspNetCore.Builder;
+using FastTunnel.Core;
 
 namespace FastTunnel.Client
 {

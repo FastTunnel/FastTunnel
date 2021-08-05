@@ -25,33 +25,10 @@ namespace FastTunnel.Core.Sockets
             Socket.NoDelay = true;
         }
 
-        public void Connect()
-        {
-            DnsEndPoint dnsEndPoint = new DnsEndPoint(_host, _port);
-            Socket.Connect(dnsEndPoint);
-        }
-
-
         public async Task ConnectAsync()
         {
             DnsEndPoint dnsEndPoint = new DnsEndPoint(_host, _port);
             await Socket.ConnectAsync(dnsEndPoint);
-        }
-
-        public void Send(byte[] data)
-        {
-            Socket.Send(data);
-        }
-
-        public void Send<T>(Message<T> msg)
-            where T : TunnelMassage
-        {
-            Socket.SendCmd(msg);
-        }
-
-        public void Close()
-        {
-            Socket.Close();
         }
     }
 }

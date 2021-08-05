@@ -24,44 +24,13 @@ namespace FastTunnel.Core.Client
         public ConcurrentDictionary<int, ForwardInfo<ForwardHandlerArg>> ForwardList { get; private set; }
             = new ConcurrentDictionary<int, ForwardInfo<ForwardHandlerArg>>();
 
-        readonly ILogger _logger;
         public readonly IOptionsMonitor<DefaultServerConfig> serverOption;
         public IProxyConfigProvider proxyConfig;
 
-        public FastTunnelServer(ILogger<FastTunnelServer> logger, IProxyConfigProvider proxyConfig, IOptionsMonitor<DefaultServerConfig> serverSettings)
+        public FastTunnelServer(IProxyConfigProvider proxyConfig, IOptionsMonitor<DefaultServerConfig> serverSettings)
         {
-            _logger = logger;
             serverOption = serverSettings;
             this.proxyConfig = proxyConfig;
-
-            //  clientListener = new ClientListenerV2(this, proxyConfig, "0.0.0.0", serverOption.CurrentValue.BindPort, _logger);
-            // http_listener = new HttpListenerV2("0.0.0.0", serverOption.CurrentValue.WebProxyPort, _logger);
-        }
-
-        public void Run()
-        {
-            _logger.LogInformation("===== FastTunnel Server Starting =====");
-
-            // listenClient();
-            // listenHttp();
-        }
-
-        //private void listenClient()
-        //{
-        //    clientListener.Start();
-        //}
-
-        //private void listenHttp()
-        //{
-        //    http_listener.Start(new HttpDispatcherV2(this, _logger, serverOption));
-        //}
-
-        public void Stop()
-        {
-            _logger.LogInformation("===== FastTunnel Server Stoping =====");
-
-            //clientListener.Stop();
-            //http_listener.Stop();
         }
     }
 }

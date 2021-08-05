@@ -24,7 +24,6 @@ namespace FastTunnel.Core.Handlers
 
         public bool NeedRecive => true;
 
-        static object _locker = new object();
         IProxyConfigProvider proxyConfig;
 
         public LoginHandler(ILogger logger, IProxyConfigProvider proxyConfig)

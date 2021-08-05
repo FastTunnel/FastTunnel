@@ -19,11 +19,11 @@ using System.Data.Common;
 
 namespace FastTunnel.Core.Handlers.Client
 {
-    public class ForwardHandler : IClientHandler
+    public class SwapHandler : IClientHandler
     {
-        ILogger<ForwardHandler> _logger;
+        ILogger<SwapHandler> _logger;
 
-        public ForwardHandler(ILogger<ForwardHandler> logger)
+        public SwapHandler(ILogger<SwapHandler> logger)
         {
             _logger = logger;
         }
