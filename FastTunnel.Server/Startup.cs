@@ -1,19 +1,9 @@
-using System;
-using System.Collections.Generic;
 using FastTunnel.Core;
-using FastTunnel.Core.Extensions;
-using FastTunnel.Core.Forwarder;
-using FastTunnel.Core.Forwarder.MiddleWare;
-using FastTunnel.Core.MiddleWares;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.OpenApi.Models;
-using Yarp.ReverseProxy.Configuration;
-using Yarp.ReverseProxy.Forwarder;
-using Yarp.Sample;
 
 namespace FastTunnel.Server
 {
@@ -40,8 +30,10 @@ namespace FastTunnel.Server
             if (env.IsDevelopment())
             {
             }
-           
-            app.UseFastTunnel();
+
+            // -------------------FastTunnel START------------------
+            app.UseFastTunnelServer();
+            // -------------------FastTunnel END--------------------
 
             app.UseRouting();
 

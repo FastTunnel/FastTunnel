@@ -52,7 +52,7 @@ namespace FastTunnel.Core
             services.AddHostedService<ServiceFastTunnelClient>();
         }
 
-        public static void UseFastTunnel(this IApplicationBuilder app)
+        public static void UseFastTunnelServer(this IApplicationBuilder app)
         {
             app.UseWebSockets();
             var swapHandler = app.ApplicationServices.GetRequiredService<FastTunnelSwapHandler>();
