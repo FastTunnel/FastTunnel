@@ -13,6 +13,6 @@ namespace FastTunnel.Core.Models
 
         public ForwardConfig SSHConfig { get; set; }
 
-        public IListener Listener { get; set; }
+        public PortProxyListener Listener { get; set; }
     }
 }

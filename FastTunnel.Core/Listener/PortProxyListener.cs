@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace FastTunnel.Core.Listener
 {
-    public class PortProxyListener : IListener
+    public class PortProxyListener
     {
         ILogger _logerr;
 
@@ -105,9 +105,6 @@ namespace FastTunnel.Core.Listener
                 _logerr.LogInformation($"【{ListenIp}:{ListenPort}】Accepted. There are {{0}} clients connected to the port",
                     m_numConnectedSockets);
 
-                // Accept the next connection request
-                StartAccept(e);
-
                 try
                 {
                     // 将此客户端交由Dispatcher进行管理
@@ -117,6 +114,9 @@ namespace FastTunnel.Core.Listener
                 {
                     _logerr.LogError(ex, "RequestDispatcher Fail");
                 }
+
+                // Accept the next connection request
+                StartAccept(e);
             }
             else
             {
@@ -124,19 +124,9 @@ namespace FastTunnel.Core.Listener
             }
         }
 
-
         private void AcceptEventArg_Completed(object sender, SocketAsyncEventArgs e)
         {
             ProcessAccept(e);
-        }
-
-        public void Close()
-        {
-        }
-
-        public void Start(int backlog = 100)
-        {
-            throw new NotImplementedException();
         }
     }
 }

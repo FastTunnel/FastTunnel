@@ -64,7 +64,7 @@ namespace FastTunnel.Core.Forwarder
                 _logger.LogInformation($"[发送swap指令]:{RequestId}");
 
                 // 发送指令给客户端，等待建立隧道
-                await web.Socket.SendCmdAsync(MessageType.SwapMsg, $"{RequestId}|{web.WebConfig.LocalIp}:{web.WebConfig.LocalPort}");
+                await web.Socket.SendCmdAsync(MessageType.SwapMsg, $"{RequestId}|{web.WebConfig.LocalIp}:{web.WebConfig.LocalPort}", cancellation);
 
                 // TODO:超时处理
                 TaskCompletionSource<Stream> task = new(cancellation);

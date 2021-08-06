@@ -3,6 +3,7 @@ using FastTunnel.Core.Dispatchers;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Models;
 using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -19,9 +20,11 @@ namespace FastTunnel.Core.Dispatchers
         private FastTunnelServer _server;
         private WebSocket _client;
         private ForwardConfig _config;
+        ILogger logger;
 
-        public ForwardDispatcher(FastTunnelServer server, WebSocket client, ForwardConfig config)
+        public ForwardDispatcher(ILogger logger, FastTunnelServer server, WebSocket client, ForwardConfig config)
         {
+            this.logger = logger;
             _server = server;
             _client = client;
             _config = config;
@@ -32,7 +35,7 @@ namespace FastTunnel.Core.Dispatchers
             try
             {
                 var msgid = Guid.NewGuid().ToString();
-                await _client.SendCmdAsync(MessageType.Forward, $"{msgid}|{_config.LocalIp }:{_config.LocalPort}");
+                await _client.SendCmdAsync(MessageType.Forward, $"{msgid}|{_config.LocalIp }:{_config.LocalPort}", CancellationToken.None);
 
                 var tcs = new TaskCompletionSource<Stream>();
                 _server.ResponseTasks.TryAdd(msgid, tcs);
@@ -41,8 +44,9 @@ namespace FastTunnel.Core.Dispatchers
                 using var stream2 = new NetworkStream(_socket, true);
                 await Task.WhenAll(stream1.CopyToAsync(stream2), stream2.CopyToAsync(stream1));
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                logger.LogError(ex);
             }
         }
     }

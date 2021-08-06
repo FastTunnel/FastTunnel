@@ -5,6 +5,7 @@ using System;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Client;
 using System.Threading.Tasks;
+using System.Threading;
 
 namespace FastTunnel.Core.Handlers.Client
 {
@@ -17,7 +18,7 @@ namespace FastTunnel.Core.Handlers.Client
             _logger = logger;
         }
 
-        public async Task HandlerMsgAsync(FastTunnelClient cleint, string msg)
+        public async Task HandlerMsgAsync(FastTunnelClient cleint, string msg, CancellationToken cancellationToken)
         {
             _logger.LogInformation(msg.Replace("\n", string.Empty));
             await Task.CompletedTask;

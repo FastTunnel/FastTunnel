@@ -50,14 +50,25 @@ namespace FastTunnel.Core.Client
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="customLoginMsg">自定义登录信息，可进行扩展业务</param>
-        public async Task StartAsync(CancellationToken cancellationToken)
+        public async void StartAsync(CancellationToken cancellationToken)
         {
-            CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, this.cancellationTokenSource.Token);
-
             _logger.LogInformation("===== FastTunnel Client Start =====");
-            await loginAsync(cancellationToken);
-            _logger.LogInformation($"通讯已建立");
-            await ReceiveServerAsync();
+
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                try
+                {
+                    await loginAsync(cancellationToken);
+                    await ReceiveServerAsync(cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex.Message);
+                    await Task.Delay(TimeSpan.FromSeconds(10), cancellationToken);
+                }
+            }
+
+            _logger.LogInformation("===== FastTunnel Client End =====");
         }
 
         protected virtual async Task loginAsync(CancellationToken cancellationToken)
@@ -88,23 +99,23 @@ namespace FastTunnel.Core.Client
             {
                 Webs = ClientConfig.Webs,
                 Forwards = ClientConfig.Forwards,
-            }.ToJson());
+            }.ToJson(), cancellationToken);
         }
 
-        private async Task ReceiveServerAsync()
+        private async Task ReceiveServerAsync(CancellationToken cancellationToken)
         {
             byte[] buffer = new byte[128];
 
-            while (true)
+            while (!cancellationToken.IsCancellationRequested)
             {
-                var res = await socket.ReceiveAsync(buffer, CancellationToken.None);
+                var res = await socket.ReceiveAsync(buffer, cancellationToken);
                 var type = buffer[0];
                 var content = Encoding.UTF8.GetString(buffer, 1, res.Count - 1);
-                HandleServerRequestAsync(type, content);
+                HandleServerRequestAsync(type, content, cancellationToken);
             }
         }
 
-        private async void HandleServerRequestAsync(byte cmd, string ctx)
+        private async void HandleServerRequestAsync(byte cmd, string ctx, CancellationToken cancellationToken)
         {
             try
             {
@@ -124,7 +135,7 @@ namespace FastTunnel.Core.Client
                         throw new Exception($"未处理的消息：cmd={cmd}");
                 }
 
-                await handler.HandlerMsgAsync(this, ctx);
+                await handler.HandlerMsgAsync(this, ctx, cancellationToken);
             }
             catch (Exception ex)
             {

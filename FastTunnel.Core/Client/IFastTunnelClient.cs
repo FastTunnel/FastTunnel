@@ -9,6 +9,6 @@ namespace FastTunnel.Core.Client
 {
     public interface IFastTunnelClient
     {
-        Task StartAsync(CancellationToken cancellationToken);
+        void StartAsync(CancellationToken cancellationToken);
     }
 }

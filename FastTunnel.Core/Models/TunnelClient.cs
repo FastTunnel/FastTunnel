@@ -23,22 +23,26 @@ namespace FastTunnel.Core.Models
         ILogger logger;
         WebSocket webSocket;
 
-        public TunnelClient(ILogger logger, WebSocket webSocket, FastTunnelServer fastTunnelServer)
+        public TunnelClient(ILogger<TunnelClient> logger, FastTunnelServer fastTunnelServer)
         {
-            this.webSocket = webSocket;
             this.logger = logger;
             this.fastTunnelServer = fastTunnelServer;
             this._loginHandler = new LoginHandler(logger, fastTunnelServer.proxyConfig);
         }
 
-        public async Task ReviceAsync()
+        public void SetSocket(WebSocket webSocket)
         {
-            var buffer = new byte[512];
+            this.webSocket = webSocket;
+        }
+
+        public async Task ReviceAsync(CancellationToken cancellationToken)
+        {
+            var buffer = new byte[128];
             var tunnelProtocol = new TunnelProtocol();
 
             while (true)
             {
-                var res = await webSocket.ReceiveAsync(buffer, CancellationToken.None);
+                var res = await webSocket.ReceiveAsync(buffer, cancellationToken);
                 var cmds = tunnelProtocol.HandleBuffer(buffer, 0, res.Count);
                 if (cmds == null) continue;
 

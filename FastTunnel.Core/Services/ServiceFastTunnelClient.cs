@@ -21,25 +21,16 @@ namespace FastTunnel.Core.Services
         {
             _logger = logger;
             _fastTunnelClient = fastTunnelClient;
-
-            //AppDomain.CurrentDomain.FirstChanceException += CurrentDomain_FirstChanceException;
+#if DEBUG
+            AppDomain.CurrentDomain.FirstChanceException += CurrentDomain_FirstChanceException;
+#endif
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            while (!cancellationToken.IsCancellationRequested)
-            {
-                try
-                {
-                    await _fastTunnelClient.StartAsync(cancellationToken);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex.Message);
-                    await Task.Delay(TimeSpan.FromSeconds(10), cancellationToken);
-                }
-            }
+            _fastTunnelClient.StartAsync(cancellationToken);
+            await Task.CompletedTask;
         }
 
         public Task StopAsync(CancellationToken cancellationToken)

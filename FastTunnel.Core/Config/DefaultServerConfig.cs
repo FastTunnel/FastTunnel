@@ -13,8 +13,6 @@ namespace FastTunnel.Core.Config
 
         public string[] WebAllowAccessIps { get; set; }
 
-        public bool WebHasNginxProxy { get; set; } = false;
-
         public bool EnableForward { get; set; } = false;
     }
 }

@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.WebSockets;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Yarp.ReverseProxy.Configuration;
 
@@ -19,11 +20,15 @@ namespace FastTunnel.Core.MiddleWares
     {
         ILogger<FastTunnelClientHandler> logger;
         FastTunnelServer fastTunnelServer;
+        TunnelClient tunnelClient;
 
-        public FastTunnelClientHandler(ILogger<FastTunnelClientHandler> logger, FastTunnelServer fastTunnelServer)
+        public FastTunnelClientHandler(
+            ILogger<FastTunnelClientHandler> logger, 
+            FastTunnelServer fastTunnelServer, TunnelClient tunnelClient)
         {
             this.logger = logger;
             this.fastTunnelServer = fastTunnelServer;
+            this.tunnelClient = tunnelClient;
         }
 
         public async Task Handle(HttpContext context, Func<Task> next)
@@ -42,20 +47,20 @@ namespace FastTunnel.Core.MiddleWares
         private async Task handleClient(HttpContext context, Func<Task> next)
         {
             using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
-            var client = new TunnelClient(logger, webSocket, fastTunnelServer);
 
-            this.logger.LogInformation($"{webSocket} 客户端连接成功");
+            tunnelClient.SetSocket(webSocket);
+            this.logger.LogInformation($"客户端连接成功");
 
             try
             {
-                await client.ReviceAsync();
+                await tunnelClient.ReviceAsync(CancellationToken.None);
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "通信异常");
             }
 
-            this.logger.LogInformation($"{client} 客户端断开连接");
+            this.logger.LogInformation($"客户端断开连接");
         }
     }
 }

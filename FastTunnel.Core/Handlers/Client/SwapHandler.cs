@@ -28,24 +28,34 @@ namespace FastTunnel.Core.Handlers.Client
             _logger = logger;
         }
 
-        public async Task HandlerMsgAsync(FastTunnelClient cleint, string msg)
+        public async Task HandlerMsgAsync(FastTunnelClient cleint, string msg, CancellationToken cancellationToken)
         {
             var msgs = msg.Split('|');
+            var requestId = msgs[0];
+            var address = msgs[1];
 
-            _logger.LogDebug($"开始转发 {msgs[0]}");
+            _logger.LogDebug($"Swap start {requestId}");
 
             await Task.Yield();
 
-            using Stream serverConn = await server(msgs[0], cleint);
-            using Stream localConn = await local(msgs[0], msgs[1]);
+            try
+            {
+                using Stream serverStream = await createRemote(requestId, cleint, cancellationToken);
+                using Stream localStream = await createLocal(requestId, address, cancellationToken);
 
-            var taskX = serverConn.CopyToAsync(localConn, CancellationToken.None);
-            var taskY = localConn.CopyToAsync(serverConn, CancellationToken.None);
+                var taskX = serverStream.CopyToAsync(localStream, cancellationToken);
+                var taskY = localStream.CopyToAsync(serverStream, cancellationToken);
 
-            await Task.WhenAny(taskX, taskY);
+                await Task.WhenAny(taskX, taskY);
+                _logger.LogDebug($"Swap success {requestId}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Swap error {requestId}");
+            }
         }
 
-        private async Task<Stream> local(string requestId, string localhost)
+        private async Task<Stream> createLocal(string requestId, string localhost, CancellationToken cancellationToken)
         {
             _logger.LogDebug($"连接本地成功 {requestId}");
             var localConnecter = new DnsSocket(localhost.Split(":")[0], int.Parse(localhost.Split(":")[1]));
@@ -54,7 +64,7 @@ namespace FastTunnel.Core.Handlers.Client
             return new NetworkStream(localConnecter.Socket, ownsSocket: true);
         }
 
-        private async Task<Stream> server(string requestId, FastTunnelClient cleint)
+        private async Task<Stream> createRemote(string requestId, FastTunnelClient cleint, CancellationToken cancellationToken)
         {
             var connecter = new DnsSocket(cleint.Server.ServerAddr, cleint.Server.ServerPort);
             await connecter.ConnectAsync();
@@ -64,7 +74,7 @@ namespace FastTunnel.Core.Handlers.Client
             var reverse = $"PROXY /{requestId} HTTP/1.1\r\nHost: {cleint.Server.ServerAddr}:{cleint.Server.ServerPort}\r\n\r\n";
 
             var requestMsg = Encoding.ASCII.GetBytes(reverse);
-            await serverConn.WriteAsync(requestMsg, CancellationToken.None);
+            await serverConn.WriteAsync(requestMsg, cancellationToken);
             return serverConn;
         }
     }
