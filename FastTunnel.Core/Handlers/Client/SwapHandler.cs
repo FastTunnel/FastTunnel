@@ -34,8 +34,6 @@ namespace FastTunnel.Core.Handlers.Client
             var requestId = msgs[0];
             var address = msgs[1];
 
-            _logger.LogDebug($"Swap start {requestId}");
-
             await Task.Yield();
 
             try
@@ -47,7 +45,6 @@ namespace FastTunnel.Core.Handlers.Client
                 var taskY = localStream.CopyToAsync(serverStream, cancellationToken);
 
                 await Task.WhenAny(taskX, taskY);
-                _logger.LogDebug($"Swap success {requestId}");
             }
             catch (Exception ex)
             {
@@ -57,7 +54,6 @@ namespace FastTunnel.Core.Handlers.Client
 
         private async Task<Stream> createLocal(string requestId, string localhost, CancellationToken cancellationToken)
         {
-            _logger.LogDebug($"连接本地成功 {requestId}");
             var localConnecter = new DnsSocket(localhost.Split(":")[0], int.Parse(localhost.Split(":")[1]));
             await localConnecter.ConnectAsync();
 
@@ -69,9 +65,8 @@ namespace FastTunnel.Core.Handlers.Client
             var connecter = new DnsSocket(cleint.Server.ServerAddr, cleint.Server.ServerPort);
             await connecter.ConnectAsync();
 
-            _logger.LogDebug($"连接server成功 {requestId}");
             Stream serverConn = new NetworkStream(connecter.Socket, ownsSocket: true);
-            var reverse = $"PROXY /{requestId} HTTP/1.1\r\nHost: {cleint.Server.ServerAddr}:{cleint.Server.ServerPort}\r\n\r\n";
+            var reverse = $"PROXY /{requestId} HTTP/1.1\r\nHost: {cleint.Server.ServerAddr}:{cleint.Server.ServerPort}\r\nConnection: keep-alive\r\n\r\n";
 
             var requestMsg = Encoding.ASCII.GetBytes(reverse);
             await serverConn.WriteAsync(requestMsg, cancellationToken);

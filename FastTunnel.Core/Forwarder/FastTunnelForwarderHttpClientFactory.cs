@@ -35,12 +35,10 @@ namespace FastTunnel.Core.Forwarder
         private async ValueTask<Stream> ConnectCallback(SocketsHttpConnectionContext context, CancellationToken cancellationToken)
         {
             var host = context.InitialRequestMessage.RequestUri.Host;
-            _logger.LogDebug($"ConnectCallback start:{host} {context.GetHashCode()}");
 
             try
             {
                 var res = await proxyAsync(host, cancellationToken);
-                _logger.LogDebug($"ConnectCallback successfully:{host} {context.GetHashCode()}");
                 return res;
             }
             catch (Exception ex)
@@ -61,7 +59,6 @@ namespace FastTunnel.Core.Forwarder
             try
             {
                 var RequestId = Guid.NewGuid().ToString().Replace("-", "");
-                _logger.LogInformation($"[发送swap指令]:{RequestId}");
 
                 // 发送指令给客户端，等待建立隧道
                 await web.Socket.SendCmdAsync(MessageType.SwapMsg, $"{RequestId}|{web.WebConfig.LocalIp}:{web.WebConfig.LocalPort}", cancellation);
@@ -71,7 +68,6 @@ namespace FastTunnel.Core.Forwarder
                 _fastTunnelServer.ResponseTasks.TryAdd(RequestId, task);
 
                 var res = await task.Task;
-                _logger.LogInformation($"[收到swap指令]:{RequestId}");
                 return res;
             }
             catch (Exception ex)

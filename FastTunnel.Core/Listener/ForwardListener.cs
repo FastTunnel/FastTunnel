@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace FastTunnel.Core.Listener
 {
-    public class PortProxyListener
+    public class ForwardListener
     {
         ILogger _logerr;
 
@@ -27,7 +27,7 @@ namespace FastTunnel.Core.Listener
         Socket listenSocket;
         public IList<Socket> ConnectedSockets = new List<Socket>();
 
-        public PortProxyListener(string ip, int port, ILogger logerr)
+        public ForwardListener(string ip, int port, ILogger logerr)
         {
             _logerr = logerr;
             this.ListenIp = ip;
@@ -48,55 +48,6 @@ namespace FastTunnel.Core.Listener
             listenSocket.Listen();
 
             StartAccept(null);
-        }
-
-        private void StartAccept(SocketAsyncEventArgs acceptEventArg)
-        {
-            _logerr.LogDebug($"【{ListenIp}:{ListenPort}】: StartAccept");
-            if (acceptEventArg == null)
-            {
-                acceptEventArg = new SocketAsyncEventArgs();
-                acceptEventArg.Completed += new EventHandler<SocketAsyncEventArgs>(AcceptEventArg_Completed);
-            }
-            else
-            {
-                // socket must be cleared since the context object is being reused
-                acceptEventArg.AcceptSocket = null;
-            }
-
-            bool willRaiseEvent = listenSocket.AcceptAsync(acceptEventArg);
-            if (!willRaiseEvent)
-            {
-                ProcessAcceptAsync(acceptEventArg);
-            }
-        }
-
-        private void ProcessAcceptAsync(SocketAsyncEventArgs e)
-        {
-            if (e.SocketError == SocketError.Success)
-            {
-                var accept = e.AcceptSocket;
-
-                Interlocked.Increment(ref m_numConnectedSockets);
-
-                _logerr.LogInformation($"【{ListenIp}:{ListenPort}】Accepted. There are {{0}} clients connected to the port",
-                    m_numConnectedSockets);
-
-                // 将此客户端交由Dispatcher进行管理
-                _requestDispatcher.DispatchAsync(accept);
-
-                // Accept the next connection request
-                StartAccept(e);
-            }
-            else
-            {
-                Stop();
-            }
-        }
-
-        private void AcceptEventArg_Completed(object sender, SocketAsyncEventArgs e)
-        {
-            ProcessAcceptAsync(e);
         }
 
         public void Stop()
@@ -122,5 +73,53 @@ namespace FastTunnel.Core.Listener
             }
         }
 
+        private void StartAccept(SocketAsyncEventArgs acceptEventArg)
+        {
+            _logerr.LogDebug($"【{ListenIp}:{ListenPort}】: StartAccept");
+            if (acceptEventArg == null)
+            {
+                acceptEventArg = new SocketAsyncEventArgs();
+                acceptEventArg.Completed += new EventHandler<SocketAsyncEventArgs>(AcceptEventArg_Completed);
+            }
+            else
+            {
+                // socket must be cleared since the context object is being reused
+                acceptEventArg.AcceptSocket = null;
+            }
+
+            bool willRaiseEvent = listenSocket.AcceptAsync(acceptEventArg);
+            if (!willRaiseEvent)
+            {
+                ProcessAcceptAsync(acceptEventArg);
+            }
+        }
+
+        private async Task ProcessAcceptAsync(SocketAsyncEventArgs e)
+        {
+            if (e.SocketError == SocketError.Success)
+            {
+                var accept = e.AcceptSocket;
+
+                Interlocked.Increment(ref m_numConnectedSockets);
+
+                _logerr.LogInformation($"【{ListenIp}:{ListenPort}】Accepted. There are {{0}} clients connected to the port",
+                    m_numConnectedSockets);
+
+                // 将此客户端交由Dispatcher进行管理
+                await _requestDispatcher.DispatchAsync(accept);
+
+                // Accept the next connection request
+                StartAccept(e);
+            }
+            else
+            {
+                Stop();
+            }
+        }
+
+        private void AcceptEventArg_Completed(object sender, SocketAsyncEventArgs e)
+        {
+            ProcessAcceptAsync(e);
+        }
     }
 }

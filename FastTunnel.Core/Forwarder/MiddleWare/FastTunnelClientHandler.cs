@@ -23,7 +23,7 @@ namespace FastTunnel.Core.MiddleWares
         TunnelClient tunnelClient;
 
         public FastTunnelClientHandler(
-            ILogger<FastTunnelClientHandler> logger, 
+            ILogger<FastTunnelClientHandler> logger,
             FastTunnelServer fastTunnelServer, TunnelClient tunnelClient)
         {
             this.logger = logger;
@@ -49,7 +49,6 @@ namespace FastTunnel.Core.MiddleWares
             using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
 
             tunnelClient.SetSocket(webSocket);
-            this.logger.LogInformation($"客户端连接成功");
 
             try
             {
@@ -59,8 +58,6 @@ namespace FastTunnel.Core.MiddleWares
             {
                 logger.LogError(ex, "通信异常");
             }
-
-            this.logger.LogInformation($"客户端断开连接");
         }
     }
 }

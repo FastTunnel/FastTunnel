@@ -87,7 +87,7 @@ namespace FastTunnel.Core.Client
                 await socket.ConnectAsync(
                     new Uri($"ws://{ClientConfig.Server.ServerAddr}:{ClientConfig.Server.ServerPort}"), cancellationToken);
 
-                _logger.LogInformation("连接成功");
+                _logger.LogDebug("连接服务端成功");
             }
             catch (Exception)
             {

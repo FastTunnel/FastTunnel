@@ -56,7 +56,6 @@ namespace Yarp.Sample
 
         public void AddWeb(string hostName)
         {
-            Console.WriteLine($"ÐÂÔöhostName£º{hostName}");
             var oldConfig = _config;
 
             var newRoutes = oldConfig.Routes.ToList();

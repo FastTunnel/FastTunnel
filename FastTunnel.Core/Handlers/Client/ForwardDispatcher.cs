@@ -2,6 +2,7 @@
 using FastTunnel.Core.Dispatchers;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Models;
+using FastTunnel.Core.Sockets;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.Extensions.Logging;
 using System;
@@ -30,12 +31,14 @@ namespace FastTunnel.Core.Dispatchers
             _config = config;
         }
 
-        public async void DispatchAsync(Socket _socket)
+        public async Task DispatchAsync(Socket _socket)
         {
             try
             {
+                await Task.Yield();
+
                 var msgid = Guid.NewGuid().ToString();
-                await _client.SendCmdAsync(MessageType.Forward, $"{msgid}|{_config.LocalIp }:{_config.LocalPort}", CancellationToken.None);
+                await _client.SendCmdAsync(MessageType.Forward, $"{msgid}|{_config.LocalIp}:{_config.LocalPort}", CancellationToken.None);
 
                 var tcs = new TaskCompletionSource<Stream>();
                 _server.ResponseTasks.TryAdd(msgid, tcs);

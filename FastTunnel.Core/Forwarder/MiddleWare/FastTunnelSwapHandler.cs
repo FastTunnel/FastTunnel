@@ -46,7 +46,6 @@ namespace FastTunnel.Core.Forwarder.MiddleWare
                 return;
             }
 
-            logger.LogInformation($"Swap Set {requestId}");
             using var reverseConnection = new WebSocketStream(lifetime, transport);
             responseAwaiter.TrySetResult(reverseConnection);
 
@@ -54,7 +53,6 @@ namespace FastTunnel.Core.Forwarder.MiddleWare
             lifetime.ConnectionClosed.Register((task) => { (task as TaskCompletionSource<object>).SetResult(null); }, closedAwaiter);
 
             await closedAwaiter.Task;
-            logger.LogInformation($"Swap close {requestId}");
         }
     }
 }

@@ -14,12 +14,12 @@ namespace FastTunnel.Core.Sockets
         private string _host;
         private int _port;
 
-        public Socket Socket { get; set; }
+        public Socket Socket { get; }
 
-        public DnsSocket(string v1, int v2)
+        public DnsSocket(string host, int port)
         {
-            this._host = v1;
-            this._port = v2;
+            this._host = host;
+            this._port = port;
 
             Socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             Socket.NoDelay = true;
