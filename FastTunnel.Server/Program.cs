@@ -24,7 +24,7 @@ namespace FastTunnel.Server
                     webHostBuilder.ConfigureAppConfiguration((hostingContext, config) =>
                     {
                         var env = hostingContext.HostingEnvironment;
-                        config.AddJsonFile("config/appsettings.json", optional: true, reloadOnChange: true)
+                        config.AddJsonFile("config/appsettings.json", optional: false, reloadOnChange: true)
                               .AddJsonFile($"config/appsettings.{env.EnvironmentName}.json", optional: true, reloadOnChange: true);
                     });
                 })
@@ -34,9 +34,13 @@ namespace FastTunnel.Server
                 })
                 .ConfigureLogging((HostBuilderContext context, ILoggingBuilder logging) =>
                 {
-                    logging.ClearProviders();
-                    logging.SetMinimumLevel(LogLevel.Trace);
-                    logging.AddLog4Net();
+                    var enableFileLog = (bool)context.Configuration.GetSection("EnableFileLog").Get(typeof(bool));
+                    if (enableFileLog)
+                    {
+                        logging.ClearProviders();
+                        logging.SetMinimumLevel(LogLevel.Trace);
+                        logging.AddLog4Net();
+                    }
                 });
     }
 }

@@ -22,14 +22,12 @@ namespace FastTunnel.Core.Client
     public class FastTunnelClient : IFastTunnelClient
     {
         private ClientWebSocket socket;
-        protected ILogger<FastTunnelClient> _logger;
-        public DateTime lastHeart;
 
-        SwapHandler _newCustomerHandler;
-        LogHandler _logHandler;
+        protected readonly ILogger<FastTunnelClient> _logger;
+        private readonly SwapHandler _newCustomerHandler;
+        private readonly LogHandler _logHandler;
 
         public DefaultClientConfig ClientConfig { get; private set; }
-        private readonly CancellationTokenSource cancellationTokenSource = new();
 
         public SuiDaoServer Server { get; protected set; }
 
@@ -141,6 +139,15 @@ namespace FastTunnel.Core.Client
             {
                 _logger.LogError(ex);
             }
+        }
+
+        public void Stop(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("===== FastTunnel Client Stoping =====");
+            if (socket.State == WebSocketState.Connecting)
+                return;
+
+            socket.CloseAsync(WebSocketCloseStatus.Empty, "客户端主动关闭", cancellationToken);
         }
     }
 }

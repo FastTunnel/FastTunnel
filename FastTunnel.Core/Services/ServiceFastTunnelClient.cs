@@ -21,9 +21,7 @@ namespace FastTunnel.Core.Services
         {
             _logger = logger;
             _fastTunnelClient = fastTunnelClient;
-#if DEBUG
-            AppDomain.CurrentDomain.FirstChanceException += CurrentDomain_FirstChanceException;
-#endif
+
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
         }
 
@@ -35,7 +33,7 @@ namespace FastTunnel.Core.Services
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("===== FastTunnel Client Stoping =====");
+            _fastTunnelClient.Stop(cancellationToken);
             return Task.CompletedTask;
         }
 
@@ -49,25 +47,6 @@ namespace FastTunnel.Core.Services
             }
             catch
             {
-            }
-        }
-
-        private void CurrentDomain_FirstChanceException(object sender, FirstChanceExceptionEventArgs e)
-        {
-            if (e.Exception is DirectoryNotFoundException)
-            {
-                // nlog第一次找不到文件的错误，跳过
-            }
-            else if (e.Exception is PlatformNotSupportedException)
-            {
-                // log4net
-            }
-            else if (e.Exception is IOException && e.Exception.Source == "System.Net.Security")
-            {
-            }
-            else
-            {
-                _logger.LogError(e.Exception, "【FirstChanceException】");
             }
         }
     }

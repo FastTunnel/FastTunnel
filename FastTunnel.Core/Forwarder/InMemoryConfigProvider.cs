@@ -32,6 +32,7 @@ namespace Yarp.Sample
     {
         // Marked as volatile so that updates are atomic
         private volatile InMemoryConfig _config;
+        private object locker = new object();
 
         public InMemoryConfigProvider(IReadOnlyList<RouteConfig> routes, IReadOnlyList<ClusterConfig> clusters)
         {
@@ -56,28 +57,35 @@ namespace Yarp.Sample
 
         public void AddWeb(string hostName)
         {
-            var oldConfig = _config;
-
-            var newRoutes = oldConfig.Routes.ToList();
-            newRoutes.Add(new RouteConfig
+            lock (locker)
             {
-                ClusterId = hostName,
-                RouteId = hostName,
-                Match = new RouteMatch { Hosts = new string[] { hostName } }
-            });
-
-            var newClusters = oldConfig.Clusters.ToList();
-            newClusters.Add(new ClusterConfig
-            {
-                ClusterId = hostName,
-                Destinations = new Dictionary<string, DestinationConfig>(StringComparer.OrdinalIgnoreCase)
+                var oldConfig = _config;
+                if (oldConfig.Routes.Any(x => x.ClusterId == hostName))
                 {
-                     { "default", new DestinationConfig() {Address = $"http://{hostName}",} }
+                    return;
                 }
-            });
 
-            _config = new InMemoryConfig(newRoutes, newClusters);
-            oldConfig.SignalChange();
+                var newRoutes = oldConfig.Routes.ToList();
+                newRoutes.Add(new RouteConfig
+                {
+                    ClusterId = hostName,
+                    RouteId = hostName,
+                    Match = new RouteMatch { Hosts = new string[] { hostName } }
+                });
+
+                var newClusters = oldConfig.Clusters.ToList();
+                newClusters.Add(new ClusterConfig
+                {
+                    ClusterId = hostName,
+                    Destinations = new Dictionary<string, DestinationConfig>(StringComparer.OrdinalIgnoreCase)
+                    {
+                         { "default", new DestinationConfig() {Address = $"http://{hostName}",} }
+                    }
+                });
+
+                _config = new InMemoryConfig(newRoutes, newClusters);
+                oldConfig.SignalChange();
+            }
         }
 
         /// <summary>

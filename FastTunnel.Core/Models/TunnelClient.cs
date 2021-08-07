@@ -23,16 +23,17 @@ namespace FastTunnel.Core.Models
         ILogger logger;
         WebSocket webSocket;
 
-        public TunnelClient(ILogger<TunnelClient> logger, FastTunnelServer fastTunnelServer)
+        public TunnelClient(ILogger logger, FastTunnelServer fastTunnelServer)
         {
             this.logger = logger;
             this.fastTunnelServer = fastTunnelServer;
             this._loginHandler = new LoginHandler(logger, fastTunnelServer.proxyConfig);
         }
 
-        public void SetSocket(WebSocket webSocket)
+        public TunnelClient SetSocket(WebSocket webSocket)
         {
             this.webSocket = webSocket;
+            return this;
         }
 
         public async Task ReviceAsync(CancellationToken cancellationToken)
@@ -60,7 +61,7 @@ namespace FastTunnel.Core.Models
         {
             try
             {
-                logger.LogInformation($"client：{lineCmd}");
+                logger.LogDebug($"client：{lineCmd}");
 
                 var msg = JsonSerializer.Deserialize<LogInMassage>(lineCmd.Substring(1));
                 return await _loginHandler.HandlerMsg(fastTunnelServer, webSocket, msg);

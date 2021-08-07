@@ -1,8 +1,11 @@
 ﻿using FastTunnel.Core.Client;
 using FastTunnel.Core.Forwarder;
+using FastTunnel.Core.Forwarder.MiddleWare;
 using FastTunnel.Core.Models;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
@@ -20,15 +23,11 @@ namespace FastTunnel.Core.MiddleWares
     {
         ILogger<FastTunnelClientHandler> logger;
         FastTunnelServer fastTunnelServer;
-        TunnelClient tunnelClient;
 
-        public FastTunnelClientHandler(
-            ILogger<FastTunnelClientHandler> logger,
-            FastTunnelServer fastTunnelServer, TunnelClient tunnelClient)
+        public FastTunnelClientHandler(ILogger<FastTunnelClientHandler> logger, FastTunnelServer fastTunnelServer)
         {
             this.logger = logger;
             this.fastTunnelServer = fastTunnelServer;
-            this.tunnelClient = tunnelClient;
         }
 
         public async Task Handle(HttpContext context, Func<Task> next)
@@ -48,15 +47,16 @@ namespace FastTunnel.Core.MiddleWares
         {
             using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
 
-            tunnelClient.SetSocket(webSocket);
+            var tunnelClient = new TunnelClient(logger, fastTunnelServer).SetSocket(webSocket);
 
             try
             {
+                logger.LogInformation($"客户端连接 {context.TraceIdentifier}:{context.Connection.RemoteIpAddress}");
                 await tunnelClient.ReviceAsync(CancellationToken.None);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                logger.LogError(ex, "通信异常");
+                logger.LogInformation($"客户端关闭 {context.TraceIdentifier}:{context.Connection.RemoteIpAddress}");
             }
         }
     }

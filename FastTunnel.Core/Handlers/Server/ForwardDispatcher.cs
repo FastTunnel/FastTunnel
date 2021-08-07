@@ -37,7 +37,7 @@ namespace FastTunnel.Core.Dispatchers
             {
                 await Task.Yield();
 
-                var msgid = Guid.NewGuid().ToString();
+                var msgid = Guid.NewGuid().ToString().Replace("-", "");
                 await _client.SendCmdAsync(MessageType.Forward, $"{msgid}|{_config.LocalIp}:{_config.LocalPort}", CancellationToken.None);
 
                 var tcs = new TaskCompletionSource<Stream>();

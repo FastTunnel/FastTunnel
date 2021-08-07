@@ -57,7 +57,7 @@ namespace FastTunnel.Core.Handlers.Client
             var localConnecter = new DnsSocket(localhost.Split(":")[0], int.Parse(localhost.Split(":")[1]));
             await localConnecter.ConnectAsync();
 
-            return new NetworkStream(localConnecter.Socket, ownsSocket: true);
+            return new NetworkStream(localConnecter.Socket, true);
         }
 
         private async Task<Stream> createRemote(string requestId, FastTunnelClient cleint, CancellationToken cancellationToken)
@@ -65,7 +65,7 @@ namespace FastTunnel.Core.Handlers.Client
             var connecter = new DnsSocket(cleint.Server.ServerAddr, cleint.Server.ServerPort);
             await connecter.ConnectAsync();
 
-            Stream serverConn = new NetworkStream(connecter.Socket, ownsSocket: true);
+            Stream serverConn = new NetworkStream(connecter.Socket, true);
             var reverse = $"PROXY /{requestId} HTTP/1.1\r\nHost: {cleint.Server.ServerAddr}:{cleint.Server.ServerPort}\r\nConnection: keep-alive\r\n\r\n";
 
             var requestMsg = Encoding.ASCII.GetBytes(reverse);

@@ -1,10 +1,9 @@
 ﻿using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.DependencyInjection;
-using FastTunnel.Core.Client;
 using System;
 using Microsoft.AspNetCore.Builder;
 using FastTunnel.Core;
+using Microsoft.Extensions.Configuration;
 
 namespace FastTunnel.Client
 {
@@ -33,9 +32,13 @@ namespace FastTunnel.Client
                 })
                 .ConfigureLogging((HostBuilderContext context, ILoggingBuilder logging) =>
                 {
-                    logging.ClearProviders();
-                    logging.SetMinimumLevel(LogLevel.Trace);
-                    logging.AddLog4Net();
+                    var enableFileLog = (bool)(context.Configuration.GetSection("EnableFileLog")?.Get(typeof(bool)) ?? false);
+                    if (enableFileLog)
+                    {
+                        logging.ClearProviders();
+                        logging.SetMinimumLevel(LogLevel.Trace);
+                        logging.AddLog4Net();
+                    }
                 });
     }
 }
