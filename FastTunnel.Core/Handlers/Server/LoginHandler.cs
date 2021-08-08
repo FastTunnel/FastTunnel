@@ -10,28 +10,27 @@ using System.Linq;
 using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Yarp.ReverseProxy.Configuration;
 using Yarp.Sample;
 
-namespace FastTunnel.Core.Handlers
+namespace FastTunnel.Core.Handlers.Server
 {
-    public class LoginHandler : IClientMessageHandler
+    public class LoginHandler : ILoginHandler
     {
         ILogger _logger;
-
-        public bool NeedRecive => true;
-
         IProxyConfigProvider proxyConfig;
+        public const bool NeedRecive = true;
 
-        public LoginHandler(ILogger logger, IProxyConfigProvider proxyConfig)
+        public LoginHandler(ILogger<LoginHandler> logger, IProxyConfigProvider proxyConfig)
         {
             this.proxyConfig = proxyConfig;
             this._logger = logger;
         }
 
-        private async Task HandleLoginAsync(FastTunnelServer server, WebSocket client, LogInMassage requet)
+        protected async Task HandleLoginAsync(FastTunnelServer server, WebSocket client, LogInMassage requet)
         {
             bool hasTunnel = false;
 
@@ -48,7 +47,7 @@ namespace FastTunnel.Core.Handlers
                     server.WebList.AddOrUpdate(hostName, info, (key, oldInfo) => { return info; });
                     (proxyConfig as InMemoryConfigProvider).AddWeb(hostName);
 
-                    await client.SendCmdAsync(MessageType.Log, $"  HTTP   | http://{hostName}:{server.serverOption.CurrentValue.WebProxyPort} => {item.LocalIp}:{item.LocalPort}", CancellationToken.None);
+                    await client.SendCmdAsync(MessageType.Log, $"  HTTP   | http://{hostName} => {item.LocalIp}:{item.LocalPort}", CancellationToken.None);
 
                     if (item.WWW != null)
                     {
@@ -60,7 +59,7 @@ namespace FastTunnel.Core.Handlers
                             server.WebList.AddOrUpdate(www, info, (key, oldInfo) => { return info; });
                             (proxyConfig as InMemoryConfigProvider).AddWeb(hostName);
 
-                            await client.SendCmdAsync(MessageType.Log, $"  HTTP   | http://{www}:{server.serverOption.CurrentValue.WebProxyPort} => {item.LocalIp}:{item.LocalPort}", CancellationToken.None);
+                            await client.SendCmdAsync(MessageType.Log, $"  HTTP   | http://{www} => {item.LocalIp}:{item.LocalPort}", CancellationToken.None);
 
                         }
                     }
@@ -77,12 +76,6 @@ namespace FastTunnel.Core.Handlers
                     {
                         try
                         {
-                            if (item.RemotePort.Equals(server.serverOption.CurrentValue.WebProxyPort))
-                            {
-                                _logger.LogError($"RemotePort can not be same with ProxyPort_HTTP: {item.RemotePort}");
-                                continue;
-                            }
-
                             ForwardInfo<ForwardHandlerArg> old;
                             if (server.ForwardList.TryGetValue(item.RemotePort, out old))
                             {
@@ -120,10 +113,10 @@ namespace FastTunnel.Core.Handlers
                 await client.SendCmdAsync(MessageType.Log, TunnelResource.NoTunnel, CancellationToken.None);
         }
 
-        public async Task<bool> HandlerMsg<T>(FastTunnelServer server, WebSocket client, T msg)
-            where T : TunnelMassage
+        public virtual async Task<bool> HandlerMsg(FastTunnelServer server, WebSocket client, string content)
         {
-            await HandleLoginAsync(server, client, msg as LogInMassage);
+            var msg = JsonSerializer.Deserialize<LogInMassage>(content);
+            await HandleLoginAsync(server, client, msg);
             return NeedRecive;
         }
     }

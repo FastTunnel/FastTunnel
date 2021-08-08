@@ -15,5 +15,7 @@ namespace FastTunnel.Core
         public const string TYPE_CLIENT = "CLIENT";
 
         public const string TYPE_SWAP = "SWAP";
+
+        public const int CMD_MAX_LENGTH = 100;
     }
 }

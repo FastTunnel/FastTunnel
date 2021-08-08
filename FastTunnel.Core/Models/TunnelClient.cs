@@ -1,6 +1,7 @@
 ﻿using FastTunnel.Core.Client;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Handlers;
+using FastTunnel.Core.Handlers.Server;
 using FastTunnel.Core.Protocol;
 using Microsoft.Extensions.Logging;
 using System;
@@ -18,16 +19,16 @@ namespace FastTunnel.Core.Models
 {
     public class TunnelClient
     {
-        readonly LoginHandler _loginHandler;
+        readonly ILoginHandler _loginHandler;
         FastTunnelServer fastTunnelServer;
         ILogger logger;
         WebSocket webSocket;
 
-        public TunnelClient(ILogger logger, FastTunnelServer fastTunnelServer)
+        public TunnelClient(ILogger<TunnelClient> logger, FastTunnelServer fastTunnelServer, ILoginHandler loginHandler)
         {
             this.logger = logger;
             this.fastTunnelServer = fastTunnelServer;
-            this._loginHandler = new LoginHandler(logger, fastTunnelServer.proxyConfig);
+            this._loginHandler = loginHandler;
         }
 
         public TunnelClient SetSocket(WebSocket webSocket)
@@ -38,7 +39,7 @@ namespace FastTunnel.Core.Models
 
         public async Task ReviceAsync(CancellationToken cancellationToken)
         {
-            var buffer = new byte[128];
+            var buffer = new byte[FastTunnelConst.CMD_MAX_LENGTH];
             var tunnelProtocol = new TunnelProtocol();
 
             while (true)
@@ -62,9 +63,7 @@ namespace FastTunnel.Core.Models
             try
             {
                 logger.LogDebug($"client：{lineCmd}");
-
-                var msg = JsonSerializer.Deserialize<LogInMassage>(lineCmd.Substring(1));
-                return await _loginHandler.HandlerMsg(fastTunnelServer, webSocket, msg);
+                return await _loginHandler.HandlerMsg(fastTunnelServer, webSocket, lineCmd.Substring(1));
             }
             catch (Exception ex)
             {

@@ -13,6 +13,6 @@ namespace FastTunnel.Core.Handlers
     {
         bool NeedRecive { get; }
 
-        Task<bool> HandlerMsg<T>(FastTunnelServer server, WebSocket client, T msg) where T : TunnelMassage;
+        Task<bool> HandlerMsg(FastTunnelServer server, WebSocket client, string msg);
     }
 }

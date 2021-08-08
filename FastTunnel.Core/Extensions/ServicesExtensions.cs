@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Builder;
 using FastTunnel.Core.Filters;
 using Microsoft.AspNetCore.Mvc.Filters;
 using FastTunnel.Core.Models;
+using FastTunnel.Core.Handlers.Server;
 
 namespace FastTunnel.Core
 {
@@ -25,10 +26,16 @@ namespace FastTunnel.Core
         public static void AddFastTunnelClient(this IServiceCollection services, IConfigurationSection configurationSection)
         {
             services.Configure<DefaultClientConfig>(configurationSection);
+            services.AddFastTunnelClient();
+        }
 
+        public static void AddFastTunnelClient(this IServiceCollection services)
+        {
             services.AddTransient<IFastTunnelClient, FastTunnelClient>()
                 .AddSingleton<IExceptionFilter, FastTunnelExceptionFilter>()
+                .AddSingleton<ILoginHandler, LoginHandler>()
                 .AddSingleton<LogHandler>()
+                .AddTransient<TunnelClient>()
                 .AddSingleton<SwapHandler>();
 
             services.AddHostedService<ServiceFastTunnelClient>();
@@ -45,9 +52,10 @@ namespace FastTunnel.Core
 
             services.Configure<DefaultServerConfig>(configurationSection)
                 .AddSingleton<IExceptionFilter, FastTunnelExceptionFilter>()
-                .AddSingleton<FastTunnelClientHandler, FastTunnelClientHandler>()
-                .AddSingleton<FastTunnelSwapHandler, FastTunnelSwapHandler>()
-                .AddSingleton<FastTunnelServer, FastTunnelServer>();
+                .AddTransient<TunnelClient>()
+                .AddSingleton<FastTunnelClientHandler>()
+                .AddSingleton<FastTunnelSwapHandler>()
+                .AddSingleton<FastTunnelServer>();
         }
 
         /// <summary>

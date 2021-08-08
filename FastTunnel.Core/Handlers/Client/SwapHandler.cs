@@ -34,8 +34,6 @@ namespace FastTunnel.Core.Handlers.Client
             var requestId = msgs[0];
             var address = msgs[1];
 
-            await Task.Yield();
-
             try
             {
                 using Stream serverStream = await createRemote(requestId, cleint, cancellationToken);
@@ -66,7 +64,7 @@ namespace FastTunnel.Core.Handlers.Client
             await connecter.ConnectAsync();
 
             Stream serverConn = new NetworkStream(connecter.Socket, true);
-            var reverse = $"PROXY /{requestId} HTTP/1.1\r\nHost: {cleint.Server.ServerAddr}:{cleint.Server.ServerPort}\r\nConnection: keep-alive\r\n\r\n";
+            var reverse = $"PROXY /{requestId} HTTP/1.1\r\nHost: {cleint.Server.ServerAddr}:{cleint.Server.ServerPort}\r\n\r\n";
 
             var requestMsg = Encoding.ASCII.GetBytes(reverse);
             await serverConn.WriteAsync(requestMsg, cancellationToken);

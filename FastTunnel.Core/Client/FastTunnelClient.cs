@@ -34,13 +34,14 @@ namespace FastTunnel.Core.Client
         public FastTunnelClient(
             ILogger<FastTunnelClient> logger,
             SwapHandler newCustomerHandler,
-             LogHandler logHandler,
+            LogHandler logHandler,
             IOptionsMonitor<DefaultClientConfig> configuration)
         {
             _logger = logger;
             _newCustomerHandler = newCustomerHandler;
             _logHandler = logHandler;
             ClientConfig = configuration.CurrentValue;
+            Server = ClientConfig.Server;
         }
 
         /// <summary>
@@ -69,41 +70,46 @@ namespace FastTunnel.Core.Client
             _logger.LogInformation("===== FastTunnel Client End =====");
         }
 
-        protected virtual async Task loginAsync(CancellationToken cancellationToken)
+        private async Task loginAsync(CancellationToken cancellationToken)
         {
-            Server = ClientConfig.Server;
-            _logger.LogInformation($"正在连接服务端 {Server.ServerAddr}:{Server.ServerPort}");
-
             try
             {
+                var logMsg = GetLoginMsg();
+
                 // 连接到的目标IP
                 socket = new ClientWebSocket();
                 socket.Options.RemoteCertificateValidationCallback = delegate { return true; };
                 socket.Options.SetRequestHeader(FastTunnelConst.FASTTUNNEL_FLAG, "2.0.0");
                 socket.Options.SetRequestHeader(FastTunnelConst.FASTTUNNEL_TYPE, FastTunnelConst.TYPE_CLIENT);
 
+                _logger.LogInformation($"正在连接服务端 {Server.ServerAddr}:{Server.ServerPort}");
                 await socket.ConnectAsync(
-                    new Uri($"ws://{ClientConfig.Server.ServerAddr}:{ClientConfig.Server.ServerPort}"), cancellationToken);
+                    new Uri($"ws://{Server.ServerAddr}:{Server.ServerPort}"), cancellationToken);
 
                 _logger.LogDebug("连接服务端成功");
+
+                // 登录
+                await socket.SendCmdAsync(MessageType.LogIn, logMsg, cancellationToken);
             }
             catch (Exception)
             {
                 throw;
             }
+        }
 
-            // 登录
-            await socket.SendCmdAsync(MessageType.LogIn, new LogInMassage
+        public virtual string GetLoginMsg()
+        {
+            Server = ClientConfig.Server;
+            return new LogInMassage
             {
                 Webs = ClientConfig.Webs,
                 Forwards = ClientConfig.Forwards,
-            }.ToJson(), cancellationToken);
+            }.ToJson();
         }
 
         private async Task ReceiveServerAsync(CancellationToken cancellationToken)
         {
-            byte[] buffer = new byte[128];
-
+            byte[] buffer = new byte[FastTunnelConst.CMD_MAX_LENGTH];
             while (!cancellationToken.IsCancellationRequested)
             {
                 var res = await socket.ReceiveAsync(buffer, cancellationToken);
@@ -115,14 +121,14 @@ namespace FastTunnel.Core.Client
 
         private async void HandleServerRequestAsync(byte cmd, string ctx, CancellationToken cancellationToken)
         {
+            await Task.Yield();
+
             try
             {
                 IClientHandler handler;
                 switch ((MessageType)cmd)
                 {
                     case MessageType.SwapMsg:
-                        handler = _newCustomerHandler;
-                        break;
                     case MessageType.Forward:
                         handler = _newCustomerHandler;
                         break;
@@ -144,10 +150,13 @@ namespace FastTunnel.Core.Client
         public void Stop(CancellationToken cancellationToken)
         {
             _logger.LogInformation("===== FastTunnel Client Stoping =====");
+            if (socket == null)
+                return;
+
             if (socket.State == WebSocketState.Connecting)
                 return;
 
-            socket.CloseAsync(WebSocketCloseStatus.Empty, "客户端主动关闭", cancellationToken);
+            socket.CloseAsync(WebSocketCloseStatus.Empty, string.Empty, cancellationToken);
         }
     }
 }

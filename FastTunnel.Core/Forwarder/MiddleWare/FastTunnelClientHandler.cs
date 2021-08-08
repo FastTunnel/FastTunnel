@@ -46,8 +46,7 @@ namespace FastTunnel.Core.MiddleWares
         private async Task handleClient(HttpContext context, Func<Task> next)
         {
             using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
-
-            var tunnelClient = new TunnelClient(logger, fastTunnelServer).SetSocket(webSocket);
+            var tunnelClient = context.RequestServices.GetRequiredService<TunnelClient>().SetSocket(webSocket);
 
             try
             {

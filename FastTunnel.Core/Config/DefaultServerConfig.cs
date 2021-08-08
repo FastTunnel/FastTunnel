@@ -9,8 +9,6 @@ namespace FastTunnel.Core.Config
     {
         public string WebDomain { get; set; }
 
-        public int WebProxyPort { get; set; } = 1270;
-
         public string[] WebAllowAccessIps { get; set; }
 
         public bool EnableForward { get; set; } = false;
