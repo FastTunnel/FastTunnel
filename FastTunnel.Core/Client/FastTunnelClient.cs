@@ -81,6 +81,7 @@ namespace FastTunnel.Core.Client
                 socket.Options.RemoteCertificateValidationCallback = delegate { return true; };
                 socket.Options.SetRequestHeader(FastTunnelConst.FASTTUNNEL_FLAG, "2.0.0");
                 socket.Options.SetRequestHeader(FastTunnelConst.FASTTUNNEL_TYPE, FastTunnelConst.TYPE_CLIENT);
+                socket.Options.SetRequestHeader(FastTunnelConst.FASTTUNNEL_TOKEN, ClientConfig.Token);
 
                 _logger.LogInformation($"正在连接服务端 {Server.ServerAddr}:{Server.ServerPort}");
                 await socket.ConnectAsync(

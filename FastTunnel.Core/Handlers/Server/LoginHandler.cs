@@ -40,7 +40,7 @@ namespace FastTunnel.Core.Handlers.Server
                 hasTunnel = true;
                 foreach (var item in requet.Webs)
                 {
-                    var hostName = $"{item.SubDomain}.{server.serverOption.CurrentValue.WebDomain}".Trim();
+                    var hostName = $"{item.SubDomain}.{server.ServerOption.CurrentValue.WebDomain}".Trim();
                     var info = new WebInfo { Socket = client, WebConfig = item };
 
                     _logger.LogDebug($"new domain '{hostName}'");
@@ -68,7 +68,7 @@ namespace FastTunnel.Core.Handlers.Server
 
             if (requet.Forwards != null && requet.Forwards.Count() > 0)
             {
-                if (server.serverOption.CurrentValue.EnableForward)
+                if (server.ServerOption.CurrentValue.EnableForward)
                 {
                     hasTunnel = true;
 
@@ -92,7 +92,7 @@ namespace FastTunnel.Core.Handlers.Server
                             server.ForwardList.TryAdd(item.RemotePort, new ForwardInfo<ForwardHandlerArg> { Listener = ls, Socket = client, SSHConfig = item });
                             _logger.LogDebug($"SSH proxy success: {item.RemotePort} => {item.LocalIp}:{item.LocalPort}");
 
-                            await client.SendCmdAsync(MessageType.Log, $"  TCP    | {server.serverOption.CurrentValue.WebDomain}:{item.RemotePort} => {item.LocalIp}:{item.LocalPort}", CancellationToken.None);
+                            await client.SendCmdAsync(MessageType.Log, $"  TCP    | {server.ServerOption.CurrentValue.WebDomain}:{item.RemotePort} => {item.LocalIp}:{item.LocalPort}", CancellationToken.None);
                         }
                         catch (Exception ex)
                         {

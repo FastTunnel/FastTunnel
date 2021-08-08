@@ -33,7 +33,6 @@ namespace FastTunnel.Core
         {
             services.AddTransient<IFastTunnelClient, FastTunnelClient>()
                 .AddSingleton<IExceptionFilter, FastTunnelExceptionFilter>()
-                .AddSingleton<ILoginHandler, LoginHandler>()
                 .AddSingleton<LogHandler>()
                 .AddTransient<TunnelClient>()
                 .AddSingleton<SwapHandler>();
@@ -52,6 +51,7 @@ namespace FastTunnel.Core
 
             services.Configure<DefaultServerConfig>(configurationSection)
                 .AddSingleton<IExceptionFilter, FastTunnelExceptionFilter>()
+                .AddTransient<ILoginHandler, LoginHandler>()
                 .AddTransient<TunnelClient>()
                 .AddSingleton<FastTunnelClientHandler>()
                 .AddSingleton<FastTunnelSwapHandler>()

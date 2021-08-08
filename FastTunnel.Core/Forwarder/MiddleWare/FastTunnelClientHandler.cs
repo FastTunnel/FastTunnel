@@ -1,4 +1,5 @@
 ﻿using FastTunnel.Core.Client;
+using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Forwarder;
 using FastTunnel.Core.Forwarder.MiddleWare;
 using FastTunnel.Core.Models;
@@ -48,6 +49,13 @@ namespace FastTunnel.Core.MiddleWares
             using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
             var tunnelClient = context.RequestServices.GetRequiredService<TunnelClient>().SetSocket(webSocket);
 
+            if (!checkToken(context))
+            {
+                await webSocket.SendCmdAsync(MessageType.Log, "Token验证失败", CancellationToken.None);
+                await webSocket.CloseAsync(WebSocketCloseStatus.Empty, string.Empty, CancellationToken.None);
+                return;
+            }
+
             try
             {
                 logger.LogInformation($"客户端连接 {context.TraceIdentifier}:{context.Connection.RemoteIpAddress}");
@@ -57,6 +65,21 @@ namespace FastTunnel.Core.MiddleWares
             {
                 logger.LogInformation($"客户端关闭 {context.TraceIdentifier}:{context.Connection.RemoteIpAddress}");
             }
+        }
+
+        private bool checkToken(HttpContext context)
+        {
+            if (string.IsNullOrEmpty(fastTunnelServer.ServerOption.CurrentValue.Token))
+            {
+                return true;
+            }
+
+            if (!context.Request.Headers.TryGetValue(FastTunnelConst.FASTTUNNEL_TOKEN, out var token) || !token.Equals(fastTunnelServer.ServerOption.CurrentValue.Token))
+            {
+                return false;
+            };
+
+            return true;
         }
     }
 }

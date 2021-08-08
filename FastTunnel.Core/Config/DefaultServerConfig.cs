@@ -12,5 +12,7 @@ namespace FastTunnel.Core.Config
         public string[] WebAllowAccessIps { get; set; }
 
         public bool EnableForward { get; set; } = false;
+
+        public string Token { get; set; }
     }
 }

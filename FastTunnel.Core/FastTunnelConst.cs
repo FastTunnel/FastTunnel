@@ -11,11 +11,14 @@ namespace FastTunnel.Core
         public const string FASTTUNNEL_FLAG = "FASTTUNNEL_VERSION";
         public const string FASTTUNNEL_TYPE = "FASTTUNNEL_TYPE";
         public const string FASTTUNNEL_MSGID = "FASTTUNNEL_MSGID";
+        public const string FASTTUNNEL_TOKEN = "FASTTUNNEL_TOKEN";
 
         public const string TYPE_CLIENT = "CLIENT";
 
         public const string TYPE_SWAP = "SWAP";
 
         public const int CMD_MAX_LENGTH = 100;
+
+
     }
 }

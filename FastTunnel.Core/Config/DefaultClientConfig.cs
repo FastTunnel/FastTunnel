@@ -10,6 +10,8 @@ namespace FastTunnel.Core.Config
     {
         public SuiDaoServer Server { get; set; }
 
+        public string Token { get; set; }
+
         public IEnumerable<WebConfig> Webs { get; set; }
 
         public IEnumerable<ForwardConfig> Forwards { get; set; }

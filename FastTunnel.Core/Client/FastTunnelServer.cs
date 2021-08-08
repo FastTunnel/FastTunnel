@@ -24,12 +24,12 @@ namespace FastTunnel.Core.Client
         public ConcurrentDictionary<int, ForwardInfo<ForwardHandlerArg>> ForwardList { get; private set; }
             = new ConcurrentDictionary<int, ForwardInfo<ForwardHandlerArg>>();
 
-        public readonly IOptionsMonitor<DefaultServerConfig> serverOption;
+        public readonly IOptionsMonitor<DefaultServerConfig> ServerOption;
         public IProxyConfigProvider proxyConfig;
 
         public FastTunnelServer(IProxyConfigProvider proxyConfig, IOptionsMonitor<DefaultServerConfig> serverSettings)
         {
-            serverOption = serverSettings;
+            ServerOption = serverSettings;
             this.proxyConfig = proxyConfig;
         }
     }
