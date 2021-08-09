@@ -84,11 +84,11 @@ namespace FastTunnel.Core.Handlers.Server
                                 server.ForwardList.TryRemove(item.RemotePort, out ForwardInfo<ForwardHandlerArg> _);
                             }
 
-                            var ls = new PortProxyListener("0.0.0.0", item.RemotePort, _logger);
+                            // TODO: 客户端离线时销毁
+                            var ls = new PortProxyListener("0.0.0.0", item.RemotePort, _logger, client);
+                            ls.Start(new ForwardDispatcher(_logger, server, item));
 
-                            ls.Start(new ForwardDispatcher(_logger, server, client, item));
-
-                            // listen success
+                            // TODO: 客户端离线时销毁
                             server.ForwardList.TryAdd(item.RemotePort, new ForwardInfo<ForwardHandlerArg> { Listener = ls, Socket = client, SSHConfig = item });
                             _logger.LogDebug($"SSH proxy success: {item.RemotePort} => {item.LocalIp}:{item.LocalPort}");
 

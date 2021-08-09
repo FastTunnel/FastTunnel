@@ -19,26 +19,34 @@ namespace FastTunnel.Core.Dispatchers
     public class ForwardDispatcher
     {
         private FastTunnelServer _server;
-        private WebSocket _client;
         private ForwardConfig _config;
         ILogger logger;
 
-        public ForwardDispatcher(ILogger logger, FastTunnelServer server, WebSocket client, ForwardConfig config)
+        public ForwardDispatcher(ILogger logger, FastTunnelServer server, ForwardConfig config)
         {
             this.logger = logger;
             _server = server;
-            _client = client;
             _config = config;
         }
 
-        public async Task DispatchAsync(Socket _socket)
+        public async Task DispatchAsync(Socket _socket, WebSocket client)
         {
             try
             {
                 await Task.Yield();
-
                 var msgid = Guid.NewGuid().ToString().Replace("-", "");
-                await _client.SendCmdAsync(MessageType.Forward, $"{msgid}|{_config.LocalIp}:{_config.LocalPort}", CancellationToken.None);
+
+                try
+                {
+
+                    await client.SendCmdAsync(MessageType.Forward, $"{msgid}|{_config.LocalIp}:{_config.LocalPort}", CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    // 客户端已掉线或网络不稳定
+                    logger.LogError(ex);
+                    return;
+                }
 
                 var tcs = new TaskCompletionSource<Stream>();
                 _server.ResponseTasks.TryAdd(msgid, tcs);

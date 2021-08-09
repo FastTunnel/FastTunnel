@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -26,9 +27,11 @@ namespace FastTunnel.Core.Listener
         ForwardDispatcher _requestDispatcher;
         Socket listenSocket;
         public IList<Socket> ConnectedSockets = new List<Socket>();
+        WebSocket client;
 
-        public PortProxyListener(string ip, int port, ILogger logerr)
+        public PortProxyListener(string ip, int port, ILogger logerr, WebSocket client)
         {
+            this.client = client;
             _logerr = logerr;
             this.ListenIp = ip;
             this.ListenPort = port;
@@ -83,7 +86,7 @@ namespace FastTunnel.Core.Listener
                     m_numConnectedSockets);
 
                 // 将此客户端交由Dispatcher进行管理
-                _requestDispatcher.DispatchAsync(accept);
+                _requestDispatcher.DispatchAsync(accept, client);
 
                 // Accept the next connection request
                 StartAccept(e);
