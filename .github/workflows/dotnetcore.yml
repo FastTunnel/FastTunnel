@@ -12,7 +12,7 @@ jobs:
      with:
        dotnet-version: 5.0.203
    - name: Build with dotnet
-     run: ./publish-win.sh
+     run: chmod +x ./publish-win.sh && ./publish-win.sh
       
   publish:
     name: build, pack & publish
