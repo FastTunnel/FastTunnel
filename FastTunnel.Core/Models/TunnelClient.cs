@@ -39,7 +39,7 @@ namespace FastTunnel.Core.Models
 
         public async Task ReviceAsync(CancellationToken cancellationToken)
         {
-            var buffer = new byte[FastTunnelConst.CMD_MAX_LENGTH];
+            var buffer = new byte[FastTunnelConst.MAX_CMD_LENGTH];
             var tunnelProtocol = new TunnelProtocol();
 
             while (true)

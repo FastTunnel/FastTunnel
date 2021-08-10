@@ -16,6 +16,7 @@ using System.Net.WebSockets;
 using System.Text.Json;
 using FastTunnel.Core.Protocol;
 using Microsoft.AspNetCore.DataProtection;
+using FastTunnel.Core.Utilitys;
 
 namespace FastTunnel.Core.Client
 {
@@ -79,8 +80,7 @@ namespace FastTunnel.Core.Client
                 // 连接到的目标IP
                 socket = new ClientWebSocket();
                 socket.Options.RemoteCertificateValidationCallback = delegate { return true; };
-                socket.Options.SetRequestHeader(FastTunnelConst.FASTTUNNEL_FLAG, "2.0.0");
-                socket.Options.SetRequestHeader(FastTunnelConst.FASTTUNNEL_TYPE, FastTunnelConst.TYPE_CLIENT);
+                socket.Options.SetRequestHeader(FastTunnelConst.FASTTUNNEL_VERSION, AssemblyUtility.GetVersion().ToString());
                 socket.Options.SetRequestHeader(FastTunnelConst.FASTTUNNEL_TOKEN, ClientConfig.Token);
 
                 _logger.LogInformation($"正在连接服务端 {Server.ServerAddr}:{Server.ServerPort}");
@@ -110,7 +110,7 @@ namespace FastTunnel.Core.Client
 
         private async Task ReceiveServerAsync(CancellationToken cancellationToken)
         {
-            byte[] buffer = new byte[FastTunnelConst.CMD_MAX_LENGTH];
+            byte[] buffer = new byte[FastTunnelConst.MAX_CMD_LENGTH];
             while (!cancellationToken.IsCancellationRequested)
             {
                 var res = await socket.ReceiveAsync(buffer, cancellationToken);

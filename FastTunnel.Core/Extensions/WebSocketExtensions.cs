@@ -15,7 +15,7 @@ namespace FastTunnel.Core.Extensions
         public static async Task SendCmdAsync(this WebSocket socket, MessageType type, string content, CancellationToken cancellationToken)
         {
             var buffer = Encoding.UTF8.GetBytes($"{(char)type}{content}\n");
-            if (type != MessageType.LogIn && buffer.Length > FastTunnelConst.CMD_MAX_LENGTH)
+            if (type != MessageType.LogIn && buffer.Length > FastTunnelConst.MAX_CMD_LENGTH)
                 throw new ArgumentOutOfRangeException(nameof(content));
 
             await socket.SendAsync(buffer, WebSocketMessageType.Binary, false, cancellationToken);

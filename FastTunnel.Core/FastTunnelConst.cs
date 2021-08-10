@@ -8,17 +8,10 @@ namespace FastTunnel.Core
 {
     public class FastTunnelConst
     {
-        public const string FASTTUNNEL_FLAG = "FASTTUNNEL_VERSION";
-        public const string FASTTUNNEL_TYPE = "FASTTUNNEL_TYPE";
-        public const string FASTTUNNEL_MSGID = "FASTTUNNEL_MSGID";
-        public const string FASTTUNNEL_TOKEN = "FASTTUNNEL_TOKEN";
+        public const string FASTTUNNEL_VERSION = "FT_VERSION";
+        public const string FASTTUNNEL_MSGID = "FT_MSGID";
+        public const string FASTTUNNEL_TOKEN = "FT_TOKEN";
 
-        public const string TYPE_CLIENT = "CLIENT";
-
-        public const string TYPE_SWAP = "SWAP";
-
-        public const int CMD_MAX_LENGTH = 100;
-
-
+        public const int MAX_CMD_LENGTH = 100;
     }
 }

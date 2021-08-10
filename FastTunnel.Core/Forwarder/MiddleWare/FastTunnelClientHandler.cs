@@ -24,35 +24,41 @@ namespace FastTunnel.Core.MiddleWares
     {
         ILogger<FastTunnelClientHandler> logger;
         FastTunnelServer fastTunnelServer;
+        Version serverVersion;
 
         public FastTunnelClientHandler(ILogger<FastTunnelClientHandler> logger, FastTunnelServer fastTunnelServer)
         {
             this.logger = logger;
             this.fastTunnelServer = fastTunnelServer;
+
+            serverVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
         }
 
         public async Task Handle(HttpContext context, Func<Task> next)
         {
-            if (!context.WebSockets.IsWebSocketRequest
-                || !context.Request.Headers.TryGetValue(FastTunnelConst.FASTTUNNEL_FLAG, out var version)
-                || !context.Request.Headers.TryGetValue(FastTunnelConst.FASTTUNNEL_TYPE, out var type))
+            if (!context.WebSockets.IsWebSocketRequest || !context.Request.Headers.TryGetValue(FastTunnelConst.FASTTUNNEL_VERSION, out var version))
             {
                 await next();
                 return;
             };
 
-            await handleClient(context, next);
+            await handleClient(context, next, version);
         }
 
-        private async Task handleClient(HttpContext context, Func<Task> next)
+        private async Task handleClient(HttpContext context, Func<Task> next, string clientVersion)
         {
             using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
             var tunnelClient = context.RequestServices.GetRequiredService<TunnelClient>().SetSocket(webSocket);
 
+            if (Version.Parse(clientVersion).Major != serverVersion.Major)
+            {
+                await Close(webSocket, $"客户端版本{clientVersion}与服务端版本{serverVersion}不兼容，请升级。");
+                return;
+            }
+
             if (!checkToken(context))
             {
-                await webSocket.SendCmdAsync(MessageType.Log, "Token验证失败", CancellationToken.None);
-                await webSocket.CloseAsync(WebSocketCloseStatus.Empty, string.Empty, CancellationToken.None);
+                await Close(webSocket, "Token验证失败");
                 return;
             }
 
@@ -65,6 +71,13 @@ namespace FastTunnel.Core.MiddleWares
             {
                 logger.LogInformation($"客户端关闭 {context.TraceIdentifier}:{context.Connection.RemoteIpAddress}");
             }
+        }
+
+        private static async Task Close(WebSocket webSocket, string reason)
+        {
+            await webSocket.SendCmdAsync(MessageType.Log, reason, CancellationToken.None);
+            await webSocket.CloseAsync(WebSocketCloseStatus.Empty, string.Empty, CancellationToken.None);
+            return;
         }
 
         private bool checkToken(HttpContext context)

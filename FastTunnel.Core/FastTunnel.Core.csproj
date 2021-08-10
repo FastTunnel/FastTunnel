@@ -30,6 +30,7 @@
     <Compile Remove="Listener.cs" />
     <Compile Remove="Listener\ClientListener.cs" />
     <Compile Remove="Listener\ClientListenerV2.cs" />
+    <Compile Remove="Listener\ForwardListener.cs" />
     <Compile Remove="Listener\HttpListener.cs" />
     <Compile Remove="Server.cs" />
     <Compile Remove="Sockets\AsyncSocketSwap.cs" />
