@@ -13,3 +13,4 @@ publish
 /FastTunnel.Core/*.user
 /build
 /FastTunnel.Server/.config
+/FastTunnel.Server/logs

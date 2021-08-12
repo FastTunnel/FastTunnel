@@ -75,7 +75,7 @@ namespace FastTunnel.Core.Client
         {
             try
             {
-                var logMsg = GetLoginMsg();
+                var logMsg = GetLoginMsg(cancellationToken);
 
                 // 连接到的目标IP
                 socket = new ClientWebSocket();
@@ -98,7 +98,7 @@ namespace FastTunnel.Core.Client
             }
         }
 
-        public virtual string GetLoginMsg()
+        public virtual string GetLoginMsg(CancellationToken cancellationToken)
         {
             Server = ClientConfig.Server;
             return new LogInMassage
