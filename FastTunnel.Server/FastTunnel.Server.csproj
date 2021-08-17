@@ -12,6 +12,8 @@
     <PackageReference Include="Microsoft.Extensions.Logging" Version="6.0.0-preview.4.21253.7" />
     <PackageReference Include="Microsoft.Extensions.Logging.Configuration" Version="6.0.0-preview.4.21253.7" />
     <PackageReference Include="Microsoft.Extensions.Logging.Log4Net.AspNetCore" Version="5.0.3" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="6.1.5" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="6.1.5" />
   </ItemGroup>
 
   <ItemGroup>
