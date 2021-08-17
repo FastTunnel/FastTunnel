@@ -63,11 +63,14 @@ namespace FastTunnel.Core.Forwarder
                 // 发送指令给客户端，等待建立隧道
                 await web.Socket.SendCmdAsync(MessageType.SwapMsg, $"{RequestId}|{web.WebConfig.LocalIp}:{web.WebConfig.LocalPort}", cancellation);
 
-                // TODO:超时处理
-                TaskCompletionSource<Stream> task = new(cancellation);
-                _fastTunnelServer.ResponseTasks.TryAdd(RequestId, task);
+                TaskCompletionSource<Stream> tcs = new(cancellation);
+                tcs.SetTimeOut(10000, () =>
+                {
+                    _logger.LogError($"客户端在指定时间内为建立Swap连接 {RequestId}|{host}=>{web.WebConfig.LocalIp}:{web.WebConfig.LocalPort}");
+                });
 
-                var res = await task.Task;
+                _fastTunnelServer.ResponseTasks.TryAdd(RequestId, tcs);
+                var res = await tcs.Task;
                 return res;
             }
             catch (Exception ex)

@@ -38,6 +38,11 @@ namespace FastTunnel.Core.Dispatchers
 
                 try
                 {
+                    if (client.State == WebSocketState.Aborted)
+                    {
+                        logger.LogError("客户端已离线");
+                        return;
+                    }
 
                     await client.SendCmdAsync(MessageType.Forward, $"{msgid}|{_config.LocalIp}:{_config.LocalPort}", CancellationToken.None);
                 }
@@ -57,7 +62,7 @@ namespace FastTunnel.Core.Dispatchers
             }
             catch (Exception ex)
             {
-                logger.LogError(ex);
+                logger.LogError("Forward Swap Error：" + ex.Message);
             }
         }
     }

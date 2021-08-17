@@ -64,12 +64,14 @@ namespace FastTunnel.Core.MiddleWares
 
             try
             {
-                logger.LogInformation($"客户端连接 {context.TraceIdentifier}:{context.Connection.RemoteIpAddress}");
+                Interlocked.Increment(ref fastTunnelServer.ConnectedClientCount);
+                logger.LogInformation($"客户端连接 {context.TraceIdentifier}:{context.Connection.RemoteIpAddress} 当前在线数：{fastTunnelServer.ConnectedClientCount}");
                 await tunnelClient.ReviceAsync(CancellationToken.None);
             }
             catch (Exception)
             {
-                logger.LogInformation($"客户端关闭 {context.TraceIdentifier}:{context.Connection.RemoteIpAddress}");
+                Interlocked.Decrement(ref fastTunnelServer.ConnectedClientCount);
+                logger.LogInformation($"客户端关闭 {context.TraceIdentifier}:{context.Connection.RemoteIpAddress} 当前在线数：{fastTunnelServer.ConnectedClientCount}");
             }
         }
 

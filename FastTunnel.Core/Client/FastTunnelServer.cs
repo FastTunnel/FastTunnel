@@ -21,6 +21,8 @@ namespace FastTunnel.Core.Client
 
         public ConcurrentDictionary<string, WebInfo> WebList { get; private set; } = new();
 
+        public int ConnectedClientCount = 0;
+
         public ConcurrentDictionary<int, ForwardInfo<ForwardHandlerArg>> ForwardList { get; private set; }
             = new ConcurrentDictionary<int, ForwardInfo<ForwardHandlerArg>>();
 

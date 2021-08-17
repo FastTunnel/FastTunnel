@@ -110,7 +110,6 @@ namespace FastTunnel.Core {
         /// <summary>
         ///   查找类似 &lt;!DOCTYPE html&gt;
         ///&lt;html lang=&quot;en&quot;&gt;
-        ///
         ///&lt;head&gt;
         ///  &lt;meta charset=&quot;utf-8&quot; /&gt;
         ///  &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot; /&gt;
@@ -128,7 +127,7 @@ namespace FastTunnel.Core {
         ///
         ///    .btn-primary {
         ///      color: #fff;
-        ///      background-color [字符串的其余部分被截断]&quot;; 的本地化字符串。
+        ///      background-color:  [字符串的其余部分被截断]&quot;; 的本地化字符串。
         /// </summary>
         internal static string Page_NoSite {
             get {
