@@ -3,6 +3,9 @@
   <PropertyGroup>
     <TargetFramework>net5.0</TargetFramework>
     <Nullable>enable</Nullable>
+    <Version>1.0.0</Version>
+    <PackageProjectUrl>https://github.com/FastTunnel/FastTunnel/tree/v2/FastTunnel.Api</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/FastTunnel/FastTunnel/tree/v2/FastTunnel.Api</RepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>
