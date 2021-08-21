@@ -588,6 +588,93 @@
 &lt;/html&gt;</value>
     <comment>客户端未登录</comment>
   </data>
+  <data name="Test" xml:space="preserve">
+    <value>HTTP/1.1 200 OK
+Date: Sat, 21 Aug 2021 15:14:17 GMT
+Content-Type: text/html; charset=utf-8
+Server: Microsoft-IIS/10.0
+X-Powered-By: ASP.NET
+Content-Length: 3026
+
+&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+&lt;head&gt;
+    &lt;meta charset="utf-8" /&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1.0" /&gt;
+    &lt;title&gt; - BX.SignalR&lt;/title&gt;
+    &lt;link rel="stylesheet" href="/lib/bootstrap/dist/css/bootstrap.min.css" /&gt;
+    &lt;link rel="stylesheet" href="/css/site.css" /&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;header&gt;
+        &lt;nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3"&gt;
+            &lt;div class="container"&gt;
+                &lt;a class="navbar-brand" href="/"&gt;BX.SignalR&lt;/a&gt;
+                &lt;button class="navbar-toggler" type="button" data-toggle="collapse" data-target=".navbar-collapse" aria-controls="navbarSupportedContent"
+                        aria-expanded="false" aria-label="Toggle navigation"&gt;
+                    &lt;span class="navbar-toggler-icon"&gt;&lt;/span&gt;
+                &lt;/button&gt;
+                &lt;div class="navbar-collapse collapse d-sm-inline-flex justify-content-between"&gt;
+                    &lt;ul class="navbar-nav flex-grow-1"&gt;
+                        &lt;li class="nav-item"&gt;
+                            &lt;a class="nav-link text-dark" href="/"&gt;Home&lt;/a&gt;
+                        &lt;/li&gt;
+                        &lt;li class="nav-item"&gt;
+                            &lt;a class="nav-link text-dark" href="/Privacy"&gt;Privacy&lt;/a&gt;
+                        &lt;/li&gt;
+                    &lt;/ul&gt;
+                &lt;/div&gt;
+            &lt;/div&gt;
+        &lt;/nav&gt;
+    &lt;/header&gt;
+    &lt;div class="container"&gt;
+        &lt;main role="main" class="pb-3"&gt;
+                &lt;div class="container"&gt;
+        &lt;div class="row"&gt;&amp;nbsp;&lt;/div&gt;
+        &lt;div class="row"&gt;
+            &lt;div class="col-2"&gt;User&lt;/div&gt;
+            &lt;div class="col-4"&gt;&lt;input type="text" id="userInput" /&gt;&lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class="row"&gt;
+            &lt;div class="col-2"&gt;Message&lt;/div&gt;
+            &lt;div class="col-4"&gt;&lt;input type="text" id="messageInput" /&gt;&lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class="row"&gt;&amp;nbsp;&lt;/div&gt;
+        &lt;div class="row"&gt;
+            &lt;div class="col-6"&gt;
+                &lt;input type="button" id="sendButton" value="Send Message" /&gt;
+            &lt;/div&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+    &lt;div class="row"&gt;
+        &lt;div class="col-12"&gt;
+            &lt;hr /&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+    &lt;div class="row"&gt;
+        &lt;div class="col-6"&gt;
+            &lt;ul id="messagesList"&gt;&lt;/ul&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+&lt;script src="/js/signalr/dist/browser/signalr.js"&gt;&lt;/script&gt;
+&lt;script src="/js/chat.js"&gt;&lt;/script&gt;
+        &lt;/main&gt;
+    &lt;/div&gt;
+
+    &lt;footer class="border-top footer text-muted"&gt;
+        &lt;div class="container"&gt;
+            &amp;copy; 2020 - BX.SignalR - &lt;a href="/Privacy"&gt;Privacy&lt;/a&gt;
+        &lt;/div&gt;
+    &lt;/footer&gt;
+
+    &lt;script src="/lib/jquery/dist/jquery.min.js"&gt;&lt;/script&gt;
+    &lt;script src="/lib/bootstrap/dist/js/bootstrap.bundle.min.js"&gt;&lt;/script&gt;
+    &lt;script src="/js/site.js?v=4q1jwFhaPaZgr8WAUSrux6hAuh0XDg9kPS3xIVq36I0"&gt;&lt;/script&gt;
+
+    
+&lt;script src="/_framework/aspnetcore-browser-refresh.js"&gt;&lt;/script&gt;&lt;/body&gt;
+&lt;/html&gt;</value>
+  </data>
   <data name="TunnelLlist" xml:space="preserve">
     <value>\n=====隧道已建立成功，现在可以通过以下方式访问您的内网服务了=====\n{0}\n</value>
   </data>

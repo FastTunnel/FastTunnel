@@ -1,6 +1,7 @@
 ﻿using FastTunnel.Core.Client;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Models;
+using FastTunnel.Core.Sockets;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
@@ -48,12 +49,13 @@ namespace FastTunnel.Core.Forwarder
             }
         }
 
-        public async ValueTask<Stream> proxyAsync(string host, CancellationToken cancellation)
+        public async ValueTask<Stream> proxyAsync(string host, SocketsHttpConnectionContext context, CancellationToken cancellation)
         {
             WebInfo web;
             if (!_fastTunnelServer.WebList.TryGetValue(host, out web))
             {
-                throw new Exception($"站点未登录:{host}");
+                // 客户端已离线
+                return await OfflinePage(host, context);
             }
 
             try
@@ -81,6 +83,14 @@ namespace FastTunnel.Core.Forwarder
                 _fastTunnelServer.WebList.TryRemove(host, out _);
                 throw;
             }
+        }
+
+        private async ValueTask<Stream> OfflinePage(string host, SocketsHttpConnectionContext context)
+        {
+            var bytes = Encoding.UTF8.GetBytes(
+                $"HTTP/1.1 200 OK\r\nContent-Type:text/html; charset=utf-8\r\n\r\n{TunnelResource.Page_Offline}\r\n");
+
+            return await Task.FromResult(new ResponseStream(bytes));
         }
     }
 }
