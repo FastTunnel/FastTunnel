@@ -39,7 +39,7 @@ namespace FastTunnel.Core.Forwarder
 
             try
             {
-                var res = await proxyAsync(host, cancellationToken);
+                var res = await proxyAsync(host, context, cancellationToken);
                 return res;
             }
             catch (Exception ex)
