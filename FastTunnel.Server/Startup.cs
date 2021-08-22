@@ -1,10 +1,15 @@
 using FastTunnel.Core;
+using FastTunnel.Core.Config;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace FastTunnel.Server
 {
@@ -26,9 +31,9 @@ namespace FastTunnel.Server
                 c.SwaggerDoc("v2", new OpenApiInfo { Title = "FastTunel.Api", Version = "v2" });
             });
 
-            // -------------------FastTunnel START------------------
+            // -------------------FastTunnel STEP1 OF 3------------------
             services.AddFastTunnelServer(Configuration.GetSection("ServerSettings"));
-            // -------------------FastTunnel END--------------------
+            // -------------------FastTunnel STEP1 END--------------------
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -41,16 +46,18 @@ namespace FastTunnel.Server
                 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v2/swagger.json", "FastTunel.WebApi v2"));
             }
 
-            // -------------------FastTunnel START------------------
+            // -------------------FastTunnel STEP2 OF 3------------------
             app.UseFastTunnelServer();
-            // -------------------FastTunnel END--------------------
+            // -------------------FastTunnel STEP2 END--------------------
 
             app.UseRouting();
 
             app.UseEndpoints(endpoints =>
             {
-                endpoints.MapReverseProxy();
                 endpoints.MapControllers();
+                // -------------------FastTunnel STEP3 OF 3------------------
+                endpoints.MapFastTunnelServer();
+                // -------------------FastTunnel STEP3 END--------------------
             });
         }
     }

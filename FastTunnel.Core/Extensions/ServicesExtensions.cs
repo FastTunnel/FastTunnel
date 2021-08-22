@@ -14,6 +14,11 @@ using FastTunnel.Core.Filters;
 using Microsoft.AspNetCore.Mvc.Filters;
 using FastTunnel.Core.Models;
 using FastTunnel.Core.Handlers.Server;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Options;
+using System.Threading.Tasks;
+using System.Threading;
+using Microsoft.AspNetCore.Http;
 
 namespace FastTunnel.Core
 {
@@ -70,6 +75,25 @@ namespace FastTunnel.Core
             var clientHandler = app.ApplicationServices.GetRequiredService<FastTunnelClientHandler>();
             app.Use(clientHandler.Handle);
             app.Use(swapHandler.Handle);
+        }
+
+        public static void MapFastTunnelServer(this IEndpointRouteBuilder endpoints)
+        {
+            endpoints.MapReverseProxy();
+            endpoints.MapFallback(context =>
+            {
+                var options = context.RequestServices.GetRequiredService<IOptionsMonitor<DefaultServerConfig>>();
+                var host = context.Request.Host.Host;
+                if (!host.EndsWith(options.CurrentValue.WebDomain) || host.Equals(options.CurrentValue.WebDomain))
+                {
+                    context.Response.StatusCode = 404;
+                    return Task.CompletedTask;
+                }
+
+                context.Response.StatusCode = 200;
+                context.Response.WriteAsync(TunnelResource.Page_NotFound, CancellationToken.None);
+                return Task.CompletedTask;
+            });
         }
     }
 }

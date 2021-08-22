@@ -22,7 +22,7 @@ namespace FastTunnel.Core {
     [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "17.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    internal class TunnelResource {
+    public class TunnelResource {
         
         private static global::System.Resources.ResourceManager resourceMan;
         
@@ -36,7 +36,7 @@ namespace FastTunnel.Core {
         ///   Returns the cached ResourceManager instance used by this class.
         /// </summary>
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Advanced)]
-        internal static global::System.Resources.ResourceManager ResourceManager {
+        public static global::System.Resources.ResourceManager ResourceManager {
             get {
                 if (object.ReferenceEquals(resourceMan, null)) {
                     global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("FastTunnel.Core.TunnelResource", typeof(TunnelResource).Assembly);
@@ -51,7 +51,7 @@ namespace FastTunnel.Core {
         ///   resource lookups using this strongly typed resource class.
         /// </summary>
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Advanced)]
-        internal static global::System.Globalization.CultureInfo Culture {
+        public static global::System.Globalization.CultureInfo Culture {
             get {
                 return resourceCulture;
             }
@@ -63,7 +63,7 @@ namespace FastTunnel.Core {
         /// <summary>
         ///   Looks up a localized string similar to 服务端禁用了Forward.
         /// </summary>
-        internal static string ForwardDisabled {
+        public static string ForwardDisabled {
             get {
                 return ResourceManager.GetString("ForwardDisabled", resourceCulture);
             }
@@ -72,7 +72,7 @@ namespace FastTunnel.Core {
         /// <summary>
         ///   Looks up a localized string similar to 您尚未创建任何隧道，请登录https://suidao.io 创建后重试。.
         /// </summary>
-        internal static string NoTunnel {
+        public static string NoTunnel {
             get {
                 return ResourceManager.GetString("NoTunnel", resourceCulture);
             }
@@ -101,7 +101,7 @@ namespace FastTunnel.Core {
         ///      color: #fff;
         ///      background-color [rest of string was truncated]&quot;;.
         /// </summary>
-        internal static string Page_HostRequired {
+        public static string Page_HostRequired {
             get {
                 return ResourceManager.GetString("Page_HostRequired", resourceCulture);
             }
@@ -129,7 +129,7 @@ namespace FastTunnel.Core {
         ///      color: #fff;
         ///      background-color:  [rest of string was truncated]&quot;;.
         /// </summary>
-        internal static string Page_NoSite {
+        public static string Page_NoSite {
             get {
                 return ResourceManager.GetString("Page_NoSite", resourceCulture);
             }
@@ -158,7 +158,7 @@ namespace FastTunnel.Core {
         ///      color: #fff;
         ///      background-color [rest of string was truncated]&quot;;.
         /// </summary>
-        internal static string Page_NotAccessIps {
+        public static string Page_NotAccessIps {
             get {
                 return ResourceManager.GetString("Page_NotAccessIps", resourceCulture);
             }
@@ -187,9 +187,38 @@ namespace FastTunnel.Core {
         ///      color: #fff;
         ///      background-color [rest of string was truncated]&quot;;.
         /// </summary>
-        internal static string Page_Offline {
+        public static string Page_NotFound {
             get {
-                return ResourceManager.GetString("Page_NoTunnel", resourceCulture);
+                return ResourceManager.GetString("Page_NotFund", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to &lt;!DOCTYPE html&gt;
+        ///&lt;html lang=&quot;en&quot;&gt;
+        ///
+        ///&lt;head&gt;
+        ///  &lt;meta charset=&quot;utf-8&quot; /&gt;
+        ///  &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot; /&gt;
+        ///  &lt;title&gt;FastTunnel&lt;/title&gt;
+        ///  &lt;link href=&quot;https://cdn.bootcss.com/twitter-bootstrap/4.4.1/css/bootstrap.min.css&quot; rel=&quot;stylesheet&quot;&gt;
+        ///  &lt;style&gt;
+        ///    .err-info {
+        ///      margin-top: 120px;
+        ///    }
+        ///
+        ///    /* Provide sufficient contrast against white background */
+        ///    a {
+        ///      color: #0366d6;
+        ///    }
+        ///
+        ///    .btn-primary {
+        ///      color: #fff;
+        ///      background-color [rest of string was truncated]&quot;;.
+        /// </summary>
+        public static string Page_Offline {
+            get {
+                return ResourceManager.GetString("Page_Offline", resourceCulture);
             }
         }
         
@@ -213,7 +242,7 @@ namespace FastTunnel.Core {
         ///&lt;body&gt;
         ///    &lt;head [rest of string was truncated]&quot;;.
         /// </summary>
-        internal static string Test {
+        public static string Test {
             get {
                 return ResourceManager.GetString("Test", resourceCulture);
             }
@@ -222,7 +251,7 @@ namespace FastTunnel.Core {
         /// <summary>
         ///   Looks up a localized string similar to \n=====隧道已建立成功，现在可以通过以下方式访问您的内网服务了=====\n{0}\n.
         /// </summary>
-        internal static string TunnelLlist {
+        public static string TunnelLlist {
             get {
                 return ResourceManager.GetString("TunnelLlist", resourceCulture);
             }

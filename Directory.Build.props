@@ -1,0 +1,7 @@
+<Project>
+  <PropertyGroup>
+    <Version>2.0.1</Version>
+    <Nullable>enable</Nullable>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+</Project>

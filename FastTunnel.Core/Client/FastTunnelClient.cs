@@ -85,7 +85,7 @@ namespace FastTunnel.Core.Client
 
                 _logger.LogInformation($"正在连接服务端 {Server.ServerAddr}:{Server.ServerPort}");
                 await socket.ConnectAsync(
-                    new Uri($"ws://{Server.ServerAddr}:{Server.ServerPort}"), cancellationToken);
+                    new Uri($"{Server.Protocol}://{Server.ServerAddr}:{Server.ServerPort}"), cancellationToken);
 
                 _logger.LogDebug("连接服务端成功");
 
@@ -151,13 +151,6 @@ namespace FastTunnel.Core.Client
         public void Stop(CancellationToken cancellationToken)
         {
             _logger.LogInformation("===== FastTunnel Client Stoping =====");
-            if (socket == null)
-                return;
-
-            if (socket.State == WebSocketState.Connecting)
-                return;
-
-            socket.CloseAsync(WebSocketCloseStatus.Empty, string.Empty, cancellationToken);
         }
     }
 }
