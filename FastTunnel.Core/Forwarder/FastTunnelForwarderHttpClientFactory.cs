@@ -9,9 +9,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using Yarp.ReverseProxy.Forwarder;
 
 namespace FastTunnel.Core.Forwarder
@@ -75,13 +77,10 @@ namespace FastTunnel.Core.Forwarder
                 var res = await tcs.Task;
                 return res;
             }
-            catch (Exception ex)
+            catch (WebSocketException)
             {
-                _logger.LogError(ex, "proxyAsync Error");
-
-                // 移除
-                _fastTunnelServer.WebList.TryRemove(host, out _);
-                throw;
+                // 通讯异常，返回客户端离线
+                return await OfflinePage(host, context);
             }
         }
 

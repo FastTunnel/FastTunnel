@@ -16,6 +16,8 @@ using FastTunnel.Core.Forwarder;
 using Microsoft;
 using Microsoft.AspNetCore.DataProtection;
 using System.Data.Common;
+using Microsoft.AspNetCore.Hosting.Server;
+using System.Net.Security;
 
 namespace FastTunnel.Core.Handlers.Client
 {
@@ -62,13 +64,18 @@ namespace FastTunnel.Core.Handlers.Client
         {
             var connecter = new DnsSocket(cleint.Server.ServerAddr, cleint.Server.ServerPort);
             await connecter.ConnectAsync();
+            Stream serverStream = new NetworkStream(connecter.Socket, true);
+            if (cleint.Server.Protocol == "wss")
+            {
+                var sslStream = new SslStream(serverStream, false, delegate { return true; });
+                await sslStream.AuthenticateAsClientAsync(cleint.Server.ServerAddr);
+                serverStream = sslStream;
+            }
 
-            Stream serverConn = new NetworkStream(connecter.Socket, true);
             var reverse = $"PROXY /{requestId} HTTP/1.1\r\nHost: {cleint.Server.ServerAddr}:{cleint.Server.ServerPort}\r\n\r\n";
-
-            var requestMsg = Encoding.ASCII.GetBytes(reverse);
-            await serverConn.WriteAsync(requestMsg, cancellationToken);
-            return serverConn;
+            var requestMsg = Encoding.UTF8.GetBytes(reverse);
+            await serverStream.WriteAsync(requestMsg, cancellationToken);
+            return serverStream;
         }
     }
 }

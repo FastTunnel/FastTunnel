@@ -59,5 +59,21 @@ namespace FastTunnel.Core.Forwarder
             Console.Write(Encoding.UTF8.GetString(buffer, offset, count));
             complete = true;
         }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (!disposing)
+            {
+                return;
+            }
+
+            m_Stream.Dispose();
+        }
+
+        public override ValueTask DisposeAsync()
+        {
+            Dispose(true);
+            return ValueTask.CompletedTask;
+        }
     }
 }
