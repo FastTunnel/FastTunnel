@@ -57,7 +57,7 @@ namespace FastTunnel.Core.Handlers.Server
                             _logger.LogInformation($"WWW {www}");
 
                             server.WebList.AddOrUpdate(www, info, (key, oldInfo) => { return info; });
-                            (proxyConfig as InMemoryConfigProvider).AddWeb(hostName);
+                            (proxyConfig as InMemoryConfigProvider).AddWeb(www);
 
                             await client.SendCmdAsync(MessageType.Log, $"  HTTP   | http://{www} => {item.LocalIp}:{item.LocalPort}", CancellationToken.None);
 
