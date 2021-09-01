@@ -24,7 +24,7 @@
 
 ### 开源仓库地址
 GitHub : [FastTunnel](https://github.com/SpringHgui/FastTunnel)  
-Gitee: [FastTunnel](https://gitee.com/Hgui/FastTunnel)
+Gitee: [FastTunnel](https://gitee.com/Hgui/FastTunnel)  
 文档: https://doc.suidao.io
 
 **有帮助的朋友点下右上角项目的⭐Star支持一下本项目，有需求和bug请提交issue，同时欢迎各位coder进行PR**
