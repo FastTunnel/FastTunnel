@@ -24,7 +24,6 @@
 ***
 
 Official website : https://suidao.io
-Official Docs: https://doc.suidao.io
 
 The penetration platform developed based on this framework, if you need intranet penetration, you can register and use it directly, eliminating the cost of building and maintaining yourself.
 But do not use this service for important items.
@@ -32,7 +31,8 @@ But do not use this service for important items.
 OpenSource：
 
 GitHub : [FastTunnel](https://github.com/SpringHgui/FastTunnel)  
-Gitee: [FastTunnel](https://gitee.com/Hgui/FastTunnel)
+Gitee: [FastTunnel](https://gitee.com/Hgui/FastTunnel)  
+Docs: https://doc.suidao.io
 
 **If helpful, click on ⭐Star to support this project, please submit an issue if you have needs and bugs, and welcome coder to PR**
 
