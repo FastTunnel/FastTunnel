@@ -27,9 +27,8 @@ But do not use this service for important items.
 
 ## Repositories
 
-GitHub : [FastTunnel](https://github.com/SpringHgui/FastTunnel)  
-Gitee: [FastTunnel](https://gitee.com/Hgui/FastTunnel)  
-Docs: https://doc.suidao.io
+[GitHub](https://github.com/SpringHgui/FastTunnel)  
+[Gitee](https://gitee.com/Hgui/FastTunnel)
 
 **If helpful, click on ⭐Star to support this project, please submit an issue if you have needs and bugs, and welcome coder to PR**
 
