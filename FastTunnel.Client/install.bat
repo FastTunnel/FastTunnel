@@ -1,11 +1,12 @@
+CHCP 65001
 @echo off
 color 0e
 @echo ==================================
-@echo ÌáĞÑ£ºÇëÓÒ¼ü±¾ÎÄ¼ş£¬ÓÃ¹ÜÀíÔ±·½Ê½´ò¿ª¡£
+@echo æé†’ï¼šè¯·å³é”®æœ¬æ–‡ä»¶ï¼Œç”¨ç®¡ç†å‘˜æ–¹å¼æ‰“å¼€ã€‚
 @echo ==================================
 @echo Start Install FastTunnel.Client
 
 sc create FastTunnel.Client binPath=%~dp0\FastTunnel.Client.exe start= auto 
-sc description FastTunnel.Client "FastTunnel-¿ªÔ´ÄÚÍø´©Í¸·şÎñ£¬²Ö¿âµØÖ·£ºhttps://github.com/SpringHgui/FastTunnel starÏîÄ¿ÒÔÖ§³Ö×÷Õß"
+sc description FastTunnel.Client "FastTunnel-å¼€æºå†…ç½‘ç©¿é€æœåŠ¡ï¼Œä»“åº“åœ°å€ï¼šhttps://github.com/SpringHgui/FastTunnel staré¡¹ç›®ä»¥æ”¯æŒä½œè€…"
 Net Start FastTunnel.Client
 pause
