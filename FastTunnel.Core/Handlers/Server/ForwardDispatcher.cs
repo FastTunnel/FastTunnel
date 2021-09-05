@@ -31,10 +31,11 @@ namespace FastTunnel.Core.Dispatchers
 
         public async Task DispatchAsync(Socket _socket, WebSocket client)
         {
+            var msgId = Guid.NewGuid().ToString().Replace("-", "");
+
             try
             {
                 await Task.Yield();
-                var msgid = Guid.NewGuid().ToString().Replace("-", "");
 
                 try
                 {
@@ -44,7 +45,7 @@ namespace FastTunnel.Core.Dispatchers
                         return;
                     }
 
-                    await client.SendCmdAsync(MessageType.Forward, $"{msgid}|{_config.LocalIp}:{_config.LocalPort}", CancellationToken.None);
+                    await client.SendCmdAsync(MessageType.Forward, $"{msgId}|{_config.LocalIp}:{_config.LocalPort}", CancellationToken.None);
                 }
                 catch (Exception ex)
                 {
@@ -54,7 +55,12 @@ namespace FastTunnel.Core.Dispatchers
                 }
 
                 var tcs = new TaskCompletionSource<Stream>();
-                _server.ResponseTasks.TryAdd(msgid, tcs);
+                tcs.SetTimeOut(5000, () =>
+                {
+                    logger.LogError($"[Forward]建立Swap超时 {msgId}|{_config.RemotePort}=>{_config.LocalIp}:{_config.LocalPort}");
+                });
+
+                _server.ResponseTasks.TryAdd(msgId, tcs);
 
                 using var stream1 = await tcs.Task;
                 using var stream2 = new NetworkStream(_socket, true);
@@ -62,7 +68,8 @@ namespace FastTunnel.Core.Dispatchers
             }
             catch (Exception ex)
             {
-                logger.LogError("Forward Swap Error：" + ex.Message);
+                _server.ResponseTasks.TryRemove(msgId, out _);
+                logger.LogDebug("Forward Swap Error：" + ex.Message);
             }
         }
     }

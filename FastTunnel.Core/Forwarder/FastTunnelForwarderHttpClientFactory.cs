@@ -60,25 +60,27 @@ namespace FastTunnel.Core.Forwarder
                 return await OfflinePage(host, context);
             }
 
+            var msgId = Guid.NewGuid().ToString().Replace("-", "");
+
             try
             {
-                var RequestId = Guid.NewGuid().ToString().Replace("-", "");
-
                 // 发送指令给客户端，等待建立隧道
-                await web.Socket.SendCmdAsync(MessageType.SwapMsg, $"{RequestId}|{web.WebConfig.LocalIp}:{web.WebConfig.LocalPort}", cancellation);
+                await web.Socket.SendCmdAsync(MessageType.SwapMsg, $"{msgId}|{web.WebConfig.LocalIp}:{web.WebConfig.LocalPort}", cancellation);
 
                 TaskCompletionSource<Stream> tcs = new(cancellation);
-                tcs.SetTimeOut(10000, () =>
+                tcs.SetTimeOut(5000, () =>
                 {
-                    _logger.LogError($"客户端在指定时间内为建立Swap连接 {RequestId}|{host}=>{web.WebConfig.LocalIp}:{web.WebConfig.LocalPort}");
+                    _logger.LogError($"[Http]建立Swap超时 {msgId}|{host}=>{web.WebConfig.LocalIp}:{web.WebConfig.LocalPort}");
                 });
 
-                _fastTunnelServer.ResponseTasks.TryAdd(RequestId, tcs);
+                _fastTunnelServer.ResponseTasks.TryAdd(msgId, tcs);
                 var res = await tcs.Task;
                 return res;
             }
             catch (WebSocketException)
             {
+                _fastTunnelServer.ResponseTasks.TryRemove(msgId, out _);
+
                 // 通讯异常，返回客户端离线
                 return await OfflinePage(host, context);
             }
