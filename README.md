@@ -53,7 +53,7 @@ But do not use this service for important items.
 - run fasttunnel.server
 - run fasttunnel.client
 
-## contributors
+## Contributors
 <a href = "https://github.com/FastTunnel/FastTunnel/graphs/contributors">
   <img src = "https://contrib.rocks/image?repo=FastTunnel/FastTunnel"/>
 </a>
