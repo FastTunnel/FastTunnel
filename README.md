@@ -19,7 +19,7 @@
 ## Docs
 [https://docs.suidao.io](https://docs.suidao.io)
 
-## Enjoin Now
+## Enjoy Now
 Official website : https://suidao.io  
 
 The penetration platform developed based on this framework, if you need intranet penetration, you can register and use it directly, eliminating the cost of building and maintaining yourself.
