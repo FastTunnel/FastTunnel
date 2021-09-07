@@ -34,11 +34,11 @@ namespace FastTunnel.Server
             {
                 c.SwaggerDoc("v2", new OpenApiInfo { Title = "FastTunel.Api", Version = "v2" });
             });
+#endif
 
             // -------------------FastTunnel STEP1 OF 3------------------
             services.AddFastTunnelServer(Configuration.GetSection("ServerSettings"));
             // -------------------FastTunnel STEP1 END--------------------
-#endif
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
