@@ -1,17 +1,21 @@
 using FastTunnel.Core;
-using FastTunnel.Core.Config;
+using FastTunnel.Core.Extensions;
+using FastTunnel.Server.Models;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
+using System;
+using FastTunnel.Core.Config;
+using System.Text;
+
 #if DEBUG
 using Microsoft.OpenApi.Models;
 #endif
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace FastTunnel.Server
 {
@@ -27,6 +31,43 @@ namespace FastTunnel.Server
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                .AddJwtBearer(options =>
+                {
+                    var serverOptions = Configuration.GetSection("FastTunnel").Get<DefaultServerConfig>();
+
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuer = false,
+                        ValidateAudience = false,
+                        ValidateLifetime = true,
+                        ClockSkew = TimeSpan.FromSeconds(serverOptions.Api.JWT.ClockSkew),
+                        ValidateIssuerSigningKey = true,
+                        ValidAudience = serverOptions.Api.JWT.ValidAudience,
+                        ValidIssuer = serverOptions.Api.JWT.ValidIssuer,
+                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(serverOptions.Api.JWT.IssuerSigningKey))
+                    };
+
+                    options.Events = new JwtBearerEvents
+                    {
+                        OnChallenge = async context =>
+                        {
+                            context.HandleResponse();
+
+                            context.Response.ContentType = "application/json;charset=utf-8";
+                            context.Response.StatusCode = StatusCodes.Status200OK;
+
+                            await context.Response.WriteAsync(new ApiResponse
+                            {
+                                errorCode = ErrorCodeEnum.AuthError,
+                                errorMessage = context.Error ?? "Token is Required"
+                            }.ToJson());
+                        },
+                    };
+                });
+
+            services.AddAuthorization();
+
             services.AddControllers();
 
 #if DEBUG
@@ -37,8 +78,8 @@ namespace FastTunnel.Server
 #endif
 
             // -------------------FastTunnel STEP1 OF 3------------------
-            services.AddFastTunnelServer(Configuration.GetSection("ServerSettings"));
-            // -------------------FastTunnel STEP1 END--------------------
+            services.AddFastTunnelServer(Configuration.GetSection("FastTunnel"));
+            // -------------------FastTunnel STEP1 END-------------------
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -55,16 +96,22 @@ namespace FastTunnel.Server
 
             // -------------------FastTunnel STEP2 OF 3------------------
             app.UseFastTunnelServer();
-            // -------------------FastTunnel STEP2 END--------------------
+            // -------------------FastTunnel STEP2 END-------------------
 
             app.UseRouting();
+
+            // --------------------- Custom UI ----------------
+            app.UseStaticFiles();
+            app.UseAuthentication();
+            app.UseAuthorization();
+            // --------------------- Custom UI ----------------
 
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
                 // -------------------FastTunnel STEP3 OF 3------------------
                 endpoints.MapFastTunnelServer();
-                // -------------------FastTunnel STEP3 END--------------------
+                // -------------------FastTunnel STEP3 END-------------------
             });
         }
     }

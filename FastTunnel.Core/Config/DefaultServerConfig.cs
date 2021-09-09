@@ -14,5 +14,34 @@ namespace FastTunnel.Core.Config
         public bool EnableForward { get; set; } = false;
 
         public string Token { get; set; }
+
+        public ApiOptions Api { get; set; }
+
+        public class ApiOptions
+        {
+            public JWTOptions JWT { get; set; }
+
+            public Account[] Accounts { get; set; }
+        }
+
+        public class JWTOptions
+        {
+            public int ClockSkew { get; set; }
+
+            public string ValidAudience { get; set; }
+
+            public string ValidIssuer { get; set; }
+
+            public string IssuerSigningKey { get; set; }
+
+            public int Expires { get; set; }
+        }
+
+        public class Account
+        {
+            public string Name { get; set; }
+
+            public string Password { get; set; }
+        }
     }
 }

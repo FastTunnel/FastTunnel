@@ -21,5 +21,11 @@ namespace FastTunnel.Server.Models
     public enum ErrorCodeEnum
     {
         NONE = 0,
+
+        AuthError = 1,
+
+        Exception = 2,
+
+        NoAccount = 3,
     }
 }
