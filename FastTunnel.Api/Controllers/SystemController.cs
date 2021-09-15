@@ -23,9 +23,29 @@ namespace FastTunnel.Api.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpGet]
+        [Obsolete("使用 GetResponseTempList 替换")]
         public ApiResponse GetResponseTempCount()
         {
             ApiResponse.data = fastTunnelServer.ResponseTasks.Count;
+            return ApiResponse;
+        }
+
+        /// <summary>
+        /// 获取当前等待响应的请求
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet]
+        public ApiResponse GetResponseTempList()
+        {
+            ApiResponse.data = new
+            {
+                Count = fastTunnelServer.ResponseTasks.Count,
+                Rows = fastTunnelServer.ResponseTasks.Select(x => new
+                {
+                    x.Key
+                })
+            };
+
             return ApiResponse;
         }
 
@@ -36,7 +56,12 @@ namespace FastTunnel.Api.Controllers
         [HttpGet]
         public ApiResponse GetAllWebList()
         {
-            ApiResponse.data = fastTunnelServer.WebList.Select(x => new { x.Key, x.Value.WebConfig.LocalIp, x.Value.WebConfig.LocalPort });
+            ApiResponse.data = new
+            {
+                Count = fastTunnelServer.WebList.Count,
+                Rows = fastTunnelServer.WebList.Select(x => new { x.Key, x.Value.WebConfig.LocalIp, x.Value.WebConfig.LocalPort })
+            };
+
             return ApiResponse;
         }
 
@@ -58,7 +83,12 @@ namespace FastTunnel.Api.Controllers
         [HttpGet]
         public ApiResponse GetAllForwardList()
         {
-            ApiResponse.data = fastTunnelServer.ForwardList.Select(x => new { x.Key, x.Value.SSHConfig.LocalIp, x.Value.SSHConfig.LocalPort, x.Value.SSHConfig.RemotePort });
+            ApiResponse.data = new
+            {
+                Count = fastTunnelServer.ForwardList.Count,
+                Rows = fastTunnelServer.ForwardList.Select(x => new { x.Key, x.Value.SSHConfig.LocalIp, x.Value.SSHConfig.LocalPort, x.Value.SSHConfig.RemotePort })
+
+            };
 
             return ApiResponse;
         }
