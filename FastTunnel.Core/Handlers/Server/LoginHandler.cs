@@ -35,6 +35,8 @@ namespace FastTunnel.Core.Handlers.Server
             bool hasTunnel = false;
 
             await client.SendCmdAsync(MessageType.Log, $"穿透协议 | 映射关系（公网=>内网）", CancellationToken.None);
+            Thread.Sleep(300);
+
             if (requet.Webs != null && requet.Webs.Count() > 0)
             {
                 hasTunnel = true;

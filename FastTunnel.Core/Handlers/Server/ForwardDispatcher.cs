@@ -1,5 +1,6 @@
 ﻿using FastTunnel.Core.Client;
 using FastTunnel.Core.Dispatchers;
+using FastTunnel.Core.Exceptions;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Models;
 using FastTunnel.Core.Sockets;
@@ -36,40 +37,47 @@ namespace FastTunnel.Core.Dispatchers
             try
             {
                 await Task.Yield();
-
-                try
-                {
-                    if (client.State == WebSocketState.Aborted)
-                    {
-                        logger.LogError("客户端已离线");
-                        return;
-                    }
-
-                    await client.SendCmdAsync(MessageType.Forward, $"{msgId}|{_config.LocalIp}:{_config.LocalPort}", CancellationToken.None);
-                }
-                catch (Exception ex)
-                {
-                    // 客户端已掉线或网络不稳定
-                    logger.LogError(ex);
-                    return;
-                }
+                logger.LogDebug($"[Forward]Swap开始 {msgId}|{_config.RemotePort}=>{_config.LocalIp}:{_config.LocalPort}");
 
                 var tcs = new TaskCompletionSource<Stream>();
-                tcs.SetTimeOut(5000, () =>
+                tcs.SetTimeOut(20000, () =>
                 {
-                    logger.LogError($"[Forward]建立Swap超时 {msgId}|{_config.RemotePort}=>{_config.LocalIp}:{_config.LocalPort}");
+                    logger.LogError($"[Forward]建立Swap超时 {msgId}");
                 });
 
                 _server.ResponseTasks.TryAdd(msgId, tcs);
 
+                try
+                {
+                    await client.SendCmdAsync(MessageType.Forward, $"{msgId}|{_config.LocalIp}:{_config.LocalPort}", CancellationToken.None);
+                }
+                catch (SocketClosedException sex)
+                {
+                    // TODO:客户端已掉线，但是没有移除对端口的监听
+                    logger.LogError($"[Forward]Swap 客户端已离线 {sex.Message}");
+                    tcs.TrySetCanceled();
+                    _server.ResponseTasks.TryRemove(msgId, out _);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    // 网络不稳定
+                    logger.LogError(ex, $"[Forward]Swap Exception");
+                    tcs.TrySetCanceled();
+                    _server.ResponseTasks.TryRemove(msgId, out _);
+                    return;
+                }
+
                 using var stream1 = await tcs.Task;
                 using var stream2 = new NetworkStream(_socket, true);
                 await Task.WhenAll(stream1.CopyToAsync(stream2), stream2.CopyToAsync(stream1));
+
+                logger.LogDebug($"[Forward]Swap OK {msgId}");
             }
             catch (Exception ex)
             {
                 _server.ResponseTasks.TryRemove(msgId, out _);
-                logger.LogDebug("Forward Swap Error：" + ex.Message);
+                logger.LogDebug($"[Forward]Swap Error {msgId}：" + ex.Message);
             }
         }
     }

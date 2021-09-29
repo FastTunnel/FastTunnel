@@ -67,12 +67,19 @@ namespace FastTunnel.Core.MiddleWares
                 Interlocked.Increment(ref fastTunnelServer.ConnectedClientCount);
                 logger.LogInformation($"客户端连接 {context.TraceIdentifier}:{context.Connection.RemoteIpAddress} 当前在线数：{fastTunnelServer.ConnectedClientCount}");
                 await tunnelClient.ReviceAsync(CancellationToken.None);
+
+                logOut(context);
             }
             catch (Exception)
             {
-                Interlocked.Decrement(ref fastTunnelServer.ConnectedClientCount);
-                logger.LogInformation($"客户端关闭 {context.TraceIdentifier}:{context.Connection.RemoteIpAddress} 当前在线数：{fastTunnelServer.ConnectedClientCount}");
+                logOut(context);
             }
+        }
+
+        private void logOut(HttpContext context)
+        {
+            Interlocked.Decrement(ref fastTunnelServer.ConnectedClientCount);
+            logger.LogInformation($"客户端关闭 {context.TraceIdentifier}:{context.Connection.RemoteIpAddress} 当前在线数：{fastTunnelServer.ConnectedClientCount}");
         }
 
         private static async Task Close(WebSocket webSocket, string reason)
