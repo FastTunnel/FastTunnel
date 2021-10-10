@@ -1,6 +1,5 @@
 using FastTunnel.Core;
 using FastTunnel.Core.Extensions;
-using FastTunnel.Server.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -57,9 +56,9 @@ namespace FastTunnel.Server
                             context.Response.ContentType = "application/json;charset=utf-8";
                             context.Response.StatusCode = StatusCodes.Status200OK;
 
-                            await context.Response.WriteAsync(new ApiResponse
+                            await context.Response.WriteAsync(new
                             {
-                                errorCode = ErrorCodeEnum.AuthError,
+                                errorCode = 1,
                                 errorMessage = context.Error ?? "Token is Required"
                             }.ToJson());
                         },

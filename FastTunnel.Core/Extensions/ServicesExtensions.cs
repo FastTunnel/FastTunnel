@@ -39,7 +39,6 @@ namespace FastTunnel.Core
             services.AddTransient<IFastTunnelClient, FastTunnelClient>()
                 .AddSingleton<IExceptionFilter, FastTunnelExceptionFilter>()
                 .AddSingleton<LogHandler>()
-                .AddTransient<TunnelClient>()
                 .AddSingleton<SwapHandler>();
 
             services.AddHostedService<ServiceFastTunnelClient>();
@@ -57,7 +56,7 @@ namespace FastTunnel.Core
             services.Configure<DefaultServerConfig>(configurationSection)
                 .AddSingleton<IExceptionFilter, FastTunnelExceptionFilter>()
                 .AddTransient<ILoginHandler, LoginHandler>()
-                .AddTransient<TunnelClient>()
+                .AddSingleton<TunnelClientHandler>()
                 .AddSingleton<FastTunnelClientHandler>()
                 .AddSingleton<FastTunnelSwapHandler>()
                 .AddSingleton<FastTunnelServer>();

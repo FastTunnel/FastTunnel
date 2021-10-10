@@ -30,6 +30,7 @@
     <Compile Remove="Listener\HttpListener.cs" />
     <Compile Remove="Server.cs" />
     <Compile Remove="Sockets\AsyncSocketSwap.cs" />
+    <Compile Remove="Sockets\SocketSwap.cs" />
   </ItemGroup>
 
   <ItemGroup>

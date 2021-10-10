@@ -54,17 +54,14 @@ namespace FastTunnel.Core.Handlers.Client
 
         private async Task<Stream> createLocal(string requestId, string localhost, CancellationToken cancellationToken)
         {
-            var localConnecter = new DnsSocket(localhost.Split(":")[0], int.Parse(localhost.Split(":")[1]));
-            await localConnecter.ConnectAsync();
-
-            return new NetworkStream(localConnecter.Socket, true);
+            var socket = await DnsSocketFactory.ConnectAsync(localhost.Split(":")[0], int.Parse(localhost.Split(":")[1]));
+            return new NetworkStream(socket, true);
         }
 
         private async Task<Stream> createRemote(string requestId, FastTunnelClient cleint, CancellationToken cancellationToken)
         {
-            var connecter = new DnsSocket(cleint.Server.ServerAddr, cleint.Server.ServerPort);
-            await connecter.ConnectAsync();
-            Stream serverStream = new NetworkStream(connecter.Socket, true);
+            var socket = await DnsSocketFactory.ConnectAsync(cleint.Server.ServerAddr, cleint.Server.ServerPort);
+            Stream serverStream = new NetworkStream(socket, true);
             if (cleint.Server.Protocol == "wss")
             {
                 var sslStream = new SslStream(serverStream, false, delegate { return true; });

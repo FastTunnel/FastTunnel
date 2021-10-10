@@ -31,9 +31,11 @@ namespace FastTunnel.Core.Forwarder.MiddleWare
             }
 
             var requestId = context.Request.Path.Value.Trim('/');
+            logger.LogError($"[PROXY]:Start {requestId}");
+
             if (!fastTunnelServer.ResponseTasks.TryRemove(requestId, out var responseAwaiter))
             {
-                logger.LogError($"requestId不存在:{requestId}");
+                logger.LogError($"[PROXY]:RequestId不存在 {requestId}");
                 return;
             };
 
@@ -50,9 +52,13 @@ namespace FastTunnel.Core.Forwarder.MiddleWare
             responseAwaiter.TrySetResult(reverseConnection);
 
             var closedAwaiter = new TaskCompletionSource<object>();
-            lifetime.ConnectionClosed.Register((task) => { (task as TaskCompletionSource<object>).SetResult(null); }, closedAwaiter);
+            lifetime.ConnectionClosed.Register((task) =>
+            {
+                (task as TaskCompletionSource<object>).SetResult(null);
+            }, closedAwaiter);
 
             await closedAwaiter.Task;
+            logger.LogError($"[PROXY]:Closed {requestId}");
         }
     }
 }

@@ -25,11 +25,13 @@ namespace FastTunnel.Core.MiddleWares
         ILogger<FastTunnelClientHandler> logger;
         FastTunnelServer fastTunnelServer;
         Version serverVersion;
+        TunnelClientHandler tunnelClient;
 
-        public FastTunnelClientHandler(ILogger<FastTunnelClientHandler> logger, FastTunnelServer fastTunnelServer)
+        public FastTunnelClientHandler(ILogger<FastTunnelClientHandler> logger, FastTunnelServer fastTunnelServer, TunnelClientHandler tunnelClient)
         {
             this.logger = logger;
             this.fastTunnelServer = fastTunnelServer;
+            this.tunnelClient = tunnelClient;
 
             serverVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
         }
@@ -48,7 +50,6 @@ namespace FastTunnel.Core.MiddleWares
         private async Task handleClient(HttpContext context, Func<Task> next, string clientVersion)
         {
             using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
-            var tunnelClient = context.RequestServices.GetRequiredService<TunnelClient>().SetSocket(webSocket);
 
             if (Version.Parse(clientVersion).Major != serverVersion.Major)
             {
@@ -66,7 +67,7 @@ namespace FastTunnel.Core.MiddleWares
             {
                 Interlocked.Increment(ref fastTunnelServer.ConnectedClientCount);
                 logger.LogInformation($"客户端连接 {context.TraceIdentifier}:{context.Connection.RemoteIpAddress} 当前在线数：{fastTunnelServer.ConnectedClientCount}");
-                await tunnelClient.ReviceAsync(CancellationToken.None);
+                await tunnelClient.ReviceAsync(webSocket, CancellationToken.None);
 
                 logOut(context);
             }

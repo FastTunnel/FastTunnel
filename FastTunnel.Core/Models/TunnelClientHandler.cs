@@ -17,27 +17,20 @@ using Yarp.ReverseProxy.Configuration;
 
 namespace FastTunnel.Core.Models
 {
-    public class TunnelClient
+    public class TunnelClientHandler
     {
         readonly ILoginHandler _loginHandler;
         FastTunnelServer fastTunnelServer;
         ILogger logger;
-        WebSocket webSocket;
 
-        public TunnelClient(ILogger<TunnelClient> logger, FastTunnelServer fastTunnelServer, ILoginHandler loginHandler)
+        public TunnelClientHandler(ILogger<TunnelClientHandler> logger, FastTunnelServer fastTunnelServer, ILoginHandler loginHandler)
         {
             this.logger = logger;
             this.fastTunnelServer = fastTunnelServer;
             this._loginHandler = loginHandler;
         }
 
-        public TunnelClient SetSocket(WebSocket webSocket)
-        {
-            this.webSocket = webSocket;
-            return this;
-        }
-
-        public async Task ReviceAsync(CancellationToken cancellationToken)
+        public async Task ReviceAsync(WebSocket webSocket, CancellationToken cancellationToken)
         {
             var buffer = new byte[FastTunnelConst.MAX_CMD_LENGTH];
             var tunnelProtocol = new TunnelProtocol();
