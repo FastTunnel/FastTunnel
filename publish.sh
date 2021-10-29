@@ -1,7 +1,7 @@
 #!/bin/bash
 rm -rf publish/*
 projects=("FastTunnel.Client" "FastTunnel.Server")
-plates=("win-x64" "win-arm" "osx-x64" "linux-arm" "linux-x64")
+plates=("win-x64" "win-x86" "win-arm" "win-arm64" "linux-x64" "linux-musl-x64" "linux-arm" "linux-arm64" "osx-x64")
 for project in ${projects[*]}; do
     echo
     echo "=========开始发布：${project} ========="
@@ -9,7 +9,7 @@ for project in ${projects[*]}; do
     for plate in ${plates[*]}; do
         echo "plate=${plate}"
         echo src/$project/$project.csproj
-        dotnet publish $project/$project.csproj -o=publish/$project.$plate -c=release #-p:PublishTrimmed=true --nologo
+        dotnet publish $project/$project.csproj -o=publish/$project.$plate -r=$plate -c=release --nologo  #-p:PublishTrimmed=true
         echo
         echo "=========开始打包 ========="
         echo
