@@ -1,4 +1,5 @@
 ﻿using FastTunnel.Core.Client;
+using FastTunnel.Core.Extensions;
 using FastTunnel.Core.MiddleWares;
 using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.AspNetCore.Http;
@@ -31,7 +32,7 @@ namespace FastTunnel.Core.Forwarder.MiddleWare
             }
 
             var requestId = context.Request.Path.Value.Trim('/');
-            logger.LogError($"[PROXY]:Start {requestId}");
+            logger.LogDebug($"[PROXY]:Start {requestId}");
 
             if (!fastTunnelServer.ResponseTasks.TryRemove(requestId, out var responseAwaiter))
             {
@@ -52,6 +53,8 @@ namespace FastTunnel.Core.Forwarder.MiddleWare
             responseAwaiter.TrySetResult(reverseConnection);
 
             var closedAwaiter = new TaskCompletionSource<object>();
+            closedAwaiter.SetTimeOut(1000 * 60 * 30, null);
+
             lifetime.ConnectionClosed.Register((task) =>
             {
                 (task as TaskCompletionSource<object>).SetResult(null);
