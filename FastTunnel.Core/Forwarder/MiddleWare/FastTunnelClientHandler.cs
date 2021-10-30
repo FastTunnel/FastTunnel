@@ -38,13 +38,20 @@ namespace FastTunnel.Core.MiddleWares
 
         public async Task Handle(HttpContext context, Func<Task> next)
         {
-            if (!context.WebSockets.IsWebSocketRequest || !context.Request.Headers.TryGetValue(FastTunnelConst.FASTTUNNEL_VERSION, out var version))
+            try
             {
-                await next();
-                return;
-            };
+                if (!context.WebSockets.IsWebSocketRequest || !context.Request.Headers.TryGetValue(FastTunnelConst.FASTTUNNEL_VERSION, out var version))
+                {
+                    await next();
+                    return;
+                };
 
-            await handleClient(context, next, version);
+                await handleClient(context, next, version);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex);
+            }
         }
 
         private async Task handleClient(HttpContext context, Func<Task> next, string clientVersion)

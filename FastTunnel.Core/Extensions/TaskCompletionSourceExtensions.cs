@@ -15,7 +15,7 @@ namespace FastTunnel.Core.Extensions
             ct.Token.Register(() =>
             {
                 tcs.TrySetCanceled();
-                action.Invoke();
+                action?.Invoke();
             }, useSynchronizationContext: false);
         }
     }

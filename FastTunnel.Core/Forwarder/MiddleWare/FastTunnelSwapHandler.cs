@@ -25,43 +25,50 @@ namespace FastTunnel.Core.Forwarder.MiddleWare
 
         public async Task Handle(HttpContext context, Func<Task> next)
         {
-            if (context.Request.Method != "PROXY")
+            try
             {
-                await next();
-                return;
+                if (context.Request.Method != "PROXY")
+                {
+                    await next();
+                    return;
+                }
+
+                var requestId = context.Request.Path.Value.Trim('/');
+                logger.LogDebug($"[PROXY]:Start {requestId}");
+
+                if (!fastTunnelServer.ResponseTasks.TryRemove(requestId, out var responseAwaiter))
+                {
+                    logger.LogError($"[PROXY]:RequestId不存在 {requestId}");
+                    return;
+                };
+
+                var lifetime = context.Features.Get<IConnectionLifetimeFeature>();
+                var transport = context.Features.Get<IConnectionTransportFeature>();
+
+                if (lifetime == null || transport == null)
+                {
+                    await next();
+                    return;
+                }
+
+                using var reverseConnection = new WebSocketStream(lifetime, transport);
+                responseAwaiter.TrySetResult(reverseConnection);
+
+                var closedAwaiter = new TaskCompletionSource<object>();
+                closedAwaiter.SetTimeOut(1000 * 60 * 30, null);
+
+                lifetime.ConnectionClosed.Register((task) =>
+                {
+                    (task as TaskCompletionSource<object>).SetResult(null);
+                }, closedAwaiter);
+
+                await closedAwaiter.Task;
+                logger.LogError($"[PROXY]:Closed {requestId}");
             }
-
-            var requestId = context.Request.Path.Value.Trim('/');
-            logger.LogDebug($"[PROXY]:Start {requestId}");
-
-            if (!fastTunnelServer.ResponseTasks.TryRemove(requestId, out var responseAwaiter))
+            catch (Exception ex)
             {
-                logger.LogError($"[PROXY]:RequestId不存在 {requestId}");
-                return;
-            };
-
-            var lifetime = context.Features.Get<IConnectionLifetimeFeature>();
-            var transport = context.Features.Get<IConnectionTransportFeature>();
-
-            if (lifetime == null || transport == null)
-            {
-                await next();
-                return;
+                logger.LogError(ex);
             }
-
-            using var reverseConnection = new WebSocketStream(lifetime, transport);
-            responseAwaiter.TrySetResult(reverseConnection);
-
-            var closedAwaiter = new TaskCompletionSource<object>();
-            closedAwaiter.SetTimeOut(1000 * 60 * 30, null);
-
-            lifetime.ConnectionClosed.Register((task) =>
-            {
-                (task as TaskCompletionSource<object>).SetResult(null);
-            }, closedAwaiter);
-
-            await closedAwaiter.Task;
-            logger.LogError($"[PROXY]:Closed {requestId}");
         }
     }
 }
