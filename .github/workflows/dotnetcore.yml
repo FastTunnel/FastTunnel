@@ -10,12 +10,12 @@ jobs:
    - name: Setup .NET Core
      uses: actions/setup-dotnet@v1
      with:
-       dotnet-version: 5.0.203
+       dotnet-version: 5.0.402
    - name: Build with dotnet
      run: chmod +x ./publish-win.sh && ./publish-win.sh
       
   publish:
-    name: build, pack & publish
+    name: publish fasttunnel.core
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -23,7 +23,7 @@ jobs:
       - name: Setup dotnet
         uses: actions/setup-dotnet@v1
         with:
-           dotnet-version: 5.0.203
+           dotnet-version: 5.0.402
 
       # Publish
       - name: publish on version change
@@ -61,7 +61,7 @@ jobs:
           # INCLUDE_SYMBOLS: false
 
   publish-api:
-    name: build, pack & publish
+    name: publish fasttunnel.api
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -69,7 +69,7 @@ jobs:
       - name: Setup dotnet
         uses: actions/setup-dotnet@v1
         with:
-           dotnet-version: 5.0.203
+           dotnet-version: 5.0.402
 
       # Publish
       - name: publish on version change
