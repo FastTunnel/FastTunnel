@@ -20,5 +20,17 @@ namespace FastTunnel.Core.Models
         /// 服务端监听的端口号 1~65535
         /// </summary>
         public int RemotePort { get; set; }
+
+        /// <summary>
+        /// 协议，内网服务监听的协议
+        /// </summary>
+        public ProtocolEnum Protocol { get; set; }
+    }
+
+    public enum ProtocolEnum
+    {
+        TCP = 0,
+
+        UDP = 1,
     }
 }

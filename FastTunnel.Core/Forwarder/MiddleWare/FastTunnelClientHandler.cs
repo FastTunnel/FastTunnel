@@ -2,6 +2,7 @@
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Forwarder;
 using FastTunnel.Core.Forwarder.MiddleWare;
+using FastTunnel.Core.Handlers.Server;
 using FastTunnel.Core.Models;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Connections.Features;
@@ -25,13 +26,14 @@ namespace FastTunnel.Core.MiddleWares
         ILogger<FastTunnelClientHandler> logger;
         FastTunnelServer fastTunnelServer;
         Version serverVersion;
-        TunnelClientHandler tunnelClient;
+        ILoginHandler loginHandler;
 
-        public FastTunnelClientHandler(ILogger<FastTunnelClientHandler> logger, FastTunnelServer fastTunnelServer, TunnelClientHandler tunnelClient)
+        public FastTunnelClientHandler(
+            ILogger<FastTunnelClientHandler> logger, FastTunnelServer fastTunnelServer, ILoginHandler loginHandler)
         {
             this.logger = logger;
             this.fastTunnelServer = fastTunnelServer;
-            this.tunnelClient = tunnelClient;
+            this.loginHandler = loginHandler;
 
             serverVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
         }
@@ -46,7 +48,7 @@ namespace FastTunnel.Core.MiddleWares
                     return;
                 };
 
-                await handleClient(context, next, version);
+                await handleClient(context, version);
             }
             catch (Exception ex)
             {
@@ -54,7 +56,7 @@ namespace FastTunnel.Core.MiddleWares
             }
         }
 
-        private async Task handleClient(HttpContext context, Func<Task> next, string clientVersion)
+        private async Task handleClient(HttpContext context, string clientVersion)
         {
             using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
 
@@ -70,24 +72,19 @@ namespace FastTunnel.Core.MiddleWares
                 return;
             }
 
+            var client = new TunnelClient(webSocket, fastTunnelServer, loginHandler, context.Connection.RemoteIpAddress);
+
             try
             {
-                Interlocked.Increment(ref fastTunnelServer.ConnectedClientCount);
-                logger.LogInformation($"客户端连接 {context.TraceIdentifier}:{context.Connection.RemoteIpAddress} 当前在线数：{fastTunnelServer.ConnectedClientCount}");
-                await tunnelClient.ReviceAsync(webSocket, CancellationToken.None);
+                fastTunnelServer.OnClientLogin(client);
+                await client.ReviceAsync(CancellationToken.None);
 
-                logOut(context);
+                fastTunnelServer.OnClientLogout(client);
             }
             catch (Exception)
             {
-                logOut(context);
+                fastTunnelServer.OnClientLogout(client);
             }
-        }
-
-        private void logOut(HttpContext context)
-        {
-            Interlocked.Decrement(ref fastTunnelServer.ConnectedClientCount);
-            logger.LogInformation($"客户端关闭 {context.TraceIdentifier}:{context.Connection.RemoteIpAddress} 当前在线数：{fastTunnelServer.ConnectedClientCount}");
         }
 
         private static async Task Close(WebSocket webSocket, string reason)
@@ -99,17 +96,24 @@ namespace FastTunnel.Core.MiddleWares
 
         private bool checkToken(HttpContext context)
         {
-            if (string.IsNullOrEmpty(fastTunnelServer.ServerOption.CurrentValue.Token))
+            if (string.IsNullOrEmpty(fastTunnelServer.ServerOption.CurrentValue.Token)
+                && (fastTunnelServer.ServerOption.CurrentValue.Tokens == null) || fastTunnelServer.ServerOption.CurrentValue.Tokens.Count() == 0)
             {
                 return true;
             }
 
-            if (!context.Request.Headers.TryGetValue(FastTunnelConst.FASTTUNNEL_TOKEN, out var token) || !token.Equals(fastTunnelServer.ServerOption.CurrentValue.Token))
+            // 客户端未携带token，登录失败
+            if (!context.Request.Headers.TryGetValue(FastTunnelConst.FASTTUNNEL_TOKEN, out var token))
             {
                 return false;
+            }
+
+            if (token.Equals(fastTunnelServer.ServerOption.CurrentValue.Token))
+            {
+                return true;
             };
 
-            return true;
+            return fastTunnelServer.ServerOption.CurrentValue.Tokens?.Contains<string>(token) ?? false;
         }
     }
 }

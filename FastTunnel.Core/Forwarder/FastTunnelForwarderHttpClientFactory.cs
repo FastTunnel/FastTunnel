@@ -64,10 +64,7 @@ namespace FastTunnel.Core.Forwarder
             TaskCompletionSource<Stream> tcs = new(cancellation);
             _logger.LogDebug($"[Http]Swap开始 {msgId}|{host}=>{web.WebConfig.LocalIp}:{web.WebConfig.LocalPort}");
 
-            tcs.SetTimeOut(20000, () =>
-            {
-                _logger.LogError($"[Http]建立Swap超时 {msgId}");
-            });
+            tcs.SetTimeOut(20000, null);
 
             _fastTunnelServer.ResponseTasks.TryAdd(msgId, tcs);
 

@@ -55,13 +55,13 @@ namespace FastTunnel.Core.Handlers.Client
         private async Task<Stream> createLocal(string requestId, string localhost, CancellationToken cancellationToken)
         {
             var socket = await DnsSocketFactory.ConnectAsync(localhost.Split(":")[0], int.Parse(localhost.Split(":")[1]));
-            return new NetworkStream(socket, true) { ReadTimeout = 1000 * 60 * 30 };
+            return new NetworkStream(socket, true) { ReadTimeout = 1000 * 60 * 10 };
         }
 
         private async Task<Stream> createRemote(string requestId, FastTunnelClient cleint, CancellationToken cancellationToken)
         {
             var socket = await DnsSocketFactory.ConnectAsync(cleint.Server.ServerAddr, cleint.Server.ServerPort);
-            Stream serverStream = new NetworkStream(socket, true) { ReadTimeout = 1000 * 60 * 30 };
+            Stream serverStream = new NetworkStream(socket, true) { ReadTimeout = 1000 * 60 * 10 };
 
             if (cleint.Server.Protocol == "wss")
             {

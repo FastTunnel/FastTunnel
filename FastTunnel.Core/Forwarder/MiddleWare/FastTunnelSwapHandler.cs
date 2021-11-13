@@ -47,7 +47,6 @@ namespace FastTunnel.Core.Forwarder.MiddleWare
 
                 if (lifetime == null || transport == null)
                 {
-                    await next();
                     return;
                 }
 

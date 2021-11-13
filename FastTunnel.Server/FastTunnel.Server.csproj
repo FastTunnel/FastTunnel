@@ -2,6 +2,7 @@
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <DefineConstants>DEBUG</DefineConstants>
+	  <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <PropertyGroup>

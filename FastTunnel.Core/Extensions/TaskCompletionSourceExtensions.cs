@@ -9,7 +9,7 @@ namespace FastTunnel.Core.Extensions
 {
     public static class TaskCompletionSourceExtensions
     {
-        public static void SetTimeOut<T>(this TaskCompletionSource<T> tcs, int timeoutMs, Action action)
+        public static void SetTimeOut<T>(this TaskCompletionSource<T> tcs, int timeoutMs, Action? action)
         {
             var ct = new CancellationTokenSource(timeoutMs);
             ct.Token.Register(() =>

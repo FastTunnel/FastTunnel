@@ -13,7 +13,10 @@ namespace FastTunnel.Core.Config
 
         public bool EnableForward { get; set; } = false;
 
+        [Obsolete("由Tokens替换")]
         public string Token { get; set; }
+
+        public string[] Tokens { get; set; }
 
         public ApiOptions Api { get; set; }
 

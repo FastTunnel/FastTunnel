@@ -40,10 +40,7 @@ namespace FastTunnel.Core.Dispatchers
                 logger.LogDebug($"[Forward]Swap开始 {msgId}|{_config.RemotePort}=>{_config.LocalIp}:{_config.LocalPort}");
 
                 var tcs = new TaskCompletionSource<Stream>();
-                tcs.SetTimeOut(20000, () =>
-                {
-                    logger.LogError($"[Forward]建立Swap超时 {msgId}");
-                });
+                tcs.SetTimeOut(20000, null);
 
                 _server.ResponseTasks.TryAdd(msgId, tcs);
 
@@ -69,7 +66,7 @@ namespace FastTunnel.Core.Dispatchers
                 }
 
                 using var stream1 = await tcs.Task;
-                using var stream2 = new NetworkStream(_socket, true) { ReadTimeout = 1000 * 60 * 30 };
+                using var stream2 = new NetworkStream(_socket, true) { ReadTimeout = 1000 * 60 * 10 };
 
                 await Task.WhenAll(stream1.CopyToAsync(stream2), stream2.CopyToAsync(stream1));
 
