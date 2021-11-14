@@ -9,6 +9,7 @@ FROM mcr.microsoft.com/dotnet/sdk:5.0 AS build
 WORKDIR /src
 COPY ["FastTunnel.Server/FastTunnel.Server.csproj", "FastTunnel.Server/"]
 COPY ["FastTunnel.Core/FastTunnel.Core.csproj", "FastTunnel.Core/"]
+COPY ["FastTunnel.Api/FastTunnel.Api.csproj", "FastTunnel.Api/"]
 RUN dotnet restore "FastTunnel.Server/FastTunnel.Server.csproj"
 COPY . .
 WORKDIR "/src/FastTunnel.Server"

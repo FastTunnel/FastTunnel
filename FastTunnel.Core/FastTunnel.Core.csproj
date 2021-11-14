@@ -1,57 +1,58 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <Version>2.0.4</Version>
-    <PackageProjectUrl>https://github.com/SpringHgui/FastTunnel</PackageProjectUrl>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <Copyright>FastTunnel</Copyright>
-    <Description>expose a local server behind a NAT or firewall to the internet like ngrok and frp</Description>
-    <Authors>SpringHgui</Authors>
-    <Company>FastTunnel</Company>
-    <Product>FastTunnel</Product>
-    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <RepositoryUrl>https://github.com/SpringHgui/FastTunnel</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
-    <PackageTags>FastTunnel.Core</PackageTags>
-    <PackageReleaseNotes>FastTunnel.Core</PackageReleaseNotes>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net5.0</TargetFramework>
+		<Version>2.0.4</Version>
+		<PackageProjectUrl>https://github.com/SpringHgui/FastTunnel</PackageProjectUrl>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<Copyright>FastTunnel</Copyright>
+		<Description>expose a local server behind a NAT or firewall to the internet like ngrok and frp</Description>
+		<Authors>SpringHgui</Authors>
+		<Company>FastTunnel</Company>
+		<Product>FastTunnel</Product>
+		<PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+		<RepositoryUrl>https://github.com/SpringHgui/FastTunnel</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
+		<PackageTags>FastTunnel.Core</PackageTags>
+		<PackageReleaseNotes>FastTunnel.Core</PackageReleaseNotes>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <Compile Remove="Client\FastTunnelClient - Copy.cs" />
-    <Compile Remove="Client\SuiDaoServer.cs.BASE.cs" />
-    <Compile Remove="Client\SuiDaoServer.cs.LOCAL.cs" />
-    <Compile Remove="Client\SuiDaoServer.cs.REMOTE.cs" />
-    <Compile Remove="Handlers\Server\SwapMessageHandler.cs" />
-    <Compile Remove="Listener.cs" />
-    <Compile Remove="Listener\ClientListener.cs" />
-    <Compile Remove="Listener\ClientListenerV2.cs" />
-    <Compile Remove="Listener\ForwardListener.cs" />
-    <Compile Remove="Listener\HttpListener.cs" />
-    <Compile Remove="Server.cs" />
-    <Compile Remove="Sockets\AsyncSocketSwap.cs" />
-    <Compile Remove="Sockets\SocketSwap.cs" />
-  </ItemGroup>
+	<ItemGroup>
+		<Compile Remove="Client\FastTunnelClient - Copy.cs" />
+		<Compile Remove="Client\SuiDaoServer.cs.BASE.cs" />
+		<Compile Remove="Client\SuiDaoServer.cs.LOCAL.cs" />
+		<Compile Remove="Client\SuiDaoServer.cs.REMOTE.cs" />
+		<Compile Remove="Handlers\Server\SwapMessageHandler.cs" />
+		<Compile Remove="Listener.cs" />
+		<Compile Remove="Listener\ClientListener.cs" />
+		<Compile Remove="Listener\ClientListenerV2.cs" />
+		<Compile Remove="Listener\ForwardListener.cs" />
+		<Compile Remove="Listener\HttpListener.cs" />
+		<Compile Remove="Server.cs" />
+		<Compile Remove="Sockets\AsyncSocketSwap.cs" />
+		<Compile Remove="Sockets\SocketSwap.cs" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="5.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="5.0.0" />
-    <PackageReference Include="Yarp.ReverseProxy" Version="1.0.0-preview.12.21328.2" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="5.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="5.0.0" />
+		<PackageReference Include="Yarp.ReverseProxy" Version="1.0.0-preview.12.21328.2" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <Compile Update="TunnelResource.Designer.cs">
-      <DesignTime>True</DesignTime>
-      <AutoGen>True</AutoGen>
-      <DependentUpon>TunnelResource.resx</DependentUpon>
-    </Compile>
-  </ItemGroup>
+	<ItemGroup>
+		<Compile Update="TunnelResource.Designer.cs">
+			<DesignTime>True</DesignTime>
+			<AutoGen>True</AutoGen>
+			<DependentUpon>TunnelResource.resx</DependentUpon>
+		</Compile>
+	</ItemGroup>
 
-  <ItemGroup>
-    <EmbeddedResource Update="TunnelResource.resx">
-      <Generator>PublicResXFileCodeGenerator</Generator>
-      <LastGenOutput>TunnelResource.Designer.cs</LastGenOutput>
-    </EmbeddedResource>
-  </ItemGroup>
+	<ItemGroup>
+		<EmbeddedResource Update="TunnelResource.resx">
+			<Generator>PublicResXFileCodeGenerator</Generator>
+			<LastGenOutput>TunnelResource.Designer.cs</LastGenOutput>
+		</EmbeddedResource>
+	</ItemGroup>
 
 </Project>
