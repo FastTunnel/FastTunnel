@@ -14,11 +14,19 @@ namespace FastTunnel.Core.Models
 {
     public class TunnelClient
     {
-        readonly WebSocket webSocket;
+        public WebSocket webSocket { get; private set; }
+
+        /// <summary>
+        /// 服务端端口号
+        /// </summary>
+        public int ConnectionPort { get; set; }
+
         readonly FastTunnelServer fastTunnelServer;
         readonly ILoginHandler loginHandler;
 
         public IPAddress RemoteIpAddress { get; private set; }
+        IList<WebInfo> webInfos = new List<WebInfo>();
+        IList<ForwardInfo<ForwardHandlerArg>> forwardInfos = new List<ForwardInfo<ForwardHandlerArg>>();
 
         public TunnelClient(WebSocket webSocket, FastTunnelServer fastTunnelServer, ILoginHandler loginHandler, IPAddress remoteIpAddress)
         {
@@ -26,6 +34,16 @@ namespace FastTunnel.Core.Models
             this.fastTunnelServer = fastTunnelServer;
             this.loginHandler = loginHandler;
             this.RemoteIpAddress = remoteIpAddress;
+        }
+
+        internal void AddWeb(WebInfo info)
+        {
+            webInfos.Add(info);
+        }
+
+        internal void AddForward(ForwardInfo<ForwardHandlerArg> forwardInfo)
+        {
+            forwardInfos.Add(forwardInfo);
         }
 
         public async Task ReviceAsync(CancellationToken cancellationToken)
@@ -41,19 +59,18 @@ namespace FastTunnel.Core.Models
 
                 foreach (var item in cmds)
                 {
-                    if (!await HandleCmdAsync(webSocket, item))
+                    if (!await HandleCmdAsync(this, item))
                     {
                         return;
                     };
                 }
             }
         }
-
-        private async Task<bool> HandleCmdAsync(WebSocket webSocket, string lineCmd)
+        private async Task<bool> HandleCmdAsync(TunnelClient tunnelClient, string lineCmd)
         {
             try
             {
-                return await loginHandler.HandlerMsg(fastTunnelServer, webSocket, lineCmd.Substring(1));
+                return await loginHandler.HandlerMsg(fastTunnelServer, tunnelClient, lineCmd.Substring(1));
             }
             catch (Exception ex)
             {
@@ -64,6 +81,7 @@ namespace FastTunnel.Core.Models
 
         internal void Logout()
         {
+            // TODO:
         }
     }
 }

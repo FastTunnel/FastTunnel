@@ -73,6 +73,7 @@ namespace FastTunnel.Core.MiddleWares
             }
 
             var client = new TunnelClient(webSocket, fastTunnelServer, loginHandler, context.Connection.RemoteIpAddress);
+            client.ConnectionPort = context.Connection.LocalPort;
 
             try
             {
