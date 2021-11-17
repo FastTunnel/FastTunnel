@@ -42,7 +42,7 @@ namespace FastTunnel.Core.Handlers.Server
                 hasTunnel = true;
                 foreach (var item in requet.Webs)
                 {
-                    var hostName = $"{item.SubDomain}.{server.ServerOption.CurrentValue.WebDomain}".Trim();
+                    var hostName = $"{item.SubDomain}.{server.ServerOption.CurrentValue.WebDomain}".Trim().ToLower();
                     var info = new WebInfo { Socket = client.webSocket, WebConfig = item };
 
                     logger.LogDebug($"new domain '{hostName}'");
@@ -57,8 +57,7 @@ namespace FastTunnel.Core.Handlers.Server
                         foreach (var www in item.WWW)
                         {
                             // TODO:validateDomain
-                            logger.LogInformation($"WWW {www}");
-
+                            hostName = www.Trim().ToLower();
                             server.WebList.AddOrUpdate(www, info, (key, oldInfo) => { return info; });
                             (proxyConfig as InMemoryConfigProvider).AddWeb(www);
 
