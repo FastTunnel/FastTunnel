@@ -58,7 +58,10 @@
 
 ## QQ群交流群
 
-<div align="center"><img src="images/qqgroup.png" width="150" align=center /></div>
+<div align="center">
+  <img src="images/qqgroup.png" width="150" align=center />
+  <img src="images/FastTunnel交流群-2群聊二维码.png" width="150" align=center />
+</div>
 
 ## License
 Apache License 2.0
