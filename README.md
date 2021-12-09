@@ -45,22 +45,25 @@ But do not use this service for important items.
 - [x] Support binding multiple domain names to access intranet services
 - [x] Support domain name whitelist restriction
 - [x] Support client identity verification
-
-## Development/PR
-- install `vs2019` last version
-- install `.net5` or higher `https://dotnet.microsoft.com/download/dotnet/5.0`
-- add `test.test.cc   127.0.0.1` in system host file
-- run fasttunnel.server
-- run fasttunnel.client
-
+ 
 ## Contributors
 <a href = "https://github.com/FastTunnel/FastTunnel/graphs/contributors">
   <img src = "https://contrib.rocks/image?repo=FastTunnel/FastTunnel"/>
 </a>
 
+## Sponsor author
+
+<div align="center">
+  <img src="images/wxpay.jpg" height="250" align=center />
+  <img src="images/alipay.jpg" height="250" align=center />
+</div>
+
 ## Join QQ Group
 
-<div align="center"><img src="images/qqgroup.png" width="150" align=center /></div>  
+<div align="center">
+  <img src="images/qqgroup.png" width="180" align=center />
+  <img src="images/FastTunnel-2.png" width="180" align=center />
+</div>
 
 ## License
 Apache License 2.0

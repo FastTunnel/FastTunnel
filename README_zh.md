@@ -56,11 +56,18 @@
   <img src = "https://contrib.rocks/image?repo=FastTunnel/FastTunnel"/>
 </a>  
 
-## QQ群交流群
+## 赞助作者
 
 <div align="center">
-  <img src="images/qqgroup.png" width="150" align=center />
-  <img src="images/FastTunnel交流群-2群聊二维码.png" width="150" align=center />
+  <img src="images/wxpay.jpg" height="250" align=center />
+  <img src="images/alipay.jpg" height="250" align=center />
+</div>
+
+## QQ群交流群
+加群交流FastTunnel相关的使用问题、bug、需求等
+<div align="center">
+  <img src="images/qqgroup.png" width="180" align=center />
+  <img src="images/FastTunnel-2.png" width="180" align=center />
 </div>
 
 ## License
