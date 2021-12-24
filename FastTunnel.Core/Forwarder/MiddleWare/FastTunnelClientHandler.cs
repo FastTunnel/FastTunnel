@@ -97,24 +97,25 @@ namespace FastTunnel.Core.MiddleWares
 
         private bool checkToken(HttpContext context)
         {
-            if (string.IsNullOrEmpty(fastTunnelServer.ServerOption.CurrentValue.Token)
-                && (fastTunnelServer.ServerOption.CurrentValue.Tokens == null) || fastTunnelServer.ServerOption.CurrentValue.Tokens.Count() == 0)
+            bool checkToken = false;
+            if ((fastTunnelServer.ServerOption.CurrentValue.Tokens != null && fastTunnelServer.ServerOption.CurrentValue.Tokens.Count() != 0)
+                || !string.IsNullOrEmpty(fastTunnelServer.ServerOption.CurrentValue.Token))
             {
-                return true;
+                checkToken = true;
             }
+
+            if (!checkToken)
+                return true;
 
             // 客户端未携带token，登录失败
             if (!context.Request.Headers.TryGetValue(FastTunnelConst.FASTTUNNEL_TOKEN, out var token))
-            {
                 return false;
-            }
 
-            if (token.Equals(fastTunnelServer.ServerOption.CurrentValue.Token))
-            {
+            if (token.Equals(fastTunnelServer.ServerOption.CurrentValue.Token)
+                || (fastTunnelServer.ServerOption.CurrentValue.Tokens?.Contains(token) ?? false))
                 return true;
-            };
 
-            return fastTunnelServer.ServerOption.CurrentValue.Tokens?.Contains<string>(token) ?? false;
+            return false;
         }
     }
 }

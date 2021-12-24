@@ -16,7 +16,7 @@ namespace FastTunnel.Core.Config
         [Obsolete("由Tokens替换")]
         public string Token { get; set; }
 
-        public string[] Tokens { get; set; }
+        public List<string> Tokens { get; set; }
 
         public ApiOptions Api { get; set; }
 
