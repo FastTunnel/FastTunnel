@@ -18,11 +18,6 @@
 
 ## Docs
 [https://docs.suidao.io](https://docs.suidao.io)
-
-## 欢迎在《2021年度OSC中国开源项目评选》为FastTunnel投上一票
-<a href = "https://www.oschina.net/project/top_cn_2021/?id=344">
-  <img src = "./images/0211207100705.jpg"/>
-</a>
  
 ## Enjoy Now
 Official website : https://suidao.io  
