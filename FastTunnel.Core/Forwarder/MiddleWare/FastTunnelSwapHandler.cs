@@ -54,7 +54,7 @@ namespace FastTunnel.Core.Forwarder.MiddleWare
                 responseAwaiter.TrySetResult(reverseConnection);
 
                 var closedAwaiter = new TaskCompletionSource<object>();
-                closedAwaiter.SetTimeOut(20000, null);
+                //closedAwaiter.SetTimeOut(20000, () => { logger.LogDebug($"[Swap TimeOut]:{requestId}"); });
 
                 lifetime.ConnectionClosed.Register((task) =>
                 {

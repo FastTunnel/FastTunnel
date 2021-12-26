@@ -1,8 +1,5 @@
-﻿using FastTunnel.Core.Config;
-using FastTunnel.Core.Client;
-using FastTunnel.Core.Models;
+﻿using FastTunnel.Core.Client;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Net.Sockets;
 using System.Text;
@@ -10,13 +7,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastTunnel.Core.Sockets;
 using Microsoft.Extensions.Logging;
-using FastTunnel.Core.Utility.Extensions;
-using System.Net.WebSockets;
-using FastTunnel.Core.Forwarder;
-using Microsoft;
-using Microsoft.AspNetCore.DataProtection;
-using System.Data.Common;
-using Microsoft.AspNetCore.Hosting.Server;
 using System.Net.Security;
 
 namespace FastTunnel.Core.Handlers.Client

@@ -40,7 +40,7 @@ namespace FastTunnel.Core.Dispatchers
                 logger.LogDebug($"[Forward]Swap开始 {msgId}|{_config.RemotePort}=>{_config.LocalIp}:{_config.LocalPort}");
 
                 var tcs = new TaskCompletionSource<Stream>();
-                tcs.SetTimeOut(20000, null);
+                //tcs.SetTimeOut(10000, () => { logger.LogDebug($"[Dispatch TimeOut]:{msgId}"); });
 
                 _server.ResponseTasks.TryAdd(msgId, tcs);
 
@@ -53,7 +53,7 @@ namespace FastTunnel.Core.Dispatchers
                     // TODO:客户端已掉线，但是没有移除对端口的监听
                     logger.LogError($"[Forward]Swap 客户端已离线 {sex.Message}");
                     tcs.TrySetCanceled();
-                    _server.ResponseTasks.TryRemove(msgId, out _);
+                    _socket.Close();
                     return;
                 }
                 catch (Exception ex)
@@ -61,7 +61,7 @@ namespace FastTunnel.Core.Dispatchers
                     // 网络不稳定
                     logger.LogError(ex, $"[Forward]Swap Exception");
                     tcs.TrySetCanceled();
-                    _server.ResponseTasks.TryRemove(msgId, out _);
+                    _socket.Close();
                     return;
                 }
 
@@ -74,8 +74,11 @@ namespace FastTunnel.Core.Dispatchers
             }
             catch (Exception ex)
             {
-                _server.ResponseTasks.TryRemove(msgId, out _);
                 logger.LogDebug($"[Forward]Swap Error {msgId}：" + ex.Message);
+            }
+            finally
+            {
+                _server.ResponseTasks.TryRemove(msgId, out _);
             }
         }
     }

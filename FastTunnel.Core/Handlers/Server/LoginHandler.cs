@@ -118,7 +118,7 @@ namespace FastTunnel.Core.Handlers.Server
                 await client.webSocket.SendCmdAsync(MessageType.Log, TunnelResource.NoTunnel, CancellationToken.None);
         }
 
-        public async Task<bool> HandlerMsg(FastTunnelServer fastTunnelServer, TunnelClient tunnelClient, string lineCmd)
+        public virtual async Task<bool> HandlerMsg(FastTunnelServer fastTunnelServer, TunnelClient tunnelClient, string lineCmd)
         {
             var msg = JsonSerializer.Deserialize<LogInMassage>(lineCmd);
             await HandleLoginAsync(fastTunnelServer, tunnelClient, msg);

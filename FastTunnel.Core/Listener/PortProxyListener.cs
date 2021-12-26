@@ -26,7 +26,6 @@ namespace FastTunnel.Core.Listener
         bool shutdown = false;
         ForwardDispatcher _requestDispatcher;
         Socket listenSocket;
-        public IList<Socket> ConnectedSockets = new List<Socket>();
         WebSocket client;
 
         public PortProxyListener(string ip, int port, ILogger logerr, WebSocket client)

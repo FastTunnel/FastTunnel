@@ -20,13 +20,13 @@ namespace FastTunnel.Core.Forwarder
 {
     public class FastTunnelForwarderHttpClientFactory : ForwarderHttpClientFactory
     {
-        ILogger<FastTunnelForwarderHttpClientFactory> _logger;
+        ILogger<FastTunnelForwarderHttpClientFactory> logger;
         FastTunnelServer _fastTunnelServer;
 
         public FastTunnelForwarderHttpClientFactory(ILogger<FastTunnelForwarderHttpClientFactory> logger, FastTunnelServer fastTunnelServer)
         {
             this._fastTunnelServer = fastTunnelServer;
-            this._logger = logger;
+            this.logger = logger;
         }
 
         protected override void ConfigureHandler(ForwarderHttpClientContext context, SocketsHttpHandler handler)
@@ -62,9 +62,9 @@ namespace FastTunnel.Core.Forwarder
             var msgId = Guid.NewGuid().ToString().Replace("-", "");
 
             TaskCompletionSource<Stream> tcs = new(cancellation);
-            _logger.LogDebug($"[Http]Swap开始 {msgId}|{host}=>{web.WebConfig.LocalIp}:{web.WebConfig.LocalPort}");
+            logger.LogDebug($"[Http]Swap开始 {msgId}|{host}=>{web.WebConfig.LocalIp}:{web.WebConfig.LocalPort}");
 
-            tcs.SetTimeOut(20000, null);
+            //tcs.SetTimeOut(20000, () => { logger.LogDebug($"[Proxy TimeOut]:{msgId}"); });
 
             _fastTunnelServer.ResponseTasks.TryAdd(msgId, tcs);
 
@@ -74,7 +74,7 @@ namespace FastTunnel.Core.Forwarder
                 await web.Socket.SendCmdAsync(MessageType.SwapMsg, $"{msgId}|{web.WebConfig.LocalIp}:{web.WebConfig.LocalPort}", cancellation);
                 var res = await tcs.Task;
 
-                _logger.LogDebug($"[Http]Swap OK {msgId}");
+                logger.LogDebug($"[Http]Swap OK {msgId}");
                 return res;
             }
             catch (WebSocketException)
