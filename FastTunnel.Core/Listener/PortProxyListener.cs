@@ -120,9 +120,7 @@ namespace FastTunnel.Core.Listener
             {
                 shutdown = true;
                 listenSocket.Close();
-                Interlocked.Decrement(ref m_numConnectedSockets);
             }
         }
-
     }
 }

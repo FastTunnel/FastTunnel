@@ -81,6 +81,19 @@ namespace FastTunnel.Core.Models
 
         internal void Logout()
         {
+            // forward监听终止
+            if (forwardInfos != null)
+            {
+                foreach (var item in forwardInfos)
+                {
+                    try
+                    {
+                        item.Listener.Stop();
+                    }
+                    catch { }
+                }
+            }
+
             // TODO:
         }
     }
