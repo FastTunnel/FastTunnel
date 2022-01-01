@@ -1,4 +1,8 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿// Copyright (c) 2019-2022 Gui.H. https://github.com/FastTunnel/FastTunnel
+// The FastTunnel licenses this file to you under the Apache License Version 2.0.
+// For more details,You may obtain License file at: https://github.com/FastTunnel/FastTunnel/blob/v2/LICENSE
+
+using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.IO;

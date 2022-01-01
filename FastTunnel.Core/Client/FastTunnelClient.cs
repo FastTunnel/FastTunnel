@@ -1,21 +1,20 @@
-﻿using FastTunnel.Core.Config;
+﻿// Licensed under the Apache License, Version 2.0 (the "License").
+// You may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
+// Copyright (c) 2019 Gui.H
+
+using FastTunnel.Core.Config;
 using FastTunnel.Core.Models;
 using System;
-using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 using FastTunnel.Core.Extensions;
-using System.Timers;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using FastTunnel.Core.Handlers.Client;
-using Microsoft.Extensions.Configuration;
-using FastTunnel.Core.Sockets;
 using Microsoft.Extensions.Options;
 using System.Net.WebSockets;
-using System.Text.Json;
-using FastTunnel.Core.Protocol;
-using Microsoft.AspNetCore.DataProtection;
 using FastTunnel.Core.Utilitys;
 
 namespace FastTunnel.Core.Client

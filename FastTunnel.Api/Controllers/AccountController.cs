@@ -1,9 +1,13 @@
-﻿using FastTunnel.Api.Models;
-using FastTunnel.Core.Client;
+// Licensed under the Apache License, Version 2.0 (the "License").
+// You may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
+// Copyright (c) 2019 Gui.H
+
+using FastTunnel.Api.Models;
 using FastTunnel.Core.Config;
 using FastTunnel.Server.Models;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -12,13 +16,12 @@ using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Security.Claims;
-using System.Threading.Tasks;
 
 namespace FastTunnel.Api.Controllers
 {
     public class AccountController : BaseController
     {
-        IOptionsMonitor<DefaultServerConfig> serverOptionsMonitor;
+        readonly IOptionsMonitor<DefaultServerConfig> serverOptionsMonitor;
 
         public AccountController(IOptionsMonitor<DefaultServerConfig> optionsMonitor)
         {

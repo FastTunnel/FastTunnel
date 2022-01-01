@@ -1,7 +1,11 @@
-﻿using System;
+﻿// Licensed under the Apache License, Version 2.0 (the "License").
+// You may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
+// Copyright (c) 2019 Gui.H
+
+using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Text;
 
 namespace FastTunnel.Core.Config
 {
@@ -11,7 +15,7 @@ namespace FastTunnel.Core.Config
 
         public string[] WebAllowAccessIps { get; set; }
 
-        public bool EnableForward { get; set; } = false;
+        public bool EnableForward { get; set; }
 
         [Obsolete("由Tokens替换")]
         public string Token { get; set; }

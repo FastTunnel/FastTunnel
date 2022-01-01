@@ -1,32 +1,26 @@
-﻿using FastTunnel.Core.Client;
+﻿// Copyright (c) 2019-2022 Gui.H. https://github.com/FastTunnel/FastTunnel
+// The FastTunnel licenses this file to you under the Apache License Version 2.0.
+// For more details,You may obtain License file at: https://github.com/FastTunnel/FastTunnel/blob/v2/LICENSE
+
+using FastTunnel.Core.Client;
 using FastTunnel.Core.Extensions;
-using FastTunnel.Core.Forwarder;
-using FastTunnel.Core.Forwarder.MiddleWare;
 using FastTunnel.Core.Handlers.Server;
 using FastTunnel.Core.Models;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net.WebSockets;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Yarp.ReverseProxy.Configuration;
 
 namespace FastTunnel.Core.MiddleWares
 {
     public class FastTunnelClientHandler
     {
-        ILogger<FastTunnelClientHandler> logger;
-        FastTunnelServer fastTunnelServer;
-        Version serverVersion;
-        ILoginHandler loginHandler;
+        readonly ILogger<FastTunnelClientHandler> logger;
+        readonly FastTunnelServer fastTunnelServer;
+        readonly Version serverVersion;
+        readonly ILoginHandler loginHandler;
 
         public FastTunnelClientHandler(
             ILogger<FastTunnelClientHandler> logger, FastTunnelServer fastTunnelServer, ILoginHandler loginHandler)
@@ -98,8 +92,7 @@ namespace FastTunnel.Core.MiddleWares
         private bool checkToken(HttpContext context)
         {
             bool checkToken = false;
-            if ((fastTunnelServer.ServerOption.CurrentValue.Tokens != null && fastTunnelServer.ServerOption.CurrentValue.Tokens.Count() != 0)
-                || !string.IsNullOrEmpty(fastTunnelServer.ServerOption.CurrentValue.Token))
+            if (fastTunnelServer.ServerOption.CurrentValue.Tokens != null && fastTunnelServer.ServerOption.CurrentValue.Tokens.Count != 0)
             {
                 checkToken = true;
             }
@@ -111,8 +104,7 @@ namespace FastTunnel.Core.MiddleWares
             if (!context.Request.Headers.TryGetValue(FastTunnelConst.FASTTUNNEL_TOKEN, out var token))
                 return false;
 
-            if (token.Equals(fastTunnelServer.ServerOption.CurrentValue.Token)
-                || (fastTunnelServer.ServerOption.CurrentValue.Tokens?.Contains(token) ?? false))
+            if (fastTunnelServer.ServerOption.CurrentValue.Tokens?.Contains(token) ?? false)
                 return true;
 
             return false;

@@ -1,4 +1,8 @@
-﻿using FastTunnel.Core.Client;
+﻿// Copyright (c) 2019-2022 Gui.H. https://github.com/FastTunnel/FastTunnel
+// The FastTunnel licenses this file to you under the Apache License Version 2.0.
+// For more details,You may obtain License file at: https://github.com/FastTunnel/FastTunnel/blob/v2/LICENSE
+
+using FastTunnel.Core.Client;
 using System;
 using System.IO;
 using System.Net.Sockets;
@@ -13,7 +17,7 @@ namespace FastTunnel.Core.Handlers.Client
 {
     public class SwapHandler : IClientHandler
     {
-        ILogger<SwapHandler> _logger;
+        readonly ILogger<SwapHandler> _logger;
 
         public SwapHandler(ILogger<SwapHandler> logger)
         {
@@ -28,13 +32,14 @@ namespace FastTunnel.Core.Handlers.Client
 
             try
             {
-                using Stream serverStream = await createRemote(requestId, cleint, cancellationToken);
-                using Stream localStream = await createLocal(requestId, address, cancellationToken);
+                using (Stream serverStream = await createRemote(requestId, cleint, cancellationToken))
+                using (Stream localStream = await createLocal(requestId, address, cancellationToken))
+                {
+                    var taskX = serverStream.CopyToAsync(localStream, cancellationToken);
+                    var taskY = localStream.CopyToAsync(serverStream, cancellationToken);
 
-                var taskX = serverStream.CopyToAsync(localStream, cancellationToken);
-                var taskY = localStream.CopyToAsync(serverStream, cancellationToken);
-
-                await Task.WhenAny(taskX, taskY);
+                    await Task.WhenAny(taskX, taskY);
+                }
             }
             catch (Exception ex)
             {

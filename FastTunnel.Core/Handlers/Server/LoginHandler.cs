@@ -1,15 +1,17 @@
-﻿using FastTunnel.Core.Client;
+// Licensed under the Apache License, Version 2.0 (the "License").
+// You may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
+// Copyright (c) 2019 Gui.H
+
+using FastTunnel.Core.Client;
 using FastTunnel.Core.Dispatchers;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Listener;
 using FastTunnel.Core.Models;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Net.Sockets;
-using System.Net.WebSockets;
-using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,8 +22,8 @@ namespace FastTunnel.Core.Handlers.Server
 {
     public class LoginHandler : ILoginHandler
     {
-        ILogger logger;
-        IProxyConfigProvider proxyConfig;
+        readonly ILogger logger;
+        readonly IProxyConfigProvider proxyConfig;
         public const bool NeedRecive = true;
 
         public LoginHandler(ILogger<LoginHandler> logger, IProxyConfigProvider proxyConfig)
@@ -37,7 +39,7 @@ namespace FastTunnel.Core.Handlers.Server
             await client.webSocket.SendCmdAsync(MessageType.Log, $"穿透协议 | 映射关系（公网=>内网）", CancellationToken.None);
             Thread.Sleep(300);
 
-            if (requet.Webs != null && requet.Webs.Count() > 0)
+            if (requet.Webs != null && requet.Webs.Any())
             {
                 hasTunnel = true;
                 foreach (var item in requet.Webs)
@@ -68,7 +70,7 @@ namespace FastTunnel.Core.Handlers.Server
                 }
             }
 
-            if (requet.Forwards != null && requet.Forwards.Count() > 0)
+            if (requet.Forwards != null && requet.Forwards.Any())
             {
                 if (server.ServerOption.CurrentValue.EnableForward)
                 {

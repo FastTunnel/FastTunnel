@@ -1,7 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
+// Licensed under the Apache License, Version 2.0 (the "License").
+// You may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
+// Copyright (c) 2019 Gui.H
+
+using System;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -19,7 +23,7 @@ namespace FastTunnel.Core.Forwarder
 
         public override long Position { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
-        MemoryStream m_Stream;
+        readonly MemoryStream m_Stream;
 
         public ResponseStream(byte[] bytes)
         {
@@ -31,7 +35,7 @@ namespace FastTunnel.Core.Forwarder
             throw new NotImplementedException();
         }
 
-        bool complete = false;
+        bool complete;
 
         public override int Read(byte[] buffer, int offset, int count)
         {

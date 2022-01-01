@@ -1,16 +1,18 @@
-﻿using FastTunnel.Core.Config;
+﻿// Licensed under the Apache License, Version 2.0 (the "License").
+// You may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
+// Copyright (c) 2019 Gui.H
+
+using FastTunnel.Core.Config;
 using FastTunnel.Core.Models;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System;
-using FastTunnel.Core.Listener;
-using FastTunnel.Core.Dispatchers;
 using System.Threading.Tasks;
 using System.Threading;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using System.IO;
-using Yarp.Sample;
 using Yarp.ReverseProxy.Configuration;
 using System.Collections.Generic;
 
@@ -18,10 +20,10 @@ namespace FastTunnel.Core.Client
 {
     public class FastTunnelServer
     {
-        public int ConnectedClientCount = 0;
+        public int ConnectedClientCount;
         public readonly IOptionsMonitor<DefaultServerConfig> ServerOption;
         public IProxyConfigProvider proxyConfig;
-        ILogger<FastTunnelServer> logger;
+        readonly ILogger<FastTunnelServer> logger;
 
         public ConcurrentDictionary<string, TaskCompletionSource<Stream>> ResponseTasks { get; } = new();
 

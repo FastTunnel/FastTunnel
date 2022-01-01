@@ -11,7 +11,12 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FastTunnel.Server", "FastTu
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Core", "Core", "{0E2A9DA2-26AE-4657-B4C5-3A913E2F5A3C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FastTunnel.Api", "FastTunnel.Api\FastTunnel.Api.csproj", "{7D560A9A-E480-40F4-AAF7-398447438255}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FastTunnel.Api", "FastTunnel.Api\FastTunnel.Api.csproj", "{7D560A9A-E480-40F4-AAF7-398447438255}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{54494A47-33E6-488B-B7D4-DBE8FD34916A}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

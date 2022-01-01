@@ -1,4 +1,8 @@
-﻿using FastTunnel.Core.Client;
+﻿// Copyright (c) 2019-2022 Gui.H. https://github.com/FastTunnel/FastTunnel
+// The FastTunnel licenses this file to you under the Apache License Version 2.0.
+// For more details,You may obtain License file at: https://github.com/FastTunnel/FastTunnel/blob/v2/LICENSE
+
+using FastTunnel.Core.Client;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Models;
 using FastTunnel.Core.Sockets;
@@ -20,12 +24,12 @@ namespace FastTunnel.Core.Forwarder
 {
     public class FastTunnelForwarderHttpClientFactory : ForwarderHttpClientFactory
     {
-        ILogger<FastTunnelForwarderHttpClientFactory> logger;
-        FastTunnelServer _fastTunnelServer;
+        readonly ILogger<FastTunnelForwarderHttpClientFactory> logger;
+        readonly FastTunnelServer fastTunnelServer;
 
         public FastTunnelForwarderHttpClientFactory(ILogger<FastTunnelForwarderHttpClientFactory> logger, FastTunnelServer fastTunnelServer)
         {
-            this._fastTunnelServer = fastTunnelServer;
+            this.fastTunnelServer = fastTunnelServer;
             this.logger = logger;
         }
 
@@ -44,7 +48,7 @@ namespace FastTunnel.Core.Forwarder
                 var res = await proxyAsync(host, context, cancellationToken);
                 return res;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 throw;
             }
@@ -53,7 +57,7 @@ namespace FastTunnel.Core.Forwarder
         public async ValueTask<Stream> proxyAsync(string host, SocketsHttpConnectionContext context, CancellationToken cancellation)
         {
             WebInfo web;
-            if (!_fastTunnelServer.WebList.TryGetValue(host, out web))
+            if (!fastTunnelServer.WebList.TryGetValue(host, out web))
             {
                 // 客户端已离线
                 return await OfflinePage(host, context);
@@ -63,10 +67,9 @@ namespace FastTunnel.Core.Forwarder
 
             TaskCompletionSource<Stream> tcs = new(cancellation);
             logger.LogDebug($"[Http]Swap开始 {msgId}|{host}=>{web.WebConfig.LocalIp}:{web.WebConfig.LocalPort}");
+            tcs.SetTimeOut(10000, () => { logger.LogDebug($"[Proxy TimeOut]:{msgId}"); });
 
-            //tcs.SetTimeOut(20000, () => { logger.LogDebug($"[Proxy TimeOut]:{msgId}"); });
-
-            _fastTunnelServer.ResponseTasks.TryAdd(msgId, tcs);
+            fastTunnelServer.ResponseTasks.TryAdd(msgId, tcs);
 
             try
             {
@@ -79,16 +82,16 @@ namespace FastTunnel.Core.Forwarder
             }
             catch (WebSocketException)
             {
-                tcs.TrySetCanceled();
-                _fastTunnelServer.ResponseTasks.TryRemove(msgId, out _);
-
                 // 通讯异常，返回客户端离线
                 return await OfflinePage(host, context);
             }
             catch (Exception)
             {
-                _fastTunnelServer.ResponseTasks.TryRemove(msgId, out _);
                 throw;
+            }
+            finally
+            {
+                fastTunnelServer.ResponseTasks.TryRemove(msgId, out _);
             }
         }
 

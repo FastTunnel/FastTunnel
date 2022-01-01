@@ -1,4 +1,10 @@
-﻿using FastTunnel.Core.Client;
+// Licensed under the Apache License, Version 2.0 (the "License").
+// You may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
+// Copyright (c) 2019 Gui.H
+
+using FastTunnel.Core.Client;
 using FastTunnel.Core.Handlers.Server;
 using FastTunnel.Core.Protocol;
 using System;
@@ -25,8 +31,9 @@ namespace FastTunnel.Core.Models
         readonly ILoginHandler loginHandler;
 
         public IPAddress RemoteIpAddress { get; private set; }
-        IList<WebInfo> webInfos = new List<WebInfo>();
-        IList<ForwardInfo<ForwardHandlerArg>> forwardInfos = new List<ForwardInfo<ForwardHandlerArg>>();
+
+        readonly IList<WebInfo> webInfos = new List<WebInfo>();
+        readonly IList<ForwardInfo<ForwardHandlerArg>> forwardInfos = new List<ForwardInfo<ForwardHandlerArg>>();
 
         public TunnelClient(WebSocket webSocket, FastTunnelServer fastTunnelServer, ILoginHandler loginHandler, IPAddress remoteIpAddress)
         {
@@ -74,7 +81,7 @@ namespace FastTunnel.Core.Models
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"处理客户端消息失败：cmd={lineCmd}");
+                Console.WriteLine($"处理客户端消息失败：cmd={lineCmd} {ex}");
                 return false;
             }
         }
@@ -94,7 +101,7 @@ namespace FastTunnel.Core.Models
                 }
             }
 
-            // TODO:
+            webSocket.CloseAsync(WebSocketCloseStatus.Empty, "", CancellationToken.None);
         }
     }
 }

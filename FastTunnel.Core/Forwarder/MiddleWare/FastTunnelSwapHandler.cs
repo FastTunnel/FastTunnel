@@ -54,7 +54,6 @@ namespace FastTunnel.Core.Forwarder.MiddleWare
                 responseAwaiter.TrySetResult(reverseConnection);
 
                 var closedAwaiter = new TaskCompletionSource<object>();
-                //closedAwaiter.SetTimeOut(20000, () => { logger.LogDebug($"[Swap TimeOut]:{requestId}"); });
 
                 lifetime.ConnectionClosed.Register((task) =>
                 {
@@ -62,7 +61,7 @@ namespace FastTunnel.Core.Forwarder.MiddleWare
                 }, closedAwaiter);
 
                 await closedAwaiter.Task;
-                logger.LogError($"[PROXY]:Closed {requestId}");
+                logger.LogDebug($"[PROXY]:Closed {requestId}");
             }
             catch (Exception ex)
             {

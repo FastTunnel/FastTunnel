@@ -6,10 +6,8 @@
 	</PropertyGroup>
 
 	<PropertyGroup>
-		<TargetFramework>net5.0</TargetFramework>
+		<TargetFramework>net6.0</TargetFramework>
 		<RunAnalyzersDuringBuild>false</RunAnalyzersDuringBuild>
-		<UserSecretsId>421d8d0d-f934-45e6-9858-780312446b3b</UserSecretsId>
-		<DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -20,17 +18,17 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="5.0.9" />
-		<PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="5.0.1" />
-		<PackageReference Include="Microsoft.Extensions.Logging" Version="6.0.0-preview.4.21253.7" />
-		<PackageReference Include="Microsoft.Extensions.Logging.Configuration" Version="6.0.0-preview.4.21253.7" />
-		<PackageReference Include="Microsoft.Extensions.Logging.Log4Net.AspNetCore" Version="5.0.3" />
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="6.0.1" />
+		<PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="6.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Logging" Version="6.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Configuration" Version="6.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Log4Net.AspNetCore" Version="6.0.0" />
 		<PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.14.0" />
 	</ItemGroup>
 
 	<ItemGroup Condition="'$(Configuration)'=='Debug'">
-		<PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="6.1.5" />
-		<PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="6.1.5" />
+		<PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="6.2.3" />
+		<PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="6.2.3" />
 	</ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\FastTunnel.Api\FastTunnel.Api.csproj" />

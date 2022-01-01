@@ -1,21 +1,22 @@
-﻿using FastTunnel.Core.Dispatchers;
-using FastTunnel.Core.Models;
-using Microsoft.AspNetCore.Hosting.Server;
+// Licensed under the Apache License, Version 2.0 (the "License").
+// You may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
+// Copyright (c) 2019 Gui.H
+
+using FastTunnel.Core.Dispatchers;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace FastTunnel.Core.Listener
 {
     public class PortProxyListener
     {
-        ILogger _logerr;
+        readonly ILogger _logerr;
 
         public string ListenIp { get; set; }
 
@@ -23,10 +24,10 @@ namespace FastTunnel.Core.Listener
 
         int m_numConnectedSockets;
 
-        bool shutdown = false;
+        bool shutdown;
         ForwardDispatcher _requestDispatcher;
-        Socket listenSocket;
-        WebSocket client;
+        readonly Socket listenSocket;
+        readonly WebSocket client;
 
         public PortProxyListener(string ip, int port, ILogger logerr, WebSocket client)
         {

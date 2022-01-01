@@ -1,19 +1,8 @@
-﻿using Microsoft.AspNetCore.Mvc.Filters;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
-using Microsoft.AspNetCore.Mvc.ViewFeatures;
-using Microsoft.AspNetCore.Mvc;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿// Licensed under the Apache License, Version 2.0 (the "License")
+
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Hosting;
-using FastTunnel.Core;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using FastTunnel.Core.Client;
 using Microsoft.Extensions.Logging;
 using FastTunnel.Core.Extensions;
 
@@ -28,6 +17,7 @@ namespace FastTunnel.Core.Filters
             ILogger<FastTunnelExceptionFilter> logger,
             IWebHostEnvironment hostingEnvironment)
         {
+            this.logger = logger;
             _hostingEnvironment = hostingEnvironment;
         }
 
