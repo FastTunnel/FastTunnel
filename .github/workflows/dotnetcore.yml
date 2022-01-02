@@ -13,7 +13,7 @@ jobs:
    - name: Setup .NET Core
      uses: actions/setup-dotnet@v1
      with:
-       dotnet-version: 6.0
+       dotnet-version: 6.0.*
    - name: Build with dotnet
      run: chmod +x ./publish-win.sh && ./publish-win.sh
       
@@ -26,7 +26,7 @@ jobs:
       - name: Setup dotnet
         uses: actions/setup-dotnet@v1
         with:
-           dotnet-version: 6.0
+           dotnet-version: 6.0.*
 
       # Publish
       - name: publish on version change
@@ -72,7 +72,7 @@ jobs:
       - name: Setup dotnet
         uses: actions/setup-dotnet@v1
         with:
-           dotnet-version: 6.0
+           dotnet-version: 6.0.*
 
       # Publish
       - name: publish on version change
