@@ -8,8 +8,10 @@
 [![Nuget](https://img.shields.io/nuget/v/FastTunnel.Core)](https://www.nuget.org/packages/FastTunnel.Core/)
 [![Nuget](https://img.shields.io/nuget/dt/FastTunnel.Core)](https://www.nuget.org/packages/FastTunnel.Core/)
 
-[README](README.md) | [中文介绍](README_zh.md)
+[README](README.md) | [中文介绍](README_zh.md)  
+
 </div>
+
 
 ## What is FastTunnel？
 - FastTunnel is a high-performance cross-platform intranet penetration tool. With it, you can expose intranet services to the public network for yourself or anyone to access.
@@ -50,14 +52,7 @@ But do not use this service for important items.
 <a href = "https://github.com/FastTunnel/FastTunnel/graphs/contributors">
   <img src = "https://contrib.rocks/image?repo=FastTunnel/FastTunnel"/>
 </a>
-
-## Sponsor author
-
-<div align="center">
-  <img src="images/wxpay.jpg" height="250" align=center />
-  <img src="images/alipay.jpg" height="250" align=center />
-</div>
-
+ 
 ## Join QQ Group
 
 <div align="center">
