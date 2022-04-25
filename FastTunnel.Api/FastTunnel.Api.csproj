@@ -1,7 +1,7 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<TargetFramework>net5.0</TargetFramework>
-		<Version>1.0.1</Version>
+		<TargetFramework>net6.0</TargetFramework>
+		<Version>1.1.0</Version>
 		<PackageProjectUrl>https://github.com/FastTunnel/FastTunnel/tree/v2/FastTunnel.Api</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/FastTunnel/FastTunnel/tree/v2/FastTunnel.Api</RepositoryUrl>
 	</PropertyGroup>
@@ -9,8 +9,8 @@
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />
 	</ItemGroup>
 	<ItemGroup>
-		<PackageReference Include="Microsoft.IdentityModel.Tokens" Version="6.15.0" />
-		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="6.15.0" />
+		<PackageReference Include="Microsoft.IdentityModel.Tokens" Version="6.17.0" />
+		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="6.17.0" />
 	</ItemGroup>
 
 	<ItemGroup>
