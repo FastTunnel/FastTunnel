@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019-2022 Gui.H. https://github.com/FastTunnel/FastTunnel
+// Copyright (c) 2019-2022 Gui.H. https://github.com/FastTunnel/FastTunnel
 // The FastTunnel licenses this file to you under the Apache License Version 2.0.
 // For more details,You may obtain License file at: https://github.com/FastTunnel/FastTunnel/blob/v2/LICENSE
 
@@ -65,7 +65,7 @@ namespace FastTunnel.Core.Handlers.Client
                 serverStream = sslStream;
             }
 
-            var reverse = $"PROXY /{requestId} HTTP/1.1\r\nHost: {cleint.Server.ServerAddr}:{cleint.Server.ServerPort}\r\n\r\n";
+            var reverse = $"PROXY /{requestId} HTTP/1.1\r\n";
             var requestMsg = Encoding.UTF8.GetBytes(reverse);
             await serverStream.WriteAsync(requestMsg, cancellationToken);
             return serverStream;

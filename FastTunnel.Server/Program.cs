@@ -8,19 +8,49 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using FastTunnel.Core.Extensions;
+using Serilog;
+using System;
 
 namespace FastTunnel.Server;
 
 public class Program
 {
-    public static void Main(string[] args)
+    public static int Main(string[] args)
     {
-        CreateHostBuilder(args).Build().Run();
+        // The initial "bootstrap" logger is able to log errors during start-up. It's completely replaced by the
+        // logger configured in `UseSerilog()` below, once configuration and dependency-injection have both been
+        // set up successfully.
+        Log.Logger = new LoggerConfiguration()
+            .WriteTo.Console()
+            .CreateBootstrapLogger();
+
+        Log.Information("Starting up!");
+
+        try
+        {
+            CreateHostBuilder(args).Build().Run();
+
+            Log.Information("Stopped cleanly");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            Log.Fatal(ex, "An unhandled exception occured during bootstrapping");
+            return 1;
+        }
+        finally
+        {
+            Log.CloseAndFlush();
+        }
     }
 
     public static IHostBuilder CreateHostBuilder(string[] args) =>
         Host.CreateDefaultBuilder(args)
             .UseWindowsService()
+            .UseSerilog((context, services, configuration) => configuration
+                    .WriteTo.File("logs/log-.txt", rollingInterval: RollingInterval.Day)
+                    .WriteTo.Console())
             .ConfigureWebHost(webHostBuilder =>
             {
                 webHostBuilder.ConfigureAppConfiguration((hostingContext, config) =>
@@ -29,19 +59,17 @@ public class Program
                     config.AddJsonFile("config/appsettings.json", optional: false, reloadOnChange: true)
                           .AddJsonFile($"config/appsettings.{env.EnvironmentName}.json", optional: true, reloadOnChange: true);
                 });
-            })
-            .ConfigureWebHostDefaults(webBuilder =>
-            {
-                webBuilder.UseStartup<Startup>();
-            })
-            .ConfigureLogging((HostBuilderContext context, ILoggingBuilder logging) =>
-            {
-                var enableFileLog = (bool)context.Configuration.GetSection("EnableFileLog").Get(typeof(bool));
-                if (enableFileLog)
+
+                webHostBuilder.UseKestrel((context, options) =>
                 {
-                    logging.ClearProviders();
-                    logging.SetMinimumLevel(LogLevel.Trace);
-                    logging.AddLog4Net();
-                }
+                    var basePort = context.Configuration.GetValue<int?>("BASE_PORT") ?? 1270;
+                    options.ListenAnyIP(basePort, listenOptions =>
+                    {
+                        //listenOptions.UseConnectionLogging();
+                        listenOptions.UseFastTunnelSwap();
+                    });
+                });
+
+                webHostBuilder.UseStartup<Startup>();
             });
 }
