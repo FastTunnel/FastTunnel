@@ -10,7 +10,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using FastTunnel.Core.Client;
-using FastTunnel.Core.Forwarder.MiddleWare;
+using FastTunnel.Core.Forwarder.Kestrel;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -19,13 +19,17 @@ namespace FastTunnel.Core.Extensions;
 
 public static class ListenOptionsSwapExtensions
 {
-    public static ListenOptions UseFastTunnelSwap(this ListenOptions listenOptions)
+    public static ListenOptions UseConnectionFastTunnel(this ListenOptions listenOptions)
     {
         var loggerFactory = listenOptions.KestrelServerOptions.ApplicationServices.GetRequiredService<ILoggerFactory>();
         var logger = loggerFactory.CreateLogger<SwapConnectionMiddleware>();
+        var loggerClient = loggerFactory.CreateLogger<ClientConnectionMiddleware>();
         var fastTunnelServer = listenOptions.KestrelServerOptions.ApplicationServices.GetRequiredService<FastTunnelServer>();
 
         listenOptions.Use(next => new SwapConnectionMiddleware(next, logger, fastTunnelServer).OnConnectionAsync);
+
+        // 登录频率低，放在后面
+        //listenOptions.Use(next => new ClientConnectionMiddleware(next, loggerClient, fastTunnelServer).OnConnectionAsync);
         return listenOptions;
     }
 }

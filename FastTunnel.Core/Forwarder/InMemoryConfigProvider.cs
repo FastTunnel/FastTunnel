@@ -9,7 +9,7 @@ using Microsoft.Extensions.Primitives;
 using Yarp.ReverseProxy.Configuration;
 using System.Linq;
 
-namespace Yarp.Sample
+namespace FastTunnel.Core.Forwarder
 {
     /// <summary>
     /// Extends the IReverseProxyBuilder to support the InMemoryConfigProvider

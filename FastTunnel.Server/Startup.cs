@@ -4,7 +4,6 @@
 //     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
 // Copyright (c) 2019 Gui.H
 
-using FastTunnel.Core;
 using FastTunnel.Core.Extensions;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;

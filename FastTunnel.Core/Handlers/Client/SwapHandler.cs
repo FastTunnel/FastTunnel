@@ -38,7 +38,18 @@ namespace FastTunnel.Core.Handlers.Client
                     var taskX = serverStream.CopyToAsync(localStream, cancellationToken);
                     var taskY = localStream.CopyToAsync(serverStream, cancellationToken);
 
-                    await Task.WhenAny(taskX, taskY);
+                    try
+                    {
+                        await Task.WhenAll(taskX, taskY);
+                    }
+                    catch (Exception ex)
+                    {
+
+                    }
+                    finally
+                    {
+                        _logger.LogError($"=====================Swap End:{requestId}================== ");
+                    }
                 }
             }
             catch (Exception ex)
@@ -66,6 +77,8 @@ namespace FastTunnel.Core.Handlers.Client
             }
 
             var reverse = $"PROXY /{requestId} HTTP/1.1\r\n";
+            //var reverse = $"PROXY /{requestId} HTTP/1.1\r\nHost: {cleint.Server.ServerAddr}:{cleint.Server.ServerPort}\r\n\r\n";
+
             var requestMsg = Encoding.UTF8.GetBytes(reverse);
             await serverStream.WriteAsync(requestMsg, cancellationToken);
             return serverStream;

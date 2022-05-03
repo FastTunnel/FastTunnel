@@ -1,6 +1,5 @@
-﻿using FastTunnel.Core.Client;
+using FastTunnel.Core.Client;
 using FastTunnel.Core.Extensions;
-using FastTunnel.Core.MiddleWares;
 using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;

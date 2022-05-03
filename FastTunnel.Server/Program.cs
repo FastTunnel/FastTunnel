@@ -65,8 +65,7 @@ public class Program
                     var basePort = context.Configuration.GetValue<int?>("BASE_PORT") ?? 1270;
                     options.ListenAnyIP(basePort, listenOptions =>
                     {
-                        //listenOptions.UseConnectionLogging();
-                        listenOptions.UseFastTunnelSwap();
+                        listenOptions.UseConnectionFastTunnel();
                     });
                 });
 

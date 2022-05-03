@@ -122,8 +122,12 @@ internal class DuplexPipeStream : Stream
     {
         while (true)
         {
-            var result = await _input.ReadAsync(cancellationToken);
-            var readableBuffer = result.Buffer;
+            ReadResult result;
+            ReadOnlySequence<byte> readableBuffer;
+
+            result = await _input.ReadAsync(cancellationToken);
+            readableBuffer = result.Buffer;
+
             try
             {
                 if (_throwOnCancelled && result.IsCanceled && _cancelCalled)
@@ -138,10 +142,6 @@ internal class DuplexPipeStream : Stream
                     // buffer.Count is int
                     var count = (int)Math.Min(readableBuffer.Length, destination.Length);
                     readableBuffer = readableBuffer.Slice(0, count);
-
-                    var str = Encoding.UTF8.GetString(readableBuffer);
-
-                    Console.WriteLine($"[ReadAsyncInternal]:{str}");
                     readableBuffer.CopyTo(destination.Span);
                     return count;
                 }

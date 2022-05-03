@@ -16,15 +16,14 @@ using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.Extensions.Logging;
 
-namespace FastTunnel.Core.Forwarder.MiddleWare;
-
-internal class SwapConnectionMiddleware
+namespace FastTunnel.Core.Forwarder.Kestrel;
+internal class ClientConnectionMiddleware
 {
     readonly ConnectionDelegate next;
-    readonly ILogger<SwapConnectionMiddleware> logger;
+    readonly ILogger<ClientConnectionMiddleware> logger;
     FastTunnelServer fastTunnelServer;
 
-    public SwapConnectionMiddleware(ConnectionDelegate next, ILogger<SwapConnectionMiddleware> logger, FastTunnelServer fastTunnelServer)
+    public ClientConnectionMiddleware(ConnectionDelegate next, ILogger<ClientConnectionMiddleware> logger, FastTunnelServer fastTunnelServer)
     {
         this.next = next;
         this.logger = logger;
@@ -54,11 +53,11 @@ internal class SwapConnectionMiddleware
     {
         var reader = context.Transport.Input;
 
-        bool isProxy = false;
+        var isProxy = false;
         while (true)
         {
-            ReadResult result = await reader.ReadAsync();
-            ReadOnlySequence<byte> buffer = result.Buffer;
+            var result = await reader.ReadAsync();
+            var buffer = result.Buffer;
             SequencePosition? position = null;
 
             do
@@ -70,7 +69,7 @@ internal class SwapConnectionMiddleware
                     isProxy = ProcessProxyLine(buffer.Slice(0, position.Value));
                     if (isProxy)
                     {
-                        await Swap(buffer, position.Value, context);
+                        await Login(buffer, position.Value, context);
                         return true;
                     }
                     else
@@ -91,39 +90,10 @@ internal class SwapConnectionMiddleware
         return false;
     }
 
-    private async Task Swap(ReadOnlySequence<byte> buffer, SequencePosition position, ConnectionContext context)
+    private async Task Login(ReadOnlySequence<byte> buffer, SequencePosition position, ConnectionContext context)
     {
-        var firstLineBuffer = buffer.Slice(0, position);
-        var firstLine = Encoding.UTF8.GetString(firstLineBuffer);
 
-        // PROXY /c74eb488a0f54d888e63d85c67428b52 HTTP/1.1
-        var endIndex = firstLine.IndexOf(" ", 7);
-        var requestId = firstLine.Substring(7, endIndex - 7);
-        Console.WriteLine($"[开始进行Swap操作] {requestId}");
 
-        context.Transport.Input.AdvanceTo(buffer.GetPosition(1, position), buffer.GetPosition(1, position));
-
-        if (!fastTunnelServer.ResponseTasks.TryRemove(requestId, out var responseForYarp))
-        {
-            logger.LogError($"[PROXY]:RequestId不存在 {requestId}");
-            return;
-        };
-
-        using var reverseConnection = new DuplexPipeStream(context.Transport.Input, context.Transport.Output, true);
-        responseForYarp.TrySetResult(reverseConnection);
-
-        var lifetime = context.Features.Get<IConnectionLifetimeFeature>();
-
-        var closedAwaiter = new TaskCompletionSource<object>();
-
-        lifetime.ConnectionClosed.Register((task) =>
-        {
-            (task as TaskCompletionSource<object>).SetResult(null);
-        }, closedAwaiter);
-
-        await closedAwaiter.Task;
-
-        logger.LogDebug($"[PROXY]:Closed {requestId}");
     }
 
     /// <summary>
@@ -134,6 +104,7 @@ internal class SwapConnectionMiddleware
     {
         var str = Encoding.UTF8.GetString(readOnlySequence);
 
-        return str.StartsWith("PROXY");
+        return str.StartsWith("LOGIN");
     }
 }
+

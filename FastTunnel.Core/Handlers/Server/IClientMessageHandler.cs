@@ -13,7 +13,7 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace FastTunnel.Core.Handlers
+namespace FastTunnel.Core.Handlers.Server
 {
     public interface IClientMessageHandler
     {

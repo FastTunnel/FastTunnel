@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019-2022 Gui.H. https://github.com/FastTunnel/FastTunnel
+// Copyright (c) 2019-2022 Gui.H. https://github.com/FastTunnel/FastTunnel
 // The FastTunnel licenses this file to you under the Apache License Version 2.0.
 // For more details,You may obtain License file at: https://github.com/FastTunnel/FastTunnel/blob/v2/LICENSE
 
@@ -48,8 +48,9 @@ namespace FastTunnel.Core.Forwarder
                 var res = await proxyAsync(host, context, cancellationToken);
                 return res;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                logger.LogError(ex, "ConnectCallback Error");
                 throw;
             }
         }
