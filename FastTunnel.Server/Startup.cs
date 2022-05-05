@@ -114,7 +114,7 @@ public class Startup
         {
             endpoints.MapControllers();
                 // -------------------FastTunnel STEP3 OF 3------------------
-                endpoints.MapFastTunnelServer();
+                //endpoints.MapFastTunnelServer();
                 // -------------------FastTunnel STEP3 END-------------------
             });
     }

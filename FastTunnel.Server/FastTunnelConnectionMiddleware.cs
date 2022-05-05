@@ -57,7 +57,7 @@ namespace FastTunnel.Server
                 do
                 {
                     // 在缓冲数据中查找找一个行末尾
-                    position = buffer.PositionOf((byte)'\r\n');
+                    position = buffer.PositionOf((byte)'\n');
 
                     if (position != null)
                     {

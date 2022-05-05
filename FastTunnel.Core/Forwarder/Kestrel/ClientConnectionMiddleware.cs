@@ -32,23 +32,17 @@ internal class ClientConnectionMiddleware
 
     internal async Task OnConnectionAsync(ConnectionContext context)
     {
-        var oldTransport = context.Transport;
-
-        try
+        if (!await ReadPipeAsync(context))
         {
-            if (!await ReadPipeAsync(context))
-            {
-                await next(context);
-            }
-
             await next(context);
-        }
-        finally
-        {
-            context.Transport = oldTransport;
         }
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="context"></param>
+    /// <returns>is for FastTunnel</returns>
     async Task<bool> ReadPipeAsync(ConnectionContext context)
     {
         var reader = context.Transport.Input;

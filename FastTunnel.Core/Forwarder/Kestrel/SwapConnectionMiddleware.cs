@@ -34,14 +34,66 @@ internal class SwapConnectionMiddleware
 
     internal async Task OnConnectionAsync(ConnectionContext context)
     {
-        var oldTransport = context.Transport;
-
-        if (!await ReadPipeAsync(context))
+        var ctx = context as FastTunnelConnectionContext;
+        if (ctx != null)
+        {
+            if (ctx.Method == "SWAP")
+            {
+                await doSwap(ctx);
+            }
+            else
+            {
+                await next(context);
+            }
+        }
+        else
         {
             await next(context);
         }
     }
 
+    private async Task doSwap(FastTunnelConnectionContext context)
+    {
+        var requestId = context.MessageId;
+        if (!fastTunnelServer.ResponseTasks.TryRemove(requestId, out var responseForYarp))
+        {
+            logger.LogError($"[PROXY]:RequestId不存在 {requestId}");
+            return;
+        };
+
+        using var reverseConnection = new DuplexPipeStream(context.Transport.Input, context.Transport.Output, true);
+        responseForYarp.TrySetResult(reverseConnection);
+
+        var lifetime = context.Features.Get<IConnectionLifetimeFeature>();
+
+        var closedAwaiter = new TaskCompletionSource<object>();
+
+        lifetime.ConnectionClosed.Register((task) =>
+        {
+            (task as TaskCompletionSource<object>).SetResult(null);
+        }, closedAwaiter);
+
+        try
+        {
+            await closedAwaiter.Task;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "");
+        }
+        finally
+        {
+            context.Transport.Input.Complete();
+            context.Transport.Output.Complete();
+            logger.LogInformation($"=====================Swap End:{requestId}================== ");
+        }
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="context"></param>
+    /// <returns>is for FastTunnel</returns>
     async Task<bool> ReadPipeAsync(ConnectionContext context)
     {
         var reader = context.Transport.Input;
@@ -88,9 +140,9 @@ internal class SwapConnectionMiddleware
         var firstLineBuffer = buffer.Slice(0, position);
         var firstLine = Encoding.UTF8.GetString(firstLineBuffer);
 
-        // PROXY /c74eb488a0f54d888e63d85c67428b52 HTTP/1.1
-        var endIndex = firstLine.IndexOf(" ", 7);
-        var requestId = firstLine.Substring(7, endIndex - 7);
+        // SWAP /c74eb488a0f54d888e63d85c67428b52 HTTP/1.1
+        var endIndex = firstLine.IndexOf(" ", 6);
+        var requestId = firstLine.Substring(6, endIndex - 6);
         Console.WriteLine($"[开始进行Swap操作] {requestId}");
 
         context.Transport.Input.AdvanceTo(buffer.GetPosition(1, position), buffer.GetPosition(1, position));
@@ -136,7 +188,6 @@ internal class SwapConnectionMiddleware
     private bool ProcessProxyLine(ReadOnlySequence<byte> readOnlySequence)
     {
         var str = Encoding.UTF8.GetString(readOnlySequence);
-
-        return str.StartsWith("PROXY");
+        return str.StartsWith("SWAP");
     }
 }

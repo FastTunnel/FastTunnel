@@ -24,12 +24,14 @@ public static class ListenOptionsSwapExtensions
         var loggerFactory = listenOptions.KestrelServerOptions.ApplicationServices.GetRequiredService<ILoggerFactory>();
         var logger = loggerFactory.CreateLogger<SwapConnectionMiddleware>();
         var loggerClient = loggerFactory.CreateLogger<ClientConnectionMiddleware>();
+        var loggerHttp = loggerFactory.CreateLogger<HandleHttpConnectionMiddleware>();
         var fastTunnelServer = listenOptions.KestrelServerOptions.ApplicationServices.GetRequiredService<FastTunnelServer>();
 
+        listenOptions.Use(next => new HandleHttpConnectionMiddleware(next, loggerHttp, fastTunnelServer).OnConnectionAsync);
         listenOptions.Use(next => new SwapConnectionMiddleware(next, logger, fastTunnelServer).OnConnectionAsync);
 
         // 登录频率低，放在后面
-        //listenOptions.Use(next => new ClientConnectionMiddleware(next, loggerClient, fastTunnelServer).OnConnectionAsync);
+        // listenOptions.Use(next => new ClientConnectionMiddleware(next, loggerClient, fastTunnelServer).OnConnectionAsync);
         return listenOptions;
     }
 }
