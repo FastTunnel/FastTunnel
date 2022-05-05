@@ -114,9 +114,9 @@ public class Startup
         app.UseEndpoints(endpoints =>
         {
             endpoints.MapControllers();
-                // -------------------FastTunnel STEP3 OF 3------------------
-                endpoints.MapFastTunnelServer();
-                // -------------------FastTunnel STEP3 END-------------------
-            });
+            // -------------------FastTunnel STEP3 OF 3------------------
+            endpoints.MapFastTunnelServer();
+            // -------------------FastTunnel STEP3 END-------------------
+        });
     }
 }
