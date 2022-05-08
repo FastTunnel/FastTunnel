@@ -53,20 +53,14 @@ public class Program
                     .WriteTo.Console())
             .ConfigureWebHost(webHostBuilder =>
             {
+                webHostBuilder.UseKestrel();
+                webHostBuilder.UseSetting(WebHostDefaults.HostingStartupAssembliesKey, "FastTunnel.Hosting");
+
                 webHostBuilder.ConfigureAppConfiguration((hostingContext, config) =>
                 {
                     var env = hostingContext.HostingEnvironment;
                     config.AddJsonFile("config/appsettings.json", optional: false, reloadOnChange: true)
                           .AddJsonFile($"config/appsettings.{env.EnvironmentName}.json", optional: true, reloadOnChange: true);
-                });
-
-                webHostBuilder.UseKestrel((context, options) =>
-                {
-                    var basePort = context.Configuration.GetValue<int?>("BASE_PORT") ?? 1270;
-                    options.ListenAnyIP(basePort, listenOptions =>
-                    {
-                        listenOptions.UseConnectionFastTunnel();
-                    });
                 });
 
                 webHostBuilder.UseStartup<Startup>();

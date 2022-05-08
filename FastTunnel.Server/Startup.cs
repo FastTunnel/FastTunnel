@@ -80,10 +80,6 @@ public class Startup
             c.SwaggerDoc("v2", new OpenApiInfo { Title = "FastTunel.Api", Version = "v2" });
         });
 #endif
-
-        // -------------------FastTunnel STEP1 OF 3------------------
-        services.AddFastTunnelServer(Configuration.GetSection("FastTunnel"));
-        // -------------------FastTunnel STEP1 END-------------------
     }
 
     // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -98,10 +94,6 @@ public class Startup
 #endif
         }
 
-        // -------------------FastTunnel STEP2 OF 3------------------
-        app.UseFastTunnelServer();
-        // -------------------FastTunnel STEP2 END-------------------
-
         app.UseRouting();
 
         // --------------------- Custom UI ----------------
@@ -113,9 +105,6 @@ public class Startup
         app.UseEndpoints(endpoints =>
         {
             endpoints.MapControllers();
-                // -------------------FastTunnel STEP3 OF 3------------------
-                //endpoints.MapFastTunnelServer();
-                // -------------------FastTunnel STEP3 END-------------------
-            });
+        });
     }
 }
