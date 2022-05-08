@@ -4,11 +4,6 @@
 //     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
 // Copyright (c) 2019 Gui.H
 
-using System;
-using System.Buffers;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using FastTunnel.Core.Client;
 using Microsoft.AspNetCore.Connections;
@@ -18,9 +13,9 @@ namespace FastTunnel.Core.Forwarder.Kestrel;
 
 internal class HandleHttpConnectionMiddleware
 {
-    readonly ConnectionDelegate next;
-    readonly ILogger<HandleHttpConnectionMiddleware> logger;
-    FastTunnelServer fastTunnelServer;
+    private readonly ConnectionDelegate next;
+    private readonly ILogger<HandleHttpConnectionMiddleware> logger;
+    private readonly FastTunnelServer fastTunnelServer;
 
     public HandleHttpConnectionMiddleware(ConnectionDelegate next, ILogger<HandleHttpConnectionMiddleware> logger, FastTunnelServer fastTunnelServer)
     {

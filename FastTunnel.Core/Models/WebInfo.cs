@@ -5,23 +5,19 @@
 // Copyright (c) 2019 Gui.H
 
 using System;
-using System.Collections.Generic;
-using System.Net.Sockets;
 using System.Net.WebSockets;
-using System.Text;
 
-namespace FastTunnel.Core.Models
+namespace FastTunnel.Core.Models;
+
+public class WebInfo
 {
-    public class WebInfo
+    public WebSocket Socket { get; set; }
+
+    public WebConfig WebConfig { get; set; }
+
+    internal void LogOut()
     {
-        public WebSocket Socket { get; set; }
-
-        public WebConfig WebConfig { get; set; }
-
-        internal void LogOut()
-        {
-            // TODO:退出登录
-            throw new NotImplementedException();
-        }
+        // TODO:退出登录
+        throw new NotImplementedException();
     }
 }

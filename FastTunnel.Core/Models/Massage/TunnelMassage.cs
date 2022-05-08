@@ -4,9 +4,8 @@
 //     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
 // Copyright (c) 2019 Gui.H
 
-namespace FastTunnel.Core.Models.Massage
+namespace FastTunnel.Core.Models.Massage;
+
+public class TunnelMassage
 {
-    public class TunnelMassage
-    {
-    }
 }

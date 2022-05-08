@@ -4,21 +4,18 @@
 //     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
 // Copyright (c) 2019 Gui.H
 
-using FastTunnel.Core.Models;
-using FastTunnel.Core.Models.Massage;
-using System;
-using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Text;
+using FastTunnel.Core.Models;
+using FastTunnel.Core.Models.Massage;
 
-namespace FastTunnel.Core.Extensions
+namespace FastTunnel.Core.Extensions;
+
+public static class SocketExtensions
 {
-    public static class SocketExtensions
+    public static void SendCmd<T>(this Socket socket, Message<T> message)
+        where T : TunnelMassage
     {
-        public static void SendCmd<T>(this Socket socket, Message<T> message)
-            where T : TunnelMassage
-        {
-            socket.Send(Encoding.UTF8.GetBytes(message.ToJson() + "\n"));
-        }
+        socket.Send(Encoding.UTF8.GetBytes(message.ToJson() + "\n"));
     }
 }

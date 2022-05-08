@@ -5,17 +5,12 @@
 // Copyright (c) 2019 Gui.H
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace FastTunnel.Core.Exceptions
+namespace FastTunnel.Core.Exceptions;
+
+public class SocketClosedException : Exception
 {
-    public class SocketClosedException : Exception
+    public SocketClosedException(string msg) : base(msg)
     {
-        public SocketClosedException(string msg) : base(msg)
-        {
-        }
     }
 }

@@ -6,18 +6,17 @@
 
 using System.Collections.Generic;
 
-namespace FastTunnel.Core.Models.Massage
-{
-    public class LogInMassage : TunnelMassage
-    {
-        /// <summary>
-        /// web穿透隧道列表
-        /// </summary>
-        public IEnumerable<WebConfig> Webs { get; set; }
+namespace FastTunnel.Core.Models.Massage;
 
-        /// <summary>
-        /// 端口转发隧道列表
-        /// </summary>
-        public IEnumerable<ForwardConfig> Forwards { get; set; }
-    }
+public class LogInMassage : TunnelMassage
+{
+    /// <summary>
+    /// web穿透隧道列表
+    /// </summary>
+    public IEnumerable<WebConfig> Webs { get; set; }
+
+    /// <summary>
+    /// 端口转发隧道列表
+    /// </summary>
+    public IEnumerable<ForwardConfig> Forwards { get; set; }
 }

@@ -4,19 +4,13 @@
 //     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
 // Copyright (c) 2019 Gui.H
 
-using FastTunnel.Core.Config;
-using FastTunnel.Core.Client;
-using FastTunnel.Core.Models;
-using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Threading.Tasks;
 using System.Threading;
+using System.Threading.Tasks;
+using FastTunnel.Core.Client;
 
-namespace FastTunnel.Core.Handlers.Client
+namespace FastTunnel.Core.Handlers.Client;
+
+public interface IClientHandler
 {
-    public interface IClientHandler
-    {
-        Task HandlerMsgAsync(FastTunnelClient cleint, string msg, CancellationToken cancellationToken);
-    }
+    Task HandlerMsgAsync(FastTunnelClient cleint, string msg, CancellationToken cancellationToken);
 }

@@ -6,22 +6,18 @@
 
 using System;
 using System.Buffers;
-using System.Collections.Generic;
-using System.IO.Pipelines;
-using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using FastTunnel.Core.Client;
 using Microsoft.AspNetCore.Connections;
-using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.Extensions.Logging;
 
 namespace FastTunnel.Core.Forwarder.Kestrel;
 internal class ClientConnectionMiddleware
 {
-    readonly ConnectionDelegate next;
-    readonly ILogger<ClientConnectionMiddleware> logger;
-    FastTunnelServer fastTunnelServer;
+    private readonly ConnectionDelegate next;
+    private readonly ILogger<ClientConnectionMiddleware> logger;
+    private readonly FastTunnelServer fastTunnelServer;
 
     public ClientConnectionMiddleware(ConnectionDelegate next, ILogger<ClientConnectionMiddleware> logger, FastTunnelServer fastTunnelServer)
     {
@@ -43,7 +39,7 @@ internal class ClientConnectionMiddleware
     /// </summary>
     /// <param name="context"></param>
     /// <returns>is for FastTunnel</returns>
-    async Task<bool> ReadPipeAsync(ConnectionContext context)
+    private async Task<bool> ReadPipeAsync(ConnectionContext context)
     {
         var reader = context.Transport.Input;
 

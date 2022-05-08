@@ -6,13 +6,12 @@
 
 using System;
 
-namespace FastTunnel.Core.Exceptions
+namespace FastTunnel.Core.Exceptions;
+
+public class ClienOffLineException : Exception
 {
-    public class ClienOffLineException : Exception
+    public ClienOffLineException(string message)
+        : base(message)
     {
-        public ClienOffLineException(string message)
-            : base(message)
-        {
-        }
     }
 }

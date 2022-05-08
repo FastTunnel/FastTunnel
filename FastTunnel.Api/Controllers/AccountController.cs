@@ -6,7 +6,6 @@
 
 using FastTunnel.Api.Models;
 using FastTunnel.Core.Config;
-using FastTunnel.Server.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;

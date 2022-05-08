@@ -5,16 +5,13 @@
 // Copyright (c) 2019 Gui.H
 
 using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace FastTunnel.Core.Exceptions
+namespace FastTunnel.Core.Exceptions;
+
+public class APIErrorException : Exception
 {
-    public class APIErrorException : Exception
+    public APIErrorException(string message)
+        : base(message)
     {
-        public APIErrorException(string message)
-            : base(message)
-        {
-        }
     }
 }

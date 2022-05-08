@@ -4,17 +4,13 @@
 //     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
 // Copyright (c) 2019 Gui.H
 
-using System;
-using System.Collections.Generic;
 using System.Net.Sockets;
-using System.Text;
 
-namespace FastTunnel.Core.Models
+namespace FastTunnel.Core.Models;
+
+public class ForwardHandlerArg
 {
-    public class ForwardHandlerArg
-    {
-        public ForwardConfig SSHConfig { get; set; }
+    public ForwardConfig SSHConfig { get; set; }
 
-        public Socket LocalClient { get; set; }
-    }
+    public Socket LocalClient { get; set; }
 }

@@ -1,4 +1,4 @@
-﻿// Licensed under the Apache License, Version 2.0 (the "License").
+// Licensed under the Apache License, Version 2.0 (the "License").
 // You may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
@@ -6,12 +6,11 @@
 
 using System.Threading;
 
-namespace FastTunnel.Core.Client
-{
-    public interface IFastTunnelClient
-    {
-        void StartAsync(CancellationToken cancellationToken);
+namespace FastTunnel.Core.Client;
 
-        void Stop(CancellationToken cancellationToken);
-    }
+public interface IFastTunnelClient
+{
+    void StartAsync(CancellationToken cancellationToken);
+
+    void Stop(CancellationToken cancellationToken);
 }

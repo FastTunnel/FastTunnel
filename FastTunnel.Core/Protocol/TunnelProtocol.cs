@@ -4,41 +4,40 @@
 //     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
 // Copyright (c) 2019 Gui.H
 
-using FastTunnel.Core.Extensions;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using FastTunnel.Core.Extensions;
 
-namespace FastTunnel.Core.Protocol
+namespace FastTunnel.Core.Protocol;
+
+public class TunnelProtocol
 {
-    public class TunnelProtocol
+    private string massgeTemp;
+    private readonly string m_sectionFlag = "\n";
+
+    public IEnumerable<string> HandleBuffer(byte[] buffer, int offset, int count)
     {
-        string massgeTemp;
-        string m_sectionFlag = "\n";
+        var words = buffer.GetString(offset, count);
+        var sum = massgeTemp + words;
 
-        public IEnumerable<string> HandleBuffer(byte[] buffer, int offset, int count)
+        if (sum.Contains(m_sectionFlag))
         {
-            var words = buffer.GetString(offset, count);
-            var sum = massgeTemp + words;
+            var array = (sum).Split(m_sectionFlag);
+            massgeTemp = null;
+            var fullMsg = words.EndsWith(m_sectionFlag);
 
-            if (sum.Contains(m_sectionFlag))
+            if (!fullMsg)
             {
-                var array = (sum).Split(m_sectionFlag);
-                massgeTemp = null;
-                var fullMsg = words.EndsWith(m_sectionFlag);
-
-                if (!fullMsg)
-                {
-                    massgeTemp = array[array.Length - 1];
-                }
-
-                return array.Take(array.Length - 1);
+                massgeTemp = array[array.Length - 1];
             }
-            else
-            {
-                massgeTemp = sum;
-                return null;
-            }
+
+            return array.Take(array.Length - 1);
+        }
+        else
+        {
+            massgeTemp = sum;
+            return null;
         }
     }
 }

@@ -4,24 +4,19 @@
 //     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
 // Copyright (c) 2019 Gui.H
 
-using System;
-using System.Collections.Generic;
-using System.Text;
+namespace FastTunnel.Core.Models;
 
-namespace FastTunnel.Core.Models
+public struct Message<T>
 {
-    public struct Message<T>
-    {
-        public MessageType MessageType { get; set; }
+    public MessageType MessageType { get; set; }
 
-        public T Content { get; set; }
-    }
+    public T Content { get; set; }
+}
 
-    public enum MessageType : byte
-    {
-        LogIn = 1, // client
-        SwapMsg = 2,
-        Forward = 3,
-        Log = 4,
-    }
+public enum MessageType : byte
+{
+    LogIn = 1, // client
+    SwapMsg = 2,
+    Forward = 3,
+    Log = 4,
 }

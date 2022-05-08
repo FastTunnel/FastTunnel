@@ -8,7 +8,6 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.IO.Pipelines;
-using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using FastTunnel.Core.Client;
@@ -20,9 +19,9 @@ using Microsoft.Extensions.Logging;
 namespace FastTunnel.Core.Forwarder.Kestrel;
 internal class FastTunnelConnectionContext : ConnectionContext
 {
-    private ConnectionContext _inner;
-    FastTunnelServer fastTunnelServer;
-    ILogger _logger;
+    private readonly ConnectionContext _inner;
+    private readonly FastTunnelServer fastTunnelServer;
+    private readonly ILogger _logger;
 
     public FastTunnelConnectionContext(ConnectionContext context, FastTunnelServer fastTunnelServer, ILogger logger)
     {
@@ -48,7 +47,7 @@ internal class FastTunnelConnectionContext : ConnectionContext
         return _inner.DisposeAsync();
     }
 
-    ReadOnlySequence<byte> readableBuffer;
+    private readonly ReadOnlySequence<byte> readableBuffer;
 
     /// <summary>
     /// 解析FastTunnel协议
@@ -106,9 +105,8 @@ internal class FastTunnelConnectionContext : ConnectionContext
     public string Method;
     public string Host = null;
     public string MessageId;
-
-    bool complete = false;
-    bool isFirstLine = true;
+    private bool complete = false;
+    private bool isFirstLine = true;
 
     /// <summary>
     ///
@@ -154,7 +152,7 @@ internal class FastTunnelConnectionContext : ConnectionContext
                 if (Method != "PROXY")
                 {
                     // 匹配Host，
-                    if (fastTunnelServer.TryGetWebProxyByHost(Host, out WebInfo web))
+                    if (fastTunnelServer.TryGetWebProxyByHost(Host, out var web))
                     {
                         MatchWeb = web;
                     }

@@ -4,8 +4,8 @@
 //     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
 // Copyright (c) 2019 Gui.H
 
+using FastTunnel.Api.Models;
 using FastTunnel.Core.Client;
-using FastTunnel.Server.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;

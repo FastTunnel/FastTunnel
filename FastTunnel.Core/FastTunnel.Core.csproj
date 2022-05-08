@@ -1,43 +1,46 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-	<PropertyGroup>
-		<TargetFrameworks>net6.0</TargetFrameworks>
-		<Version>2.1.0</Version>
-		<PackageProjectUrl>https://github.com/SpringHgui/FastTunnel</PackageProjectUrl>
-		<PackageLicenseExpression>MIT</PackageLicenseExpression>
-		<Copyright>FastTunnel</Copyright>
-		<Description>expose a local server behind a NAT or firewall to the internet like ngrok and frp</Description>
-		<Authors>Gui.H</Authors>
-		<Company>FastTunnel</Company>
-		<Product>FastTunnel</Product>
-		<PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-		<RepositoryUrl>https://github.com/SpringHgui/FastTunnel</RepositoryUrl>
-		<RepositoryType>git</RepositoryType>
-		<PackageTags>FastTunnel.Core</PackageTags>
-		<GenerateDocumentationFile>true</GenerateDocumentationFile>
-		<PackageReleaseNotes>FastTunnel.Core</PackageReleaseNotes>
-	</PropertyGroup>
+  <PropertyGroup>
+    <TargetFrameworks>net6.0</TargetFrameworks>
+    <Version>2.1.0</Version>
+    <PackageProjectUrl>https://github.com/SpringHgui/FastTunnel</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Copyright>FastTunnel</Copyright>
+    <Description>expose a local server behind a NAT or firewall to the internet like ngrok and frp</Description>
+    <Authors>Gui.H</Authors>
+    <Company>FastTunnel</Company>
+    <Product>FastTunnel</Product>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <RepositoryUrl>https://github.com/SpringHgui/FastTunnel</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>FastTunnel.Core</PackageTags>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageReleaseNotes>FastTunnel.Core</PackageReleaseNotes>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Abstractions" Version="2.2.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel.Core" Version="2.2.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.0-preview.3.22175.4" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="7.0.0-preview.3.22175.4" />
+  </ItemGroup>
 
-	<ItemGroup>
-		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.0-preview.3.22175.4" />
-		<PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="7.0.0-preview.3.22175.4" />
-		<PackageReference Include="Yarp.ReverseProxy" Version="1.1.0-rc.1.22211.2" />
-	</ItemGroup>
+  <ItemGroup>
+    <Compile Update="TunnelResource.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>TunnelResource.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
 
-	<ItemGroup>
-		<Compile Update="TunnelResource.Designer.cs">
-			<DesignTime>True</DesignTime>
-			<AutoGen>True</AutoGen>
-			<DependentUpon>TunnelResource.resx</DependentUpon>
-		</Compile>
-	</ItemGroup>
-
-	<ItemGroup>
-		<EmbeddedResource Update="TunnelResource.resx">
-			<Generator>PublicResXFileCodeGenerator</Generator>
-			<LastGenOutput>TunnelResource.Designer.cs</LastGenOutput>
-		</EmbeddedResource>
-	</ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Update="TunnelResource.resx">
+      <Generator>PublicResXFileCodeGenerator</Generator>
+      <LastGenOutput>TunnelResource.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
 
 </Project>

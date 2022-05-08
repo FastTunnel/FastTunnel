@@ -4,7 +4,7 @@
 //     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
 // Copyright (c) 2019 Gui.H
 
-namespace FastTunnel.Server.Models
+namespace FastTunnel.Api.Models
 {
     public class ApiResponse
     {

@@ -6,10 +6,7 @@
 
 using System;
 using System.Buffers;
-using System.Collections.Generic;
 using System.IO;
-using System.IO.Pipelines;
-using System.Linq;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading.Tasks;
@@ -25,9 +22,9 @@ namespace FastTunnel.Core.Forwarder.Kestrel;
 
 internal class SwapConnectionMiddleware
 {
-    readonly ConnectionDelegate next;
-    readonly ILogger<SwapConnectionMiddleware> logger;
-    FastTunnelServer fastTunnelServer;
+    private readonly ConnectionDelegate next;
+    private readonly ILogger<SwapConnectionMiddleware> logger;
+    private readonly FastTunnelServer fastTunnelServer;
 
     public SwapConnectionMiddleware(ConnectionDelegate next, ILogger<SwapConnectionMiddleware> logger, FastTunnelServer fastTunnelServer)
     {
