@@ -17,5 +17,11 @@ namespace FastTunnel.Core.Models
         public WebSocket Socket { get; set; }
 
         public WebConfig WebConfig { get; set; }
+
+        internal void LogOut()
+        {
+            // TODO:退出登录
+            throw new NotImplementedException();
+        }
     }
 }

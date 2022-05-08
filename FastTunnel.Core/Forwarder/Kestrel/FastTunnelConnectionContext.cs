@@ -11,6 +11,8 @@ using System.IO.Pipelines;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using FastTunnel.Core.Client;
+using FastTunnel.Core.Models;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Logging;
@@ -19,10 +21,12 @@ namespace FastTunnel.Core.Forwarder.Kestrel;
 internal class FastTunnelConnectionContext : ConnectionContext
 {
     private ConnectionContext _inner;
+    FastTunnelServer fastTunnelServer;
     ILogger _logger;
 
-    public FastTunnelConnectionContext(ConnectionContext context, ILogger logger)
+    public FastTunnelConnectionContext(ConnectionContext context, FastTunnelServer fastTunnelServer, ILogger logger)
     {
+        this.fastTunnelServer = fastTunnelServer;
         this._inner = context;
         this._logger = logger;
     }
@@ -34,6 +38,10 @@ internal class FastTunnelConnectionContext : ConnectionContext
     public override IFeatureCollection Features => _inner.Features;
 
     public override IDictionary<object, object> Items { get => _inner.Items; set => _inner.Items = value; }
+
+    public bool IsFastTunnel => Method == "PROXY" || MatchWeb != null;
+
+    public WebInfo MatchWeb { get; private set; }
 
     public override ValueTask DisposeAsync()
     {
@@ -49,45 +57,45 @@ internal class FastTunnelConnectionContext : ConnectionContext
     internal async Task<bool> TryAnalysisPipeAsync()
     {
         var reader = Transport.Input;
+
+        ReadResult result;
+        ReadOnlySequence<byte> readableBuffer;
+
         while (true)
         {
-            var result = await reader.ReadAsync();
-            readableBuffer = result.Buffer;
-            SequencePosition? position = null;
+            result = await reader.ReadAsync();
+            var tempBuffer = readableBuffer = result.Buffer;
 
-            var start = readableBuffer.Start;
+            SequencePosition? position = null;
 
             do
             {
-                position = readableBuffer.PositionOf((byte)'\n');
+                position = tempBuffer.PositionOf((byte)'\n');
 
                 if (position != null)
                 {
-                    ProcessLine(readableBuffer.Slice(0, position.Value));
-                    if (HeaderEnd)
+                    if (ProcessLine(tempBuffer.Slice(0, position.Value)))
                     {
-                        if (Method == "SWAP")
+                        if (Method == "PROXY")
                         {
-                            reader.AdvanceTo(readableBuffer.End, readableBuffer.End);
+                            reader.AdvanceTo(position.Value, position.Value);
                         }
                         else
                         {
-                            reader.AdvanceTo(start, start);
+                            reader.AdvanceTo(readableBuffer.Start, readableBuffer.Start);
                         }
 
                         return false;
                     }
 
-                    // 剔除已处理的行 +\n
-                    readableBuffer = readableBuffer.Slice(readableBuffer.GetPosition(1, position.Value));
+                    tempBuffer = tempBuffer.Slice(readableBuffer.GetPosition(1, position.Value));
                 }
             }
-            while (position != null);
-
-            reader.AdvanceTo(start, start);
+            while (position != null && !readableBuffer.IsEmpty);
 
             if (result.IsCompleted)
             {
+                reader.AdvanceTo(readableBuffer.End, readableBuffer.End);
                 break;
             }
         }
@@ -99,7 +107,7 @@ internal class FastTunnelConnectionContext : ConnectionContext
     public string Host = null;
     public string MessageId;
 
-    bool HeaderEnd = false;
+    bool complete = false;
     bool isFirstLine = true;
 
     /// <summary>
@@ -115,20 +123,20 @@ internal class FastTunnelConnectionContext : ConnectionContext
     /// 
     /// </summary>
     /// <param name="readOnlySequence"></param>
-    private void ProcessLine(ReadOnlySequence<byte> readOnlySequence)
+    private bool ProcessLine(ReadOnlySequence<byte> readOnlySequence)
     {
         var lineStr = Encoding.UTF8.GetString(readOnlySequence);
-        Console.WriteLine($"[Handle] {lineStr}");
+        Console.WriteLine($"[HandleLien] {lineStr}");
         if (isFirstLine)
         {
             Method = lineStr.Substring(0, lineStr.IndexOf(" ")).ToUpper();
 
             switch (Method)
             {
-                case "SWAP":
+                case "PROXY":
                     // 客户端发起消息互转
-                    var endIndex = lineStr.IndexOf(" ", 6);
-                    MessageId = lineStr.Substring(6, endIndex - 6);
+                    var endIndex = lineStr.IndexOf(" ", 7);
+                    MessageId = lineStr.Substring(7, endIndex - 7);
                     break;
                 default:
                     // 常规Http请求，需要检查Host决定是否进行代理
@@ -141,13 +149,23 @@ internal class FastTunnelConnectionContext : ConnectionContext
         {
             if (lineStr.Equals("\r"))
             {
-                HeaderEnd = true;
-                return;
+                complete = true;
+
+                if (Method != "PROXY")
+                {
+                    // 匹配Host，
+                    if (fastTunnelServer.TryGetWebProxyByHost(Host, out WebInfo web))
+                    {
+                        MatchWeb = web;
+                    }
+                }
+
+                return true;
             }
 
             switch (Method)
             {
-                case "SWAP":
+                case "PROXY":
                     // 找msgid
 
                     break;
@@ -166,5 +184,7 @@ internal class FastTunnelConnectionContext : ConnectionContext
                     break;
             }
         }
+
+        return false;
     }
 }

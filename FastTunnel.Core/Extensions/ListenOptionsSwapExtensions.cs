@@ -31,7 +31,6 @@ public static class ListenOptionsSwapExtensions
         listenOptions.Use(next => new SwapConnectionMiddleware(next, logger, fastTunnelServer).OnConnectionAsync);
 
         // 登录频率低，放在后面
-        // listenOptions.Use(next => new ClientConnectionMiddleware(next, loggerClient, fastTunnelServer).OnConnectionAsync);
         return listenOptions;
     }
 }

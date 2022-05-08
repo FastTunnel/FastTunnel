@@ -1,4 +1,4 @@
-﻿// Licensed under the Apache License, Version 2.0 (the "License").
+// Licensed under the Apache License, Version 2.0 (the "License").
 // You may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
@@ -66,6 +66,11 @@ namespace FastTunnel.Core.Client
             logger.LogInformation($"客户端关闭  {client.RemoteIpAddress} 当前在线数：{ConnectedClientCount}");
             Clients.Remove(client);
             client.Logout();
+        }
+
+        internal bool TryGetWebProxyByHost(string host, out WebInfo web)
+        {
+           return WebList.TryGetValue(host, out web);
         }
     }
 }

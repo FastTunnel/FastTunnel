@@ -76,8 +76,7 @@ namespace FastTunnel.Core.Handlers.Client
                 serverStream = sslStream;
             }
 
-            var reverse = $"SWAP /{requestId} HTTP/1.1\r\n";
-            //var reverse = $"PROXY /{requestId} HTTP/1.1\r\nHost: {cleint.Server.ServerAddr}:{cleint.Server.ServerPort}\r\n\r\n";
+            var reverse = $"PROXY /{requestId} HTTP/1.1\r\nHost: {cleint.Server.ServerAddr}:{cleint.Server.ServerPort}\r\n\r\n";
 
             var requestMsg = Encoding.UTF8.GetBytes(reverse);
             await serverStream.WriteAsync(requestMsg, cancellationToken);

@@ -31,9 +31,11 @@ internal class HandleHttpConnectionMiddleware
 
     internal async Task OnConnectionAsync(ConnectionContext context)
     {
-        var ftContext = new FastTunnelConnectionContext(context, logger);
-        var fasttunnelHandle = await ftContext.TryAnalysisPipeAsync();
+        logger.LogInformation("=========OnConnectionAsync===========");
+        var ftContext = new FastTunnelConnectionContext(context, fastTunnelServer, logger);
+        await ftContext.TryAnalysisPipeAsync();
 
-        await next(ftContext);
+        logger.LogInformation("=========TryAnalysisPipeAsync END===========");
+        await next(ftContext.IsFastTunnel ? ftContext : context);
     }
 }
