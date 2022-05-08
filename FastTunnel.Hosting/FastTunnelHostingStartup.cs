@@ -24,7 +24,7 @@ public class FastTunnelHostingStartup : IHostingStartup
 
         builder.UseKestrel((context, options) =>
         {
-            var basePort = context.Configuration.GetValue<int?>("FastTunnel:BASE_PORT") ?? 1270;
+            var basePort = context.Configuration.GetValue<int?>("FastTunnel:BasePort") ?? 1270;
             options.ListenAnyIP(basePort, listenOptions =>
             {
                 listenOptions.UseConnectionFastTunnel();
