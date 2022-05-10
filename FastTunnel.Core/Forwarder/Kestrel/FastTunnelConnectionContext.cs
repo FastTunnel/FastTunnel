@@ -11,6 +11,7 @@ using System.IO.Pipelines;
 using System.Text;
 using System.Threading.Tasks;
 using FastTunnel.Core.Models;
+using FastTunnel.Core.Protocol;
 using FastTunnel.Core.Server;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Http.Features;

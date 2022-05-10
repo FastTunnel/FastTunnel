@@ -13,6 +13,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FastTunnel.Core.Extensions;
+using FastTunnel.Core.Forwarder.Kestrel.MiddleWare;
 
 namespace FastTunnel.Core.Forwarder.MiddleWare;
 

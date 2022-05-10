@@ -15,6 +15,7 @@ using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Forwarder.Kestrel;
 using FastTunnel.Core.Forwarder.MiddleWare;
 using FastTunnel.Core.Models.Massage;
+using FastTunnel.Core.Protocol;
 using FastTunnel.Core.Server;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Connections.Features;
