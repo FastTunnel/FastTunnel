@@ -12,8 +12,8 @@ using System.Threading.Tasks;
 using FastTunnel.Core.Config;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Handlers.Client;
-using FastTunnel.Core.Models;
 using FastTunnel.Core.Models.Massage;
+using FastTunnel.Core.Protocol;
 using FastTunnel.Core.Utilitys;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -80,8 +80,8 @@ public class FastTunnelClient : IFastTunnelClient
             // 连接到的目标IP
             socket = new ClientWebSocket();
             socket.Options.RemoteCertificateValidationCallback = delegate { return true; };
-            socket.Options.SetRequestHeader(FastTunnelConst.FASTTUNNEL_VERSION, AssemblyUtility.GetVersion().ToString());
-            socket.Options.SetRequestHeader(FastTunnelConst.FASTTUNNEL_TOKEN, ClientConfig.Token);
+            socket.Options.SetRequestHeader(ProtocolConst.FASTTUNNEL_VERSION, AssemblyUtility.GetVersion().ToString());
+            socket.Options.SetRequestHeader(ProtocolConst.FASTTUNNEL_TOKEN, ClientConfig.Token);
 
             _logger.LogInformation($"正在连接服务端 {Server.ServerAddr}:{Server.ServerPort}");
             await socket.ConnectAsync(
@@ -110,7 +110,7 @@ public class FastTunnelClient : IFastTunnelClient
 
     private async Task ReceiveServerAsync(CancellationToken cancellationToken)
     {
-        var buffer = new byte[FastTunnelConst.MAX_CMD_LENGTH];
+        var buffer = new byte[ProtocolConst.MAX_CMD_LENGTH];
         while (!cancellationToken.IsCancellationRequested)
         {
             var res = await socket.ReceiveAsync(buffer, cancellationToken);
@@ -144,7 +144,7 @@ public class FastTunnelClient : IFastTunnelClient
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex);
+            _logger.LogError(ex, "HandleServerRequest Error");
         }
     }
 

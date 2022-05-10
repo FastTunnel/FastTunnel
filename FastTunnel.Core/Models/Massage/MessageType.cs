@@ -4,15 +4,13 @@
 //     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
 // Copyright (c) 2019 Gui.H
 
-using System;
-using Microsoft.Extensions.Logging;
+namespace FastTunnel.Core.Models.Massage;
 
-namespace FastTunnel.Core.Extensions;
 
-public static class LoggerExtentions
+public enum MessageType : byte
 {
-    public static void LogError(this ILogger logger, Exception ex)
-    {
-        logger.LogError(ex, string.Empty);
-    }
+    LogIn = 1, // client
+    SwapMsg = 2,
+    Forward = 3,
+    Log = 4,
 }

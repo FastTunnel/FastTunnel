@@ -9,7 +9,7 @@ using FastTunnel.Core.Config;
 using FastTunnel.Core.Forwarder.MiddleWare;
 using FastTunnel.Core.Handlers.Client;
 using FastTunnel.Core.Handlers.Server;
-using FastTunnel.Core.Services;
+using FastTunnel.Core.Server;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -46,7 +46,6 @@ public static class ServicesExtensions
         services.Configure<DefaultServerConfig>(configurationSection)
             .AddTransient<ILoginHandler, LoginHandler>()
             .AddSingleton<FastTunnelClientHandler>()
-            .AddSingleton<FastTunnelSwapHandler>()
             .AddSingleton<FastTunnelServer>();
     }
 

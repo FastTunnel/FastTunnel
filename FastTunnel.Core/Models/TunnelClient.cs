@@ -10,9 +10,9 @@ using System.Net;
 using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
-using FastTunnel.Core.Client;
 using FastTunnel.Core.Handlers.Server;
 using FastTunnel.Core.Protocol;
+using FastTunnel.Core.Server;
 
 namespace FastTunnel.Core.Models;
 
@@ -53,7 +53,7 @@ public class TunnelClient
 
     public async Task ReviceAsync(CancellationToken cancellationToken)
     {
-        var buffer = new byte[FastTunnelConst.MAX_CMD_LENGTH];
+        var buffer = new byte[ProtocolConst.MAX_CMD_LENGTH];
         var tunnelProtocol = new TunnelProtocol();
 
         while (true)
@@ -71,6 +71,7 @@ public class TunnelClient
             }
         }
     }
+
     private async Task<bool> HandleCmdAsync(TunnelClient tunnelClient, string lineCmd)
     {
         try

@@ -6,7 +6,7 @@
 
 using System.Net.WebSockets;
 using System.Threading.Tasks;
-using FastTunnel.Core.Client;
+using FastTunnel.Core.Server;
 
 namespace FastTunnel.Core.Handlers.Server;
 

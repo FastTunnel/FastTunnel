@@ -15,7 +15,7 @@ using FastTunnel.Core.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace FastTunnel.Core.Client;
+namespace FastTunnel.Core.Server;
 
 public class FastTunnelServer
 {
@@ -38,7 +38,7 @@ public class FastTunnelServer
     public FastTunnelServer(ILogger<FastTunnelServer> logger, IOptionsMonitor<DefaultServerConfig> serverSettings)
     {
         this.logger = logger;
-        this.ServerOption = serverSettings;
+        ServerOption = serverSettings;
     }
 
     /// <summary>

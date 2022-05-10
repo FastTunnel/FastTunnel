@@ -8,10 +8,12 @@ using System;
 using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
-using FastTunnel.Core.Client;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Handlers.Server;
 using FastTunnel.Core.Models;
+using FastTunnel.Core.Models.Massage;
+using FastTunnel.Core.Protocol;
+using FastTunnel.Core.Server;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
@@ -38,7 +40,7 @@ public class FastTunnelClientHandler
     {
         try
         {
-            if (!context.WebSockets.IsWebSocketRequest || !context.Request.Headers.TryGetValue(FastTunnelConst.FASTTUNNEL_VERSION, out var version))
+            if (!context.WebSockets.IsWebSocketRequest || !context.Request.Headers.TryGetValue(ProtocolConst.FASTTUNNEL_VERSION, out var version))
             {
                 await next();
                 return;
@@ -48,7 +50,7 @@ public class FastTunnelClientHandler
         }
         catch (Exception ex)
         {
-            logger.LogError(ex);
+            logger.LogError(ex, "处理登录异常");
         }
     }
 
@@ -103,7 +105,7 @@ public class FastTunnelClientHandler
             return true;
 
         // 客户端未携带token，登录失败
-        if (!context.Request.Headers.TryGetValue(FastTunnelConst.FASTTUNNEL_TOKEN, out var token))
+        if (!context.Request.Headers.TryGetValue(ProtocolConst.FASTTUNNEL_TOKEN, out var token))
             return false;
 
         if (fastTunnelServer.ServerOption.CurrentValue.Tokens?.Contains(token) ?? false)

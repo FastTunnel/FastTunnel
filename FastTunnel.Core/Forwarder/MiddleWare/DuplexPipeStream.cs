@@ -9,6 +9,7 @@ using System.Buffers;
 using System.IO;
 using System.IO.Pipelines;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FastTunnel.Core.Extensions;
@@ -139,6 +140,7 @@ internal class DuplexPipeStream : Stream
                     // buffer.Count is int
                     var count = (int)Math.Min(readableBuffer.Length, destination.Length);
                     readableBuffer = readableBuffer.Slice(0, count);
+                    Console.WriteLine($"[{this.GetHashCode()}读取]{Encoding.UTF8.GetString(readableBuffer)}");
                     readableBuffer.CopyTo(destination.Span);
                     return count;
                 }

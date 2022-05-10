@@ -5,7 +5,7 @@
 // Copyright (c) 2019 Gui.H
 
 using FastTunnel.Api.Models;
-using FastTunnel.Core.Client;
+using FastTunnel.Core.Server;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;

@@ -5,19 +5,23 @@
 // Copyright (c) 2019 Gui.H
 
 using System.Threading.Tasks;
-using FastTunnel.Core.Client;
+using FastTunnel.Core.Forwarder.Kestrel;
+using FastTunnel.Core.Server;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.Extensions.Logging;
 
-namespace FastTunnel.Core.Forwarder.Kestrel;
+namespace FastTunnel.Core.Forwarder.Kestrel.MiddleWare;
 
-internal class HandleHttpConnectionMiddleware
+/// <summary>
+/// 预处理中间件
+/// </summary>
+internal class FastTunnelConnectionMiddleware
 {
     private readonly ConnectionDelegate next;
-    private readonly ILogger<HandleHttpConnectionMiddleware> logger;
+    private readonly ILogger<FastTunnelConnectionMiddleware> logger;
     private readonly FastTunnelServer fastTunnelServer;
 
-    public HandleHttpConnectionMiddleware(ConnectionDelegate next, ILogger<HandleHttpConnectionMiddleware> logger, FastTunnelServer fastTunnelServer)
+    public FastTunnelConnectionMiddleware(ConnectionDelegate next, ILogger<FastTunnelConnectionMiddleware> logger, FastTunnelServer fastTunnelServer)
     {
         this.next = next;
         this.logger = logger;

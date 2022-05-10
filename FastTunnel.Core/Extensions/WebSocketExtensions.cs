@@ -10,7 +10,8 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FastTunnel.Core.Exceptions;
-using FastTunnel.Core.Models;
+using FastTunnel.Core.Models.Massage;
+using FastTunnel.Core.Protocol;
 
 namespace FastTunnel.Core.Extensions;
 
@@ -24,7 +25,7 @@ public static class WebSocketExtensions
         }
 
         var buffer = Encoding.UTF8.GetBytes($"{(char)type}{content}\n");
-        if (type != MessageType.LogIn && buffer.Length > FastTunnelConst.MAX_CMD_LENGTH)
+        if (type != MessageType.LogIn && buffer.Length > ProtocolConst.MAX_CMD_LENGTH)
             throw new ArgumentOutOfRangeException(nameof(content));
 
         await socket.SendAsync(buffer, WebSocketMessageType.Binary, false, cancellationToken);

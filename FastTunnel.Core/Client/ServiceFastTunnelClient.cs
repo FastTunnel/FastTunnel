@@ -7,11 +7,10 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using FastTunnel.Core.Client;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace FastTunnel.Core.Services;
+namespace FastTunnel.Core.Client;
 
 public class ServiceFastTunnelClient : IHostedService
 {

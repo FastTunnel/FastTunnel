@@ -18,6 +18,5 @@ public class WebInfo
     internal void LogOut()
     {
         // TODO:退出登录
-        throw new NotImplementedException();
     }
 }

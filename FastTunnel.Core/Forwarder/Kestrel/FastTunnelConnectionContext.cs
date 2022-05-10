@@ -10,8 +10,8 @@ using System.Collections.Generic;
 using System.IO.Pipelines;
 using System.Text;
 using System.Threading.Tasks;
-using FastTunnel.Core.Client;
 using FastTunnel.Core.Models;
+using FastTunnel.Core.Server;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Logging;
@@ -38,7 +38,7 @@ internal class FastTunnelConnectionContext : ConnectionContext
 
     public override IDictionary<object, object> Items { get => _inner.Items; set => _inner.Items = value; }
 
-    public bool IsFastTunnel => Method == "PROXY" || MatchWeb != null;
+    public bool IsFastTunnel => Method == ProtocolConst.HTTP_METHOD_SWAP || MatchWeb != null;
 
     public WebInfo MatchWeb { get; private set; }
 
@@ -47,13 +47,10 @@ internal class FastTunnelConnectionContext : ConnectionContext
         return _inner.DisposeAsync();
     }
 
-    private readonly ReadOnlySequence<byte> readableBuffer;
-
     /// <summary>
     /// 解析FastTunnel协议
     /// </summary>
-    /// <returns>is for FastTunnel</returns>
-    internal async Task<bool> TryAnalysisPipeAsync()
+    internal async Task TryAnalysisPipeAsync()
     {
         var reader = Transport.Input;
 
@@ -73,21 +70,22 @@ internal class FastTunnelConnectionContext : ConnectionContext
 
                 if (position != null)
                 {
+                    var readedPosition = readableBuffer.GetPosition(1, position.Value);
                     if (ProcessLine(tempBuffer.Slice(0, position.Value)))
                     {
-                        if (Method == "PROXY")
+                        if (Method == ProtocolConst.HTTP_METHOD_SWAP)
                         {
-                            reader.AdvanceTo(position.Value, position.Value);
+                            reader.AdvanceTo(readedPosition, readedPosition);
                         }
                         else
                         {
                             reader.AdvanceTo(readableBuffer.Start, readableBuffer.Start);
                         }
 
-                        return false;
+                        return;
                     }
 
-                    tempBuffer = tempBuffer.Slice(readableBuffer.GetPosition(1, position.Value));
+                    tempBuffer = tempBuffer.Slice(readedPosition);
                 }
             }
             while (position != null && !readableBuffer.IsEmpty);
@@ -99,14 +97,15 @@ internal class FastTunnelConnectionContext : ConnectionContext
             }
         }
 
-        return false;
+        return;
     }
 
     public string Method;
     public string Host = null;
     public string MessageId;
-    private bool complete = false;
     private bool isFirstLine = true;
+
+    public IList<string> HasReadLInes { get; private set; } = new List<string>();
 
     /// <summary>
     ///
@@ -121,17 +120,19 @@ internal class FastTunnelConnectionContext : ConnectionContext
     /// 
     /// </summary>
     /// <param name="readOnlySequence"></param>
+    /// <returns>Header读取完毕？</returns>
     private bool ProcessLine(ReadOnlySequence<byte> readOnlySequence)
     {
         var lineStr = Encoding.UTF8.GetString(readOnlySequence);
-        Console.WriteLine($"[HandleLien] {lineStr}");
+        HasReadLInes.Add(lineStr);
+
         if (isFirstLine)
         {
             Method = lineStr.Substring(0, lineStr.IndexOf(" ")).ToUpper();
 
             switch (Method)
             {
-                case "PROXY":
+                case ProtocolConst.HTTP_METHOD_SWAP:
                     // 客户端发起消息互转
                     var endIndex = lineStr.IndexOf(" ", 7);
                     MessageId = lineStr.Substring(7, endIndex - 7);
@@ -147,9 +148,11 @@ internal class FastTunnelConnectionContext : ConnectionContext
         {
             if (lineStr.Equals("\r"))
             {
-                complete = true;
-
-                if (Method != "PROXY")
+                if (Method == ProtocolConst.HTTP_METHOD_SWAP)
+                {
+                    // do nothing
+                }
+                else
                 {
                     // 匹配Host，
                     if (fastTunnelServer.TryGetWebProxyByHost(Host, out var web))
@@ -163,9 +166,8 @@ internal class FastTunnelConnectionContext : ConnectionContext
 
             switch (Method)
             {
-                case "PROXY":
-                    // 找msgid
-
+                case ProtocolConst.HTTP_METHOD_SWAP:
+                    // do nothing
                     break;
                 default:
                     // 检查Host决定是否进行代理

@@ -10,16 +10,21 @@ using System.IO;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading.Tasks;
-using FastTunnel.Core.Client;
+using FastTunnel.Core.Exceptions;
 using FastTunnel.Core.Extensions;
+using FastTunnel.Core.Forwarder.Kestrel;
 using FastTunnel.Core.Forwarder.MiddleWare;
-using FastTunnel.Core.Models;
+using FastTunnel.Core.Models.Massage;
+using FastTunnel.Core.Server;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.Extensions.Logging;
 
-namespace FastTunnel.Core.Forwarder.Kestrel;
+namespace FastTunnel.Core.Forwarder.Kestrel.MiddleWare;
 
+/// <summary>
+/// 核心逻辑处理中间件
+/// </summary>
 internal class SwapConnectionMiddleware
 {
     private readonly ConnectionDelegate next;
@@ -38,7 +43,7 @@ internal class SwapConnectionMiddleware
         var ctx = context as FastTunnelConnectionContext;
         if (ctx != null && ctx.IsFastTunnel)
         {
-            if (ctx.Method == "PROXY")
+            if (ctx.Method == ProtocolConst.HTTP_METHOD_SWAP)
             {
                 await doSwap(ctx);
             }
@@ -50,8 +55,6 @@ internal class SwapConnectionMiddleware
             {
                 throw new NotSupportedException();
             }
-
-
         }
         else
         {
@@ -82,7 +85,7 @@ internal class SwapConnectionMiddleware
                 web.LogOut();
 
                 // 通讯异常，返回客户端离线
-                throw new Exception("客户端离线");
+                throw new ClienOffLineException("客户端离线");
             }
 
             using var res = await tcs.Task;
@@ -117,52 +120,6 @@ internal class SwapConnectionMiddleware
 
         using var reverseConnection = new DuplexPipeStream(context.Transport.Input, context.Transport.Output, true);
         responseStream.TrySetResult(reverseConnection);
-
-        var lifetime = context.Features.Get<IConnectionLifetimeFeature>();
-
-        var closedAwaiter = new TaskCompletionSource<object>();
-
-        lifetime.ConnectionClosed.Register((task) =>
-        {
-            (task as TaskCompletionSource<object>).SetResult(null);
-        }, closedAwaiter);
-
-        try
-        {
-            await closedAwaiter.Task;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "");
-        }
-        finally
-        {
-            context.Transport.Input.Complete();
-            context.Transport.Output.Complete();
-            logger.LogInformation($"=====================Swap End:{requestId}================== ");
-        }
-    }
-
-    private async Task Swap(ReadOnlySequence<byte> buffer, SequencePosition position, ConnectionContext context)
-    {
-        var firstLineBuffer = buffer.Slice(0, position);
-        var firstLine = Encoding.UTF8.GetString(firstLineBuffer);
-
-        // SWAP /c74eb488a0f54d888e63d85c67428b52 HTTP/1.1
-        var endIndex = firstLine.IndexOf(" ", 6);
-        var requestId = firstLine.Substring(6, endIndex - 6);
-        Console.WriteLine($"[开始进行Swap操作] {requestId}");
-
-        context.Transport.Input.AdvanceTo(buffer.GetPosition(1, position), buffer.GetPosition(1, position));
-
-        if (!fastTunnelServer.ResponseTasks.TryRemove(requestId, out var responseForYarp))
-        {
-            logger.LogError($"[PROXY]:RequestId不存在 {requestId}");
-            return;
-        };
-
-        using var reverseConnection = new DuplexPipeStream(context.Transport.Input, context.Transport.Output, true);
-        responseForYarp.TrySetResult(reverseConnection);
 
         var lifetime = context.Features.Get<IConnectionLifetimeFeature>();
 

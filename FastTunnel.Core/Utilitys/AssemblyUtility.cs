@@ -8,8 +8,15 @@ using System;
 
 namespace FastTunnel.Core.Utilitys;
 
+/// <summary>
+/// Assembly工具集
+/// </summary>
 public static class AssemblyUtility
 {
+    /// <summary>
+    /// 获取版本号
+    /// </summary>
+    /// <returns></returns>
     public static Version GetVersion()
     {
         return System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;

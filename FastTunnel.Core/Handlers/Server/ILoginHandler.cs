@@ -5,8 +5,8 @@
 // Copyright (c) 2019 Gui.H
 
 using System.Threading.Tasks;
-using FastTunnel.Core.Client;
 using FastTunnel.Core.Models;
+using FastTunnel.Core.Server;
 
 namespace FastTunnel.Core.Handlers.Server;
 
