@@ -31,7 +31,7 @@ jobs:
       # Publish
       - name: publish on version change
         id: publish_nuget
-        uses: SpringHgui/publish-nuget@1.0.0
+        uses: SpringHgui/publish-nuget@1.0.1
         with:
           # Filepath of the project to be packaged, relative to root of repository
           PROJECT_FILE_PATH: FastTunnel.Core/FastTunnel.Core.csproj
@@ -50,7 +50,7 @@ jobs:
       # Publish
       - name: publish on version change
         id: publish_nuget
-        uses: SpringHgui/publish-nuget@1.0.0
+        uses: SpringHgui/publish-nuget@1.0.1
         with:
           # Filepath of the project to be packaged, relative to root of repository
           PROJECT_FILE_PATH: FastTunnel.Hosting/FastTunnel.Hosting.csproj
@@ -69,7 +69,7 @@ jobs:
       # Publish
       - name: publish on version change
         id: publish_nuget
-        uses: SpringHgui/publish-nuget@1.0.0
+        uses: SpringHgui/publish-nuget@1.0.1
         with:
           # Filepath of the project to be packaged, relative to root of repository
           PROJECT_FILE_PATH: FastTunnel.Api/FastTunnel.Api.csproj
