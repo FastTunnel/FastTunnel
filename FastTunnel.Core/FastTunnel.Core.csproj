@@ -1,27 +1,19 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
-    <TargetFrameworks>net6.0</TargetFrameworks>
-    <Version>2.1.0</Version>
-    <PackageProjectUrl>https://github.com/SpringHgui/FastTunnel</PackageProjectUrl>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <Copyright>FastTunnel</Copyright>
-    <Description>expose a local server behind a NAT or firewall to the internet like ngrok and frp</Description>
-    <Authors>Gui.H</Authors>
-    <Company>FastTunnel</Company>
-    <Product>FastTunnel</Product>
-    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <RepositoryUrl>https://github.com/SpringHgui/FastTunnel</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
-    <PackageTags>FastTunnel.Core</PackageTags>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <PackageReleaseNotes>FastTunnel.Core</PackageReleaseNotes>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <TargetFrameworks>net5.0;net6.0</TargetFrameworks>
   </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
-  <ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net5.0'">
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Abstractions" Version="2.2.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel.Core" Version="2.2.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="5.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="5.0.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net6.0'">
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Abstractions" Version="2.2.0" />
     <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel.Core" Version="2.2.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.0-preview.3.22175.4" />
@@ -41,6 +33,13 @@
       <Generator>PublicResXFileCodeGenerator</Generator>
       <LastGenOutput>TunnelResource.Designer.cs</LastGenOutput>
     </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
   </ItemGroup>
 
 </Project>

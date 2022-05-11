@@ -116,7 +116,9 @@ internal class DuplexPipeStream : Stream
         return _output.FlushAsync(cancellationToken).GetAsTask();
     }
 
+#if NET6_0_OR_GREATER
     [AsyncMethodBuilder(typeof(PoolingAsyncValueTaskMethodBuilder<>))]
+#endif
     private async ValueTask<int> ReadAsyncInternal(Memory<byte> destination, CancellationToken cancellationToken)
     {
         while (true)
