@@ -8,8 +8,8 @@ EXPOSE 443
 FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
 WORKDIR /src
 COPY ["FastTunnel.Server/FastTunnel.Server.csproj", "FastTunnel.Server/"]
-COPY ["FastTunnel.Core/FastTunnel.Core.csproj", "FastTunnel.Core/"]
 COPY ["FastTunnel.Api/FastTunnel.Api.csproj", "FastTunnel.Api/"]
+COPY ["FastTunnel.Hosting/FastTunnel.Hosting.csproj", "FastTunnel.Hosting/"]
 RUN dotnet restore "FastTunnel.Server/FastTunnel.Server.csproj"
 COPY . .
 WORKDIR "/src/FastTunnel.Server"
