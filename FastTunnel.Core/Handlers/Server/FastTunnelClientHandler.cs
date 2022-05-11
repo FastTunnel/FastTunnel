@@ -9,7 +9,6 @@ using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
 using FastTunnel.Core.Extensions;
-using FastTunnel.Core.Handlers.Server;
 using FastTunnel.Core.Models;
 using FastTunnel.Core.Models.Massage;
 using FastTunnel.Core.Protocol;
@@ -17,7 +16,7 @@ using FastTunnel.Core.Server;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
-namespace FastTunnel.Core.Forwarder.MiddleWare;
+namespace FastTunnel.Core.Handlers.Server;
 
 public class FastTunnelClientHandler
 {

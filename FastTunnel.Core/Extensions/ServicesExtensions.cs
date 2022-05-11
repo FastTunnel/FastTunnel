@@ -6,7 +6,6 @@
 
 using FastTunnel.Core.Client;
 using FastTunnel.Core.Config;
-using FastTunnel.Core.Forwarder.MiddleWare;
 using FastTunnel.Core.Handlers.Client;
 using FastTunnel.Core.Handlers.Server;
 using FastTunnel.Core.Server;

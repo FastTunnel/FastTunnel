@@ -7,6 +7,7 @@
 using System;
 using System.Buffers;
 using System.IO;
+using System.IO.Pipelines;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading.Tasks;
@@ -17,6 +18,7 @@ using FastTunnel.Core.Forwarder.MiddleWare;
 using FastTunnel.Core.Models.Massage;
 using FastTunnel.Core.Protocol;
 using FastTunnel.Core.Server;
+using FastTunnel.Core.Utilitys;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.Extensions.Logging;
@@ -46,11 +48,11 @@ internal class SwapConnectionMiddleware
         {
             if (ctx.Method == ProtocolConst.HTTP_METHOD_SWAP)
             {
-                await doSwap(ctx);
+                await setResponse(ctx);
             }
             else if (ctx.MatchWeb != null)
             {
-                await waitSwap(ctx);
+                await waitResponse(ctx);
             }
             else
             {
@@ -63,16 +65,18 @@ internal class SwapConnectionMiddleware
         }
     }
 
-    private async Task waitSwap(FastTunnelConnectionContext context)
+    private async Task waitResponse(FastTunnelConnectionContext context)
     {
         var requestId = Guid.NewGuid().ToString().Replace("-", "");
         var web = context.MatchWeb;
 
-        TaskCompletionSource<Stream> tcs = new();
+        TaskCompletionSource<IDuplexPipe> tcs = new();
         logger.LogDebug($"[Http]Swap开始 {requestId}|{context.Host}=>{web.WebConfig.LocalIp}:{web.WebConfig.LocalPort}");
         tcs.SetTimeOut(10000, () => { logger.LogDebug($"[Proxy TimeOut]:{requestId}"); });
 
         fastTunnelServer.ResponseTasks.TryAdd(requestId, tcs);
+
+        IDuplexPipe res = null;
 
         try
         {
@@ -89,29 +93,34 @@ internal class SwapConnectionMiddleware
                 throw new ClienOffLineException("客户端离线");
             }
 
-            using var res = await tcs.Task;
-            using var reverseConnection = new DuplexPipeStream(context.Transport.Input, context.Transport.Output, true);
+            var lifetime = context.Features.Get<IConnectionLifetimeFeature>();
 
-            var t1 = res.CopyToAsync(reverseConnection);
-            var t2 = reverseConnection.CopyToAsync(res);
+            res = await tcs.Task;
 
-            await Task.WhenAll(t1, t2);
+            //  using var reverseConnection = new DuplexPipeStream(context.Transport.Input, context.Transport.Output, true);
 
-            logger.LogDebug("[Http]Swap结束");
+            var t1 = res.Input.CopyToAsync(context.Transport.Output, lifetime.ConnectionClosed);
+            var t2 = context.Transport.Input.CopyToAsync(res.Output, lifetime.ConnectionClosed);
+            await Task.WhenAny(t1, t2);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            throw;
+            logger.LogError(ex, "[waitResponse]");
         }
         finally
         {
+            logger.LogInformation("[Http] waitSwap结束");
             fastTunnelServer.ResponseTasks.TryRemove(requestId, out _);
-            context.Transport.Input.Complete();
-            context.Transport.Output.Complete();
+
+            await context.Transport.Input.CompleteAsync();
+            await context.Transport.Output.CompleteAsync();
+
+            await res.Input.CompleteAsync();
+            await res.Output.CompleteAsync();
         }
     }
 
-    private async Task doSwap(FastTunnelConnectionContext context)
+    private async Task setResponse(FastTunnelConnectionContext context)
     {
         var requestId = context.MessageId;
         if (!fastTunnelServer.ResponseTasks.TryRemove(requestId, out var responseStream))
@@ -119,31 +128,26 @@ internal class SwapConnectionMiddleware
             throw new Exception($"[PROXY]:RequestId不存在 {requestId}");
         };
 
-        using var reverseConnection = new DuplexPipeStream(context.Transport.Input, context.Transport.Output, true);
-        responseStream.TrySetResult(reverseConnection);
+        //using var reverseConnection = new DuplexPipeStream(context.Transport.Input, context.Transport.Output, true);
+        responseStream.TrySetResult(context.Transport);
 
         var lifetime = context.Features.Get<IConnectionLifetimeFeature>();
-
         var closedAwaiter = new TaskCompletionSource<object>();
-
-        lifetime.ConnectionClosed.Register((task) =>
-        {
-            (task as TaskCompletionSource<object>).SetResult(null);
-        }, closedAwaiter);
 
         try
         {
-            await closedAwaiter.Task;
+            closedAwaiter.Task.Wait(lifetime.ConnectionClosed);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "");
+            logger.LogError(ex, "[setResponse]");
         }
         finally
         {
-            context.Transport.Input.Complete();
-            context.Transport.Output.Complete();
             logger.LogInformation($"=====================Swap End:{requestId}================== ");
+            await context.Transport.Input.CompleteAsync();
+            await context.Transport.Output.CompleteAsync();
+            context.Abort();
         }
     }
 }

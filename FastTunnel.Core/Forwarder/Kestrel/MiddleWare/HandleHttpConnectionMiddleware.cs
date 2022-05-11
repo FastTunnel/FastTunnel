@@ -35,6 +35,13 @@ internal class FastTunnelConnectionMiddleware
         await ftContext.TryAnalysisPipeAsync();
 
         logger.LogInformation("=========TryAnalysisPipeAsync END===========");
-        await next(ftContext.IsFastTunnel ? ftContext : context);
+        if (ftContext.IsFastTunnel)
+        {
+            await next(ftContext.IsFastTunnel ? ftContext : context);
+        }
+        else
+        {
+            await next(context);
+        }
     }
 }

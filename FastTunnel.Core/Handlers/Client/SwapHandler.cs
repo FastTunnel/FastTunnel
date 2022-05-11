@@ -31,6 +31,7 @@ public class SwapHandler : IClientHandler
         var msgs = msg.Split('|');
         var requestId = msgs[0];
         var address = msgs[1];
+        _logger.LogDebug($"[HandlerMsgAsync] start {requestId}");
 
         try
         {
@@ -40,23 +41,18 @@ public class SwapHandler : IClientHandler
                 var taskX = serverStream.CopyToAsync(localStream, cancellationToken);
                 var taskY = localStream.CopyToAsync(serverStream, cancellationToken);
 
-                try
-                {
-                    await Task.WhenAll(taskX, taskY);
-                }
-                catch (Exception)
-                {
+                await Task.WhenAny(taskX, taskY);
 
-                }
-                finally
-                {
-                    _logger.LogError($"=====================Swap End:{requestId}================== ");
-                }
+                _logger.LogDebug($"[HandlerMsgAsync] success {requestId}");
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, $"Swap error {requestId}");
+        }
+        finally
+        {
+            _logger.LogDebug($"=====================Swap End:{requestId}================== ");
         }
     }
 

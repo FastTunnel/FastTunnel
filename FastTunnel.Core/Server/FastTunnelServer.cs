@@ -8,6 +8,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
 using FastTunnel.Core.Config;
@@ -23,7 +24,7 @@ public class FastTunnelServer
     public readonly IOptionsMonitor<DefaultServerConfig> ServerOption;
     private readonly ILogger<FastTunnelServer> logger;
 
-    public ConcurrentDictionary<string, TaskCompletionSource<Stream>> ResponseTasks { get; } = new();
+    public ConcurrentDictionary<string, TaskCompletionSource<IDuplexPipe>> ResponseTasks { get; } = new();
 
     public ConcurrentDictionary<string, WebInfo> WebList { get; private set; } = new();
 
