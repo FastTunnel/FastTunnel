@@ -62,7 +62,7 @@ jobs:
 
           # Flag to toggle pushing symbols along with nuget package to the server, disabled by default
           # INCLUDE_SYMBOLS: false
-  api:
+  hosting:
     name: publish-hosting
     runs-on: ubuntu-latest
     steps:
