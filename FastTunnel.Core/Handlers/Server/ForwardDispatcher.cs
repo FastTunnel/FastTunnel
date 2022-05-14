@@ -80,7 +80,7 @@ namespace FastTunnel.Core.Dispatchers
                 using (var stream1 = await tcs.Task)
                 using (var stream2 = new NetworkStream(_socket, true) { ReadTimeout = 1000 * 60 * 10 })
                 {
-                    await Task.WhenAll(stream1.CopyToAsync(stream2), stream2.CopyToAsync(stream1));
+                    await Task.WhenAny(stream1.CopyToAsync(stream2), stream2.CopyToAsync(stream1));
                 }
 
                 logger.LogDebug($"[Forward]Swap OK {msgId}");
