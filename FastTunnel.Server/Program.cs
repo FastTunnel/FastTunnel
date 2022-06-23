@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Serilog;
 
 namespace FastTunnel.Server;
 
@@ -20,6 +21,15 @@ public class Program
 
     public static IHostBuilder CreateHostBuilder(string[] args) =>
         Host.CreateDefaultBuilder(args)
+            .UseSerilog((hostBuilderContext, services, loggerConfiguration) =>
+            {
+                var enableFileLog = (bool)(hostBuilderContext.Configuration.GetSection("EnableFileLog")?.Get(typeof(bool)) ?? false);
+                loggerConfiguration.WriteTo.Console();
+                if (enableFileLog)
+                {
+                    loggerConfiguration.WriteTo.File("Logs/log.txt", rollingInterval: RollingInterval.Day, retainedFileCountLimit: 7);
+                }
+            })
             .UseWindowsService()
             .ConfigureWebHost(webHostBuilder =>
             {
@@ -33,15 +43,5 @@ public class Program
             .ConfigureWebHostDefaults(webBuilder =>
             {
                 webBuilder.UseStartup<Startup>();
-            })
-            .ConfigureLogging((HostBuilderContext context, ILoggingBuilder logging) =>
-            {
-                var enableFileLog = (bool)context.Configuration.GetSection("EnableFileLog").Get(typeof(bool));
-                if (enableFileLog)
-                {
-                    logging.ClearProviders();
-                    logging.SetMinimumLevel(LogLevel.Trace);
-                    logging.AddLog4Net();
-                }
             });
 }

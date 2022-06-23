@@ -10,6 +10,7 @@ using System;
 using Microsoft.AspNetCore.Builder;
 using FastTunnel.Core;
 using Microsoft.Extensions.Configuration;
+using Serilog;
 
 namespace FastTunnel.Client;
 
@@ -29,21 +30,20 @@ class Program
 
     public static IHostBuilder CreateHostBuilder(string[] args) =>
         Host.CreateDefaultBuilder(args)
+            .UseSerilog((hostBuilderContext, services, loggerConfiguration) =>
+            {
+                var enableFileLog = (bool)(hostBuilderContext.Configuration.GetSection("EnableFileLog")?.Get(typeof(bool)) ?? false);
+                loggerConfiguration.WriteTo.Console();
+                if (enableFileLog)
+                {
+                    loggerConfiguration.WriteTo.File("Logs/log.txt", rollingInterval: RollingInterval.Day, retainedFileCountLimit: 7);
+                }
+            })
             .UseWindowsService()
             .ConfigureServices((hostContext, services) =>
             {
-                    // -------------------FastTunnel START------------------
-                    services.AddFastTunnelClient(hostContext.Configuration.GetSection("ClientSettings"));
-                    // -------------------FastTunnel EDN--------------------
-                })
-            .ConfigureLogging((HostBuilderContext context, ILoggingBuilder logging) =>
-            {
-                var enableFileLog = (bool)(context.Configuration.GetSection("EnableFileLog")?.Get(typeof(bool)) ?? false);
-                if (enableFileLog)
-                {
-                    logging.ClearProviders();
-                    logging.SetMinimumLevel(LogLevel.Trace);
-                    logging.AddLog4Net();
-                }
+                // -------------------FastTunnel START------------------
+                services.AddFastTunnelClient(hostContext.Configuration.GetSection("ClientSettings"));
+                // -------------------FastTunnel EDN--------------------
             });
 }
