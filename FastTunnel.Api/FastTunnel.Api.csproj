@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<TargetFrameworks>net5.0;net6.0</TargetFrameworks>
+		<TargetFrameworks>net6.0</TargetFrameworks>
 		<Version>1.1.0</Version>
 		<PackageProjectUrl>https://github.com/FastTunnel/FastTunnel/tree/v2/FastTunnel.Api</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/FastTunnel/FastTunnel/tree/v2/FastTunnel.Api</RepositoryUrl>

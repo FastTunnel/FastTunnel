@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019-2022 Gui.H. https://github.com/FastTunnel/FastTunnel
+// Copyright (c) 2019-2022 Gui.H. https://github.com/FastTunnel/FastTunnel
 // The FastTunnel licenses this file to you under the Apache License Version 2.0.
 // For more details,You may obtain License file at: https://github.com/FastTunnel/FastTunnel/blob/v2/LICENSE
 
@@ -13,7 +13,7 @@ using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace FastTunnel.Core.MiddleWares
+namespace FastTunnel.Core.Forwarder.MiddleWare
 {
     public class FastTunnelClientHandler
     {
@@ -91,7 +91,7 @@ namespace FastTunnel.Core.MiddleWares
 
         private bool checkToken(HttpContext context)
         {
-            bool checkToken = false;
+            var checkToken = false;
             if (fastTunnelServer.ServerOption.CurrentValue.Tokens != null && fastTunnelServer.ServerOption.CurrentValue.Tokens.Count != 0)
             {
                 checkToken = true;

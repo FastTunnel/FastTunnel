@@ -5,7 +5,6 @@
 // Copyright (c) 2019 Gui.H
 
 using FastTunnel.Core.Client;
-using FastTunnel.Core.Dispatchers;
 using FastTunnel.Core.Exceptions;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Models;
@@ -21,7 +20,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace FastTunnel.Core.Dispatchers
+namespace FastTunnel.Core.Handlers.Server
 {
     public class ForwardDispatcher
     {

@@ -6,7 +6,7 @@
 
 using System.Collections.Generic;
 
-namespace FastTunnel.Core.Models
+namespace FastTunnel.Core.Models.Massage
 {
     public class LogInMassage : TunnelMassage
     {

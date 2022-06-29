@@ -9,12 +9,10 @@ using FastTunnel.Core.Config;
 using FastTunnel.Core.Forwarder.MiddleWare;
 using FastTunnel.Core.Forwarder;
 using FastTunnel.Core.Handlers.Client;
-using FastTunnel.Core.MiddleWares;
 using FastTunnel.Core.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Yarp.ReverseProxy.Forwarder;
-using Yarp.Sample;
 using Microsoft.AspNetCore.Builder;
 using FastTunnel.Core.Filters;
 using Microsoft.AspNetCore.Mvc.Filters;
@@ -24,9 +22,23 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Options;
 using System.Threading.Tasks;
 using System.Threading;
+
+/* 项目“FastTunnel.Core (net5.0)”的未合并的更改
+在此之前:
 using Microsoft.AspNetCore.Http;
 
 namespace FastTunnel.Core
+在此之后:
+using Microsoft.AspNetCore.Http;
+using FastTunnel.Core.Extensions;
+using FastTunnel;
+using FastTunnel.Core;
+
+namespace FastTunnel.Core
+*/
+using Microsoft.AspNetCore.Http;
+
+namespace FastTunnel.Core.Extensions
 {
     public static class ServicesExtensions
     {

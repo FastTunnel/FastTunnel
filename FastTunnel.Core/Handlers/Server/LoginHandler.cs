@@ -5,10 +5,11 @@
 // Copyright (c) 2019 Gui.H
 
 using FastTunnel.Core.Client;
-using FastTunnel.Core.Dispatchers;
 using FastTunnel.Core.Extensions;
+using FastTunnel.Core.Forwarder;
 using FastTunnel.Core.Listener;
 using FastTunnel.Core.Models;
+using FastTunnel.Core.Models.Massage;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Linq;
@@ -16,7 +17,6 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Yarp.ReverseProxy.Configuration;
-using Yarp.Sample;
 
 namespace FastTunnel.Core.Handlers.Server
 {
@@ -49,7 +49,7 @@ namespace FastTunnel.Core.Handlers.Server
 
                     logger.LogDebug($"new domain '{hostName}'");
                     server.WebList.AddOrUpdate(hostName, info, (key, oldInfo) => { return info; });
-                    (proxyConfig as InMemoryConfigProvider).AddWeb(hostName);
+                    (proxyConfig as FastTunnelInMemoryConfigProvider).AddWeb(hostName);
 
                     await client.webSocket.SendCmdAsync(MessageType.Log, $"  HTTP   | http://{hostName}:{client.ConnectionPort} => {item.LocalIp}:{item.LocalPort}", CancellationToken.None);
                     client.AddWeb(info);
@@ -61,7 +61,7 @@ namespace FastTunnel.Core.Handlers.Server
                             // TODO:validateDomain
                             hostName = www.Trim().ToLower();
                             server.WebList.AddOrUpdate(www, info, (key, oldInfo) => { return info; });
-                            (proxyConfig as InMemoryConfigProvider).AddWeb(www);
+                            (proxyConfig as FastTunnelInMemoryConfigProvider).AddWeb(www);
 
                             await client.webSocket.SendCmdAsync(MessageType.Log, $"  HTTP   | http://{www}:{client.ConnectionPort} => {item.LocalIp}:{item.LocalPort}", CancellationToken.None);
                             client.AddWeb(info);
