@@ -1,4 +1,4 @@
-﻿using FastTunnel.Core.Client;
+using FastTunnel.Core.Client;
 using FastTunnel.Core.Extensions;
 using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.AspNetCore.Http;
@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace FastTunnel.Core.Forwarder.MiddleWare
@@ -50,16 +51,26 @@ namespace FastTunnel.Core.Forwarder.MiddleWare
                 }
 
                 using var reverseConnection = new WebSocketStream(lifetime, transport);
-                responseAwaiter.TrySetResult(reverseConnection);
+                responseAwaiter.Item1.TrySetResult(reverseConnection);
+
+                CancellationTokenSource cts;
+                if (responseAwaiter.Item2 != CancellationToken.None)
+                {
+                    cts = CancellationTokenSource.CreateLinkedTokenSource(lifetime.ConnectionClosed, responseAwaiter.Item2);
+                }
+                else
+                {
+                    cts = CancellationTokenSource.CreateLinkedTokenSource(lifetime.ConnectionClosed);
+                }
 
                 var closedAwaiter = new TaskCompletionSource<object>();
 
-                lifetime.ConnectionClosed.Register((task) =>
-                {
-                    (task as TaskCompletionSource<object>).SetResult(null);
-                }, closedAwaiter);
+                //lifetime.ConnectionClosed.Register((task) =>
+                //{
+                //    (task as TaskCompletionSource<object>).SetResult(null);
+                //}, closedAwaiter);
 
-                await closedAwaiter.Task;
+                await closedAwaiter.Task.WaitAsync(cts.Token);
                 logger.LogDebug($"[PROXY]:Closed {requestId}");
             }
             catch (Exception ex)

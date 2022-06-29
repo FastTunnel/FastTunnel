@@ -53,7 +53,7 @@ namespace FastTunnel.Core.Handlers.Server
                 var tcs = new TaskCompletionSource<Stream>();
                 tcs.SetTimeOut(10000, () => { logger.LogDebug($"[Dispatch TimeOut]:{msgId}"); });
 
-                _server.ResponseTasks.TryAdd(msgId, tcs);
+                _server.ResponseTasks.TryAdd(msgId, (tcs, CancellationToken.None));
 
                 try
                 {
