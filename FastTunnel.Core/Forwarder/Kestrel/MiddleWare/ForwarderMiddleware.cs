@@ -26,13 +26,13 @@ namespace FastTunnel.Core.Forwarder.Kestrel.MiddleWare;
 /// <summary>
 /// 核心逻辑处理中间件
 /// </summary>
-internal class SwapConnectionMiddleware
+internal class ForwarderMiddleware
 {
     private readonly ConnectionDelegate next;
-    private readonly ILogger<SwapConnectionMiddleware> logger;
+    private readonly ILogger<ForwarderMiddleware> logger;
     private readonly FastTunnelServer fastTunnelServer;
 
-    public SwapConnectionMiddleware(ConnectionDelegate next, ILogger<SwapConnectionMiddleware> logger, FastTunnelServer fastTunnelServer)
+    public ForwarderMiddleware(ConnectionDelegate next, ILogger<ForwarderMiddleware> logger, FastTunnelServer fastTunnelServer)
     {
         this.next = next;
         this.logger = logger;

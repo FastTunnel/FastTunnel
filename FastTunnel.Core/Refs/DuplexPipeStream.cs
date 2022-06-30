@@ -1,21 +1,19 @@
-// Licensed under the Apache License, Version 2.0 (the "License").
-// You may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
-// Copyright (c) 2019 Gui.H
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Buffers;
 using System.IO;
 using System.IO.Pipelines;
 using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FastTunnel.Core.Extensions;
-using FastTunnel.Core.Refs;
+using Microsoft.AspNetCore.Internal;
 
-namespace FastTunnel.Core.Forwarder.MiddleWare;
+#nullable enable
+
+namespace FastTunnel.Core.Refs;
 
 internal class DuplexPipeStream : Stream
 {
@@ -116,19 +114,13 @@ internal class DuplexPipeStream : Stream
         return _output.FlushAsync(cancellationToken).GetAsTask();
     }
 
-#if NET6_0_OR_GREATER
     [AsyncMethodBuilder(typeof(PoolingAsyncValueTaskMethodBuilder<>))]
-#endif
     private async ValueTask<int> ReadAsyncInternal(Memory<byte> destination, CancellationToken cancellationToken)
     {
         while (true)
         {
-            ReadResult result;
-            ReadOnlySequence<byte> readableBuffer;
-
-            result = await _input.ReadAsync(cancellationToken);
-            readableBuffer = result.Buffer;
-
+            var result = await _input.ReadAsync(cancellationToken);
+            var readableBuffer = result.Buffer;
             try
             {
                 if (_throwOnCancelled && result.IsCanceled && _cancelCalled)
@@ -143,7 +135,6 @@ internal class DuplexPipeStream : Stream
                     // buffer.Count is int
                     var count = (int)Math.Min(readableBuffer.Length, destination.Length);
                     readableBuffer = readableBuffer.Slice(0, count);
-                    Console.WriteLine($"[{this.GetHashCode()}读取]{Encoding.UTF8.GetString(readableBuffer)}");
                     readableBuffer.CopyTo(destination.Span);
                     return count;
                 }
