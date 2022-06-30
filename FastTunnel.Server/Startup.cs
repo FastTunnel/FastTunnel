@@ -16,6 +16,7 @@ using Microsoft.IdentityModel.Tokens;
 using System;
 using FastTunnel.Core.Config;
 using System.Text;
+using FastTunnel.Api.Filters;
 
 #if DEBUG
 using Microsoft.OpenApi.Models;
@@ -80,7 +81,7 @@ public class Startup
             c.SwaggerDoc("v2", new OpenApiInfo { Title = "FastTunel.Api", Version = "v2" });
         });
 #endif
-
+        services.AddSingleton<CustomExceptionFilterAttribute>();
         // -------------------FastTunnel STEP1 OF 3------------------
         services.AddFastTunnelServer(Configuration.GetSection("FastTunnel"));
         // -------------------FastTunnel STEP1 END-------------------
@@ -98,11 +99,11 @@ public class Startup
 #endif
         }
 
+        app.UseRouting();
+
         // -------------------FastTunnel STEP2 OF 3------------------
         app.UseFastTunnelServer();
         // -------------------FastTunnel STEP2 END-------------------
-
-        app.UseRouting();
 
         // --------------------- Custom UI ----------------
         app.UseStaticFiles();

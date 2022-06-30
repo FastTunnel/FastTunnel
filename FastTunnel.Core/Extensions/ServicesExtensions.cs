@@ -70,6 +70,7 @@ namespace FastTunnel.Core.Extensions
         {
             services.AddReverseProxy().LoadFromMemory();
             services.AddSingleton<IForwarderHttpClientFactory, FastTunnelForwarderHttpClientFactory>();
+            services.AddHttpContextAccessor();
 
             services.Configure<DefaultServerConfig>(configurationSection)
                 .AddSingleton<IExceptionFilter, FastTunnelExceptionFilter>()
