@@ -54,7 +54,7 @@ public class Program
             .ConfigureWebHost(webHostBuilder =>
             {
                 webHostBuilder.UseKestrel();
-                webHostBuilder.UseSetting(WebHostDefaults.HostingStartupAssembliesKey, "FastTunnel.Hosting");
+                webHostBuilder.UseSetting(WebHostDefaults.HostingStartupAssembliesKey, "FastTunnel.Api;FastTunnel.Hosting");
 
                 webHostBuilder.ConfigureAppConfiguration((hostingContext, config) =>
                 {

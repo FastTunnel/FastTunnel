@@ -44,7 +44,7 @@ public class FastTunelProtocol
         ReadOnlySequence<byte> readableBuffer;
         while (true)
         {
-            result = await _input.ReadAsync();
+            result = await _input.ReadAsync(context.ConnectionClosed);
             var tempBuffer = readableBuffer = result.Buffer;
 
             SequencePosition? position = null;
