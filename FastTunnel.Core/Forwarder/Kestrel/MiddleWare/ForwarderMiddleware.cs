@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 using FastTunnel.Core.Exceptions;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Forwarder.Kestrel;
-using FastTunnel.Core.Forwarder.MiddleWare;
+using FastTunnel.Core.Forwarder.Kestrel.Features;
 using FastTunnel.Core.Models.Massage;
 using FastTunnel.Core.Protocol;
 using FastTunnel.Core.Server;
@@ -93,7 +93,7 @@ internal class ForwarderMiddleware
             try
             {
                 // 发送指令给客户端，等待建立隧道
-                await web.Socket.SendCmdAsync(MessageType.SwapMsg, $"{requestId}|{web.WebConfig.LocalIp}:{web.WebConfig.LocalPort}", default);
+                await web.Socket.SendCmdAsync(MessageType.SwapMsg, $"{requestId}|{web.WebConfig.LocalIp}:{web.WebConfig.LocalPort}", context.ConnectionClosed);
             }
             catch (WebSocketException)
             {
@@ -102,9 +102,7 @@ internal class ForwarderMiddleware
                 // 通讯异常，返回客户端离线
                 throw new ClienOffLineException("客户端离线");
             }
-
-            var lifetime = context.Features.Get<IConnectionLifetimeFeature>();
-
+ 
             res = await tcs.Task;
 
             //  using var reverseConnection = new DuplexPipeStream(context.Transport.Input, context.Transport.Output, true);
@@ -142,12 +140,11 @@ internal class ForwarderMiddleware
         //using var reverseConnection = new DuplexPipeStream(context.Transport.Input, context.Transport.Output, true);
         responseStream.TrySetResult(context.Transport);
 
-        var lifetime = context.Features.Get<IConnectionLifetimeFeature>();
         var closedAwaiter = new TaskCompletionSource<object>();
 
         try
         {
-            closedAwaiter.Task.Wait(lifetime.ConnectionClosed);
+            closedAwaiter.Task.Wait(context.ConnectionClosed);
         }
         catch (Exception ex)
         {

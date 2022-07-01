@@ -10,16 +10,14 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using FastTunnel.Core.Models;
-using FastTunnel.Core.Protocol;
 
-namespace FastTunnel.Core.Forwarder.Kestrel.MiddleWare;
+namespace FastTunnel.Core.Forwarder.Kestrel.Features;
 
-internal interface IFastTunnelFeature
+public class FastTunnelFeature : IFastTunnelFeature
 {
     public WebInfo MatchWeb { get; set; }
 
     public IList<string> HasReadLInes { get; set; }
-
     public string Method { get; set; }
     public string Host { get; set; }
     public string MessageId { get; set; }

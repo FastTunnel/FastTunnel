@@ -12,7 +12,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace FastTunnel.Core.Forwarder.MiddleWare;
+namespace FastTunnel.Core.Forwarder.Stream;
 
 internal class SocketDuplexPipe : IDuplexPipe, IAsyncDisposable
 {

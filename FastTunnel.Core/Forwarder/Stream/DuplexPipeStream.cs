@@ -15,9 +15,9 @@ using System.Threading.Tasks;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Refs;
 
-namespace FastTunnel.Core.Forwarder.MiddleWare;
+namespace FastTunnel.Core.Forwarder.Stream;
 
-internal class DuplexPipeStream : Stream
+internal class DuplexPipeStream : System.IO.Stream
 {
     private readonly PipeReader _input;
     private readonly PipeWriter _output;
@@ -96,7 +96,7 @@ internal class DuplexPipeStream : Stream
         WriteAsync(buffer, offset, count).GetAwaiter().GetResult();
     }
 
-    public override Task WriteAsync(byte[]? buffer, int offset, int count, CancellationToken cancellationToken)
+    public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
     {
         return _output.WriteAsync(buffer.AsMemory(offset, count), cancellationToken).GetAsTask();
     }
@@ -143,7 +143,7 @@ internal class DuplexPipeStream : Stream
                     // buffer.Count is int
                     var count = (int)Math.Min(readableBuffer.Length, destination.Length);
                     readableBuffer = readableBuffer.Slice(0, count);
-                    Console.WriteLine($"[{this.GetHashCode()}读取]{Encoding.UTF8.GetString(readableBuffer)}");
+                    Console.WriteLine($"[{GetHashCode()}读取]{Encoding.UTF8.GetString(readableBuffer)}");
                     readableBuffer.CopyTo(destination.Span);
                     return count;
                 }
@@ -160,7 +160,7 @@ internal class DuplexPipeStream : Stream
         }
     }
 
-    public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback? callback, object? state)
+    public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
     {
         return TaskToApm.Begin(ReadAsync(buffer, offset, count), callback, state);
     }
@@ -170,7 +170,7 @@ internal class DuplexPipeStream : Stream
         return TaskToApm.End<int>(asyncResult);
     }
 
-    public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback? callback, object? state)
+    public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
     {
         return TaskToApm.Begin(WriteAsync(buffer, offset, count), callback, state);
     }

@@ -13,7 +13,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastTunnel.Core.Exceptions;
 using FastTunnel.Core.Extensions;
-using FastTunnel.Core.Forwarder.MiddleWare;
+using FastTunnel.Core.Forwarder.Stream;
 using FastTunnel.Core.Models;
 using FastTunnel.Core.Models.Massage;
 using FastTunnel.Core.Server;

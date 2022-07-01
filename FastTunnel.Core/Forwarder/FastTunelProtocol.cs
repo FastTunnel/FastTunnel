@@ -12,13 +12,14 @@ using System.Linq;
 using System.Reflection.PortableExecutable;
 using System.Text;
 using System.Threading.Tasks;
+using FastTunnel.Core.Forwarder.Kestrel.Features;
 using FastTunnel.Core.Models;
 using FastTunnel.Core.Protocol;
 using FastTunnel.Core.Server;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.Extensions.FileSystemGlobbing;
 
-namespace FastTunnel.Core.Forwarder.Kestrel.MiddleWare;
+namespace FastTunnel.Core.Forwarder;
 
 public class FastTunelProtocol
 {
@@ -56,7 +57,7 @@ public class FastTunelProtocol
                 if (position != null)
                 {
                     var readedPosition = readableBuffer.GetPosition(1, position.Value);
-                    if (ProcessLine(tempBuffer.Slice(0, position.Value), out string line))
+                    if (ProcessLine(tempBuffer.Slice(0, position.Value), out var line))
                     {
                         if (Method == ProtocolConst.HTTP_METHOD_SWAP)
                         {
