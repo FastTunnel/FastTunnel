@@ -28,13 +28,13 @@ namespace FastTunnel.Core.Forwarder.Kestrel.MiddleWare;
 /// <summary>
 /// 核心逻辑处理中间件
 /// </summary>
-internal class SwapConnectionMiddleware
+internal class ForwarderMiddleware
 {
     private readonly ConnectionDelegate next;
-    private readonly ILogger<SwapConnectionMiddleware> logger;
+    private readonly ILogger<ForwarderMiddleware> logger;
     private readonly FastTunnelServer fastTunnelServer;
 
-    public SwapConnectionMiddleware(ConnectionDelegate next, ILogger<SwapConnectionMiddleware> logger, FastTunnelServer fastTunnelServer)
+    public ForwarderMiddleware(ConnectionDelegate next, ILogger<ForwarderMiddleware> logger, FastTunnelServer fastTunnelServer)
     {
         this.next = next;
         this.logger = logger;
@@ -43,35 +43,45 @@ internal class SwapConnectionMiddleware
 
     internal async Task OnConnectionAsync(ConnectionContext context)
     {
-        var ctx = context as FastTunnelConnectionContext;
-        if (ctx != null && ctx.IsFastTunnel)
+        logger.LogInformation("=========ForwarderMiddleware SART===========");
+
+        var feat = context.Features.Get<IFastTunnelFeature>();
+        if (feat == null)
         {
-            if (ctx.Method == ProtocolConst.HTTP_METHOD_SWAP)
+            logger.LogInformation("=========ForwarderMiddleware END===========");
+            // not fasttunnel request
+            await next(context);
+            return;
+        }
+        else
+        {
+            logger.LogInformation("=========Swap STRART===========");
+            if (feat.Method == ProtocolConst.HTTP_METHOD_SWAP)
             {
-                await setResponse(ctx);
+                await doSwap(context);
             }
-            else if (ctx.MatchWeb != null)
+            else if (feat.MatchWeb != null)
             {
-                await waitResponse(ctx);
+                await waitSwap(context);
             }
             else
             {
                 throw new NotSupportedException();
             }
-        }
-        else
-        {
-            await next(context);
+
+            logger.LogInformation("=========Swap END===========");
+            logger.LogInformation("=========ForwarderMiddleware END===========");
         }
     }
 
-    private async Task waitResponse(FastTunnelConnectionContext context)
+    private async Task waitSwap(ConnectionContext context)
     {
+        var feat = context.Features.Get<IFastTunnelFeature>();
         var requestId = Guid.NewGuid().ToString().Replace("-", "");
-        var web = context.MatchWeb;
+        var web = feat.MatchWeb;
 
         TaskCompletionSource<IDuplexPipe> tcs = new();
-        logger.LogDebug($"[Http]Swap开始 {requestId}|{context.Host}=>{web.WebConfig.LocalIp}:{web.WebConfig.LocalPort}");
+        logger.LogDebug($"[Http]Swap开始 {requestId}|{feat.Host}=>{web.WebConfig.LocalIp}:{web.WebConfig.LocalPort}");
         tcs.SetTimeOut(10000, () => { logger.LogDebug($"[Proxy TimeOut]:{requestId}"); });
 
         fastTunnelServer.ResponseTasks.TryAdd(requestId, tcs);
@@ -99,8 +109,8 @@ internal class SwapConnectionMiddleware
 
             //  using var reverseConnection = new DuplexPipeStream(context.Transport.Input, context.Transport.Output, true);
 
-            var t1 = res.Input.CopyToAsync(context.Transport.Output, lifetime.ConnectionClosed);
-            var t2 = context.Transport.Input.CopyToAsync(res.Output, lifetime.ConnectionClosed);
+            var t1 = res.Input.CopyToAsync(context.Transport.Output, context.ConnectionClosed);
+            var t2 = context.Transport.Input.CopyToAsync(res.Output, context.ConnectionClosed);
             await Task.WhenAny(t1, t2);
         }
         catch (Exception ex)
@@ -120,9 +130,10 @@ internal class SwapConnectionMiddleware
         }
     }
 
-    private async Task setResponse(FastTunnelConnectionContext context)
+    private async Task doSwap(ConnectionContext context)
     {
-        var requestId = context.MessageId;
+        var feat = context.Features.Get<IFastTunnelFeature>();
+        var requestId = feat.MessageId;
         if (!fastTunnelServer.ResponseTasks.TryRemove(requestId, out var responseStream))
         {
             throw new Exception($"[PROXY]:RequestId不存在 {requestId}");

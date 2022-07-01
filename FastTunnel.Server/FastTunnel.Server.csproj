@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-    <TargetFrameworks>net6.0</TargetFrameworks>
+    <Version>3.0.0-Beta.1.22511</Version>
+    <TargetFramework>net7.0</TargetFramework>
     <RunAnalyzersDuringBuild>false</RunAnalyzersDuringBuild>
   </PropertyGroup>
 

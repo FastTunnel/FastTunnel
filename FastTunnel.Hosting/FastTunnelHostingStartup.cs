@@ -31,9 +31,9 @@ public class FastTunnelHostingStartup : IHostingStartup
             });
         });
 
-        builder.Configure((webHostBuilderContext, app) =>
-        {
-            app.UseFastTunnelServer();
-        });
+        //builder.Configure((webHostBuilderContext, app) =>
+        //{
+        //    app.UseFastTunnelServer();
+        //});
     }
 }

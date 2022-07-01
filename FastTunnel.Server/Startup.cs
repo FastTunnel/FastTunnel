@@ -35,45 +35,6 @@ public class Startup
     // This method gets called by the runtime. Use this method to add services to the container.
     public void ConfigureServices(IServiceCollection services)
     {
-        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            .AddJwtBearer(options =>
-            {
-                var serverOptions = Configuration.GetSection("FastTunnel").Get<DefaultServerConfig>();
-
-                options.TokenValidationParameters = new TokenValidationParameters
-                {
-                    ValidateIssuer = false,
-                    ValidateAudience = false,
-                    ValidateLifetime = true,
-                    ClockSkew = TimeSpan.FromSeconds(serverOptions.Api.JWT.ClockSkew),
-                    ValidateIssuerSigningKey = true,
-                    ValidAudience = serverOptions.Api.JWT.ValidAudience,
-                    ValidIssuer = serverOptions.Api.JWT.ValidIssuer,
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(serverOptions.Api.JWT.IssuerSigningKey))
-                };
-
-                options.Events = new JwtBearerEvents
-                {
-                    OnChallenge = async context =>
-                    {
-                        context.HandleResponse();
-
-                        context.Response.ContentType = "application/json;charset=utf-8";
-                        context.Response.StatusCode = StatusCodes.Status200OK;
-
-                        await context.Response.WriteAsync(new
-                        {
-                            errorCode = 1,
-                            errorMessage = context.Error ?? "Token is Required"
-                        }.ToJson());
-                    },
-                };
-            });
-
-        services.AddAuthorization();
-
-        services.AddControllers();
-
 #if DEBUG
         services.AddSwaggerGen(c =>
         {
@@ -102,9 +63,15 @@ public class Startup
         app.UseAuthorization();
         // --------------------- Custom UI ----------------
 
+        app.UseFastTunnelServer();
+
         app.UseEndpoints(endpoints =>
         {
             endpoints.MapControllers();
+            endpoints.MapFallback(async (HttpContext ctx) =>
+            {
+                await ctx.Response.Body.WriteAsync(Encoding.UTF8.GetBytes("404~"));
+            });
         });
     }
 }
