@@ -41,35 +41,45 @@ internal class ForwarderMiddleware
 
     internal async Task OnConnectionAsync(ConnectionContext context)
     {
-        var ctx = context as FastTunnelConnectionContext;
-        if (ctx != null && ctx.IsFastTunnel)
+        logger.LogInformation("=========ForwarderMiddleware SART===========");
+
+        var feat = context.Features.Get<IFastTunnelFeature>();
+        if (feat == null)
         {
-            if (ctx.Method == ProtocolConst.HTTP_METHOD_SWAP)
+            logger.LogInformation("=========ForwarderMiddleware END===========");
+            // not fasttunnel request
+            await next(context);
+            return;
+        }
+        else
+        {
+            logger.LogInformation("=========Swap STRART===========");
+            if (feat.Method == ProtocolConst.HTTP_METHOD_SWAP)
             {
-                await doSwap(ctx);
+                await doSwap(context);
             }
-            else if (ctx.MatchWeb != null)
+            else if (feat.MatchWeb != null)
             {
-                await waitSwap(ctx);
+                await waitSwap(context);
             }
             else
             {
                 throw new NotSupportedException();
             }
-        }
-        else
-        {
-            await next(context);
+
+            logger.LogInformation("=========Swap END===========");
+            logger.LogInformation("=========ForwarderMiddleware END===========");
         }
     }
 
-    private async Task waitSwap(FastTunnelConnectionContext context)
+    private async Task waitSwap(ConnectionContext context)
     {
+        var feat = context.Features.Get<IFastTunnelFeature>();
         var requestId = Guid.NewGuid().ToString().Replace("-", "");
-        var web = context.MatchWeb;
+        var web = feat.MatchWeb;
 
         TaskCompletionSource<Stream> tcs = new();
-        logger.LogDebug($"[Http]Swap开始 {requestId}|{context.Host}=>{web.WebConfig.LocalIp}:{web.WebConfig.LocalPort}");
+        logger.LogDebug($"[Http]Swap开始 {requestId}|{feat.Host}=>{web.WebConfig.LocalIp}:{web.WebConfig.LocalPort}");
         tcs.SetTimeOut(10000, () => { logger.LogDebug($"[Proxy TimeOut]:{requestId}"); });
 
         fastTunnelServer.ResponseTasks.TryAdd(requestId, tcs);
@@ -111,9 +121,10 @@ internal class ForwarderMiddleware
         }
     }
 
-    private async Task doSwap(FastTunnelConnectionContext context)
+    private async Task doSwap(ConnectionContext context)
     {
-        var requestId = context.MessageId;
+        var feat = context.Features.Get<IFastTunnelFeature>();
+        var requestId = feat.MessageId;
         if (!fastTunnelServer.ResponseTasks.TryRemove(requestId, out var responseStream))
         {
             throw new Exception($"[PROXY]:RequestId不存在 {requestId}");

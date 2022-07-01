@@ -102,9 +102,15 @@ public class Startup
         app.UseAuthorization();
         // --------------------- Custom UI ----------------
 
+        app.UseFastTunnelServer();
+
         app.UseEndpoints(endpoints =>
         {
             endpoints.MapControllers();
+            endpoints.MapFallback(async (HttpContext ctx) =>
+            {
+                await ctx.Response.Body.WriteAsync(Encoding.UTF8.GetBytes("hello~"));
+            });
         });
     }
 }

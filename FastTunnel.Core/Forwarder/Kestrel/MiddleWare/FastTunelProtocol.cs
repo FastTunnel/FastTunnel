@@ -8,59 +8,43 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.IO.Pipelines;
+using System.Linq;
+using System.Reflection.PortableExecutable;
 using System.Text;
 using System.Threading.Tasks;
 using FastTunnel.Core.Models;
 using FastTunnel.Core.Protocol;
 using FastTunnel.Core.Server;
 using Microsoft.AspNetCore.Connections;
-using Microsoft.AspNetCore.Http.Features;
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.FileSystemGlobbing;
 
-namespace FastTunnel.Core.Forwarder.Kestrel;
-internal class FastTunnelConnectionContext : ConnectionContext
+namespace FastTunnel.Core.Forwarder.Kestrel.MiddleWare;
+
+public class FastTunelProtocol
 {
-    private readonly ConnectionContext _inner;
-    private readonly FastTunnelServer fastTunnelServer;
-    private readonly ILogger _logger;
-
-    public FastTunnelConnectionContext(ConnectionContext context, FastTunnelServer fastTunnelServer, ILogger logger)
+    public FastTunelProtocol(ConnectionContext context, FastTunnelServer fastTunnelServer)
     {
+        this.context = context;
         this.fastTunnelServer = fastTunnelServer;
-        this._inner = context;
-        this._logger = logger;
     }
 
-    public override IDuplexPipe Transport { get => _inner.Transport; set => _inner.Transport = value; }
-
-    public override string ConnectionId { get => _inner.ConnectionId; set => _inner.ConnectionId = value; }
-
-    public override IFeatureCollection Features => _inner.Features;
-
-    public override IDictionary<object, object> Items { get => _inner.Items; set => _inner.Items = value; }
-
-    public bool IsFastTunnel => Method == ProtocolConst.HTTP_METHOD_SWAP || MatchWeb != null;
+    bool IsFastTunnel => Method == ProtocolConst.HTTP_METHOD_SWAP || MatchWeb != null;
 
     public WebInfo MatchWeb { get; private set; }
 
-    public override ValueTask DisposeAsync()
-    {
-        return _inner.DisposeAsync();
-    }
+    ConnectionContext context { get; }
 
-    /// <summary>
-    /// 解析FastTunnel协议
-    /// </summary>
+    IDuplexPipe Transport => context.Transport;
+
     internal async Task TryAnalysisPipeAsync()
     {
-        var reader = Transport.Input;
+        var _input = Transport.Input;
 
         ReadResult result;
         ReadOnlySequence<byte> readableBuffer;
-
         while (true)
         {
-            result = await reader.ReadAsync();
+            result = await _input.ReadAsync();
             var tempBuffer = readableBuffer = result.Buffer;
 
             SequencePosition? position = null;
@@ -72,17 +56,28 @@ internal class FastTunnelConnectionContext : ConnectionContext
                 if (position != null)
                 {
                     var readedPosition = readableBuffer.GetPosition(1, position.Value);
-                    if (ProcessLine(tempBuffer.Slice(0, position.Value)))
+                    if (ProcessLine(tempBuffer.Slice(0, position.Value), out string line))
                     {
                         if (Method == ProtocolConst.HTTP_METHOD_SWAP)
                         {
-                            reader.AdvanceTo(readedPosition, readedPosition);
+                            _input.AdvanceTo(readedPosition, readedPosition);
                         }
                         else
                         {
-                            reader.AdvanceTo(readableBuffer.Start, readableBuffer.Start);
+                            _input.AdvanceTo(readableBuffer.Start, readableBuffer.Start);
                         }
 
+                        if (IsFastTunnel)
+                        {
+                            context.Features.Set<IFastTunnelFeature>(new FastTunnelFeature()
+                            {
+                                MatchWeb = MatchWeb,
+                                HasReadLInes = HasReadLInes,
+                                Method = Method,
+                                Host = Host,
+                                MessageId = MessageId,
+                            });
+                        }
                         return;
                     }
 
@@ -93,12 +88,10 @@ internal class FastTunnelConnectionContext : ConnectionContext
 
             if (result.IsCompleted)
             {
-                reader.AdvanceTo(readableBuffer.End, readableBuffer.End);
-                break;
+                _input.AdvanceTo(readableBuffer.End, readableBuffer.End);
+                return;
             }
         }
-
-        return;
     }
 
     public string Method;
@@ -107,6 +100,7 @@ internal class FastTunnelConnectionContext : ConnectionContext
     private bool isFirstLine = true;
 
     public IList<string> HasReadLInes { get; private set; } = new List<string>();
+    public FastTunnelServer fastTunnelServer { get; }
 
     /// <summary>
     ///
@@ -122,9 +116,9 @@ internal class FastTunnelConnectionContext : ConnectionContext
     /// </summary>
     /// <param name="readOnlySequence"></param>
     /// <returns>Header读取完毕？</returns>
-    private bool ProcessLine(ReadOnlySequence<byte> readOnlySequence)
+    private bool ProcessLine(ReadOnlySequence<byte> readOnlySequence, out string lineStr)
     {
-        var lineStr = Encoding.UTF8.GetString(readOnlySequence);
+        lineStr = Encoding.UTF8.GetString(readOnlySequence);
         HasReadLInes.Add(lineStr);
 
         if (isFirstLine)

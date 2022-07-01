@@ -30,11 +30,10 @@ internal class InitializerMiddleware
 
     internal async Task OnConnectionAsync(ConnectionContext context)
     {
-        logger.LogInformation("=========OnConnectionAsync===========");
-        var ftContext = new FastTunnelConnectionContext(context, fastTunnelServer, logger);
-        await ftContext.TryAnalysisPipeAsync();
-
+        logger.LogInformation("=========TryAnalysisPipeAsync SART===========");
+        await new FastTunelProtocol(context, fastTunnelServer).TryAnalysisPipeAsync();
         logger.LogInformation("=========TryAnalysisPipeAsync END===========");
-        await next(ftContext.IsFastTunnel ? ftContext : context);
+
+        await next(context);
     }
 }
