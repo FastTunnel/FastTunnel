@@ -12,6 +12,7 @@ using FastTunnel.Core.Models;
 using FastTunnel.Core.Models.Massage;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
@@ -35,6 +36,8 @@ namespace FastTunnel.Core.Handlers.Server
         protected async Task HandleLoginAsync(FastTunnelServer server, TunnelClient client, LogInMassage requet)
         {
             bool hasTunnel = false;
+
+            List<string> tips = new List<string>();
 
             await client.webSocket.SendCmdAsync(MessageType.Log, $"穿透协议 | 映射关系（公网=>内网）", CancellationToken.None);
             Thread.Sleep(300);
@@ -80,6 +83,12 @@ namespace FastTunnel.Core.Handlers.Server
                     {
                         try
                         {
+                            if (item.LocalPort == 3389)
+                                tips.Add("您已将3389端口暴露，请确保您的PC密码足够安全。");
+
+                            if (item.LocalPort == 22)
+                                tips.Add("您已将22端口暴露，请确保您的PC密码足够安全。");
+
                             ForwardInfo<ForwardHandlerArg> old;
                             if (server.ForwardList.TryGetValue(item.RemotePort, out old))
                             {
@@ -114,6 +123,11 @@ namespace FastTunnel.Core.Handlers.Server
                 {
                     await client.webSocket.SendCmdAsync(MessageType.Log, TunnelResource.ForwardDisabled, CancellationToken.None);
                 }
+            }
+
+            foreach (var item in tips)
+            {
+                await client.webSocket.SendCmdAsync(MessageType.Log, item, CancellationToken.None);
             }
 
             if (!hasTunnel)

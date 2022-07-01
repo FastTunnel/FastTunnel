@@ -36,41 +36,6 @@ public class Startup
     // This method gets called by the runtime. Use this method to add services to the container.
     public void ConfigureServices(IServiceCollection services)
     {
-        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            .AddJwtBearer(options =>
-            {
-                var serverOptions = Configuration.GetSection("FastTunnel").Get<DefaultServerConfig>();
-
-                options.TokenValidationParameters = new TokenValidationParameters
-                {
-                    ValidateIssuer = false,
-                    ValidateAudience = false,
-                    ValidateLifetime = true,
-                    ClockSkew = TimeSpan.FromSeconds(serverOptions.Api.JWT.ClockSkew),
-                    ValidateIssuerSigningKey = true,
-                    ValidAudience = serverOptions.Api.JWT.ValidAudience,
-                    ValidIssuer = serverOptions.Api.JWT.ValidIssuer,
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(serverOptions.Api.JWT.IssuerSigningKey))
-                };
-
-                options.Events = new JwtBearerEvents
-                {
-                    OnChallenge = async context =>
-                    {
-                        context.HandleResponse();
-
-                        context.Response.ContentType = "application/json;charset=utf-8";
-                        context.Response.StatusCode = StatusCodes.Status200OK;
-
-                        await context.Response.WriteAsync(new
-                        {
-                            errorCode = 1,
-                            errorMessage = context.Error ?? "Token is Required"
-                        }.ToJson());
-                    },
-                };
-            });
-
         services.AddAuthorization();
 
         services.AddControllers();
@@ -81,7 +46,6 @@ public class Startup
             c.SwaggerDoc("v2", new OpenApiInfo { Title = "FastTunel.Api", Version = "v2" });
         });
 #endif
-        services.AddSingleton<CustomExceptionFilterAttribute>();
         // -------------------FastTunnel STEP1 OF 3------------------
         services.AddFastTunnelServer(Configuration.GetSection("FastTunnel"));
         // -------------------FastTunnel STEP1 END-------------------
@@ -105,11 +69,9 @@ public class Startup
         app.UseFastTunnelServer();
         // -------------------FastTunnel STEP2 END-------------------
 
-        // --------------------- Custom UI ----------------
         app.UseStaticFiles();
         app.UseAuthentication();
         app.UseAuthorization();
-        // --------------------- Custom UI ----------------
 
         app.UseEndpoints(endpoints =>
         {

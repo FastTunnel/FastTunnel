@@ -33,6 +33,9 @@ public class Program
             .UseWindowsService()
             .ConfigureWebHost(webHostBuilder =>
             {
+                // Use FastTunnelHostingStartup
+                webHostBuilder.UseSetting(WebHostDefaults.HostingStartupAssembliesKey, "FastTunnel.Api");
+
                 webHostBuilder.ConfigureAppConfiguration((hostingContext, config) =>
                 {
                     var env = hostingContext.HostingEnvironment;
