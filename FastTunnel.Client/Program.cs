@@ -49,7 +49,6 @@ class Program
         Host.CreateDefaultBuilder(args)
             .UseWindowsService()
             .UseSerilog((context, services, configuration) => configuration
-                .MinimumLevel.Debug()
                 .WriteTo.File("logs/log-.txt", rollingInterval: RollingInterval.Day)
                 .WriteTo.Console())
             .ConfigureServices((hostContext, services) =>

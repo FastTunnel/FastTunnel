@@ -15,7 +15,7 @@ using System.Threading.Tasks;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Refs;
 
-namespace FastTunnel.Core.Forwarder.Stream;
+namespace FastTunnel.Core.Forwarder.Streams;
 
 internal class DuplexPipeStream : System.IO.Stream
 {
@@ -143,7 +143,9 @@ internal class DuplexPipeStream : System.IO.Stream
                     // buffer.Count is int
                     var count = (int)Math.Min(readableBuffer.Length, destination.Length);
                     readableBuffer = readableBuffer.Slice(0, count);
-                    Console.WriteLine($"[{GetHashCode()}读取]{Encoding.UTF8.GetString(readableBuffer)}");
+
+                    //Console.WriteLine($"[{GetHashCode()}读取]{Encoding.UTF8.GetString(readableBuffer)}");
+
                     readableBuffer.CopyTo(destination.Span);
                     return count;
                 }

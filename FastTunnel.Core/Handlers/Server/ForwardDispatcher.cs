@@ -13,7 +13,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastTunnel.Core.Exceptions;
 using FastTunnel.Core.Extensions;
-using FastTunnel.Core.Forwarder.Stream;
+using FastTunnel.Core.Forwarder.Streams;
 using FastTunnel.Core.Models;
 using FastTunnel.Core.Models.Massage;
 using FastTunnel.Core.Server;
@@ -44,12 +44,13 @@ public class ForwardDispatcher
     {
         var msgId = Guid.NewGuid().ToString().Replace("-", "");
 
+        (Stream Stream, CancellationTokenSource TokenSource) res = default;
+
         try
         {
-            await Task.Yield();
             logger.LogDebug($"[Forward]Swap开始 {msgId}|{_config.RemotePort}=>{_config.LocalIp}:{_config.LocalPort}");
 
-            var tcs = new TaskCompletionSource<IDuplexPipe>();
+            var tcs = new TaskCompletionSource<(Stream Stream, CancellationTokenSource TokenSource)>();
             tcs.SetTimeOut(10000, () => { logger.LogDebug($"[Dispatch TimeOut]:{msgId}"); });
 
             _server.ResponseTasks.TryAdd(msgId, tcs);
@@ -75,10 +76,11 @@ public class ForwardDispatcher
                 return;
             }
 
-            var stream1 = await tcs.Task;
-            await using var stream2 = new SocketDuplexPipe(_socket);
+            res = await tcs.Task;
 
-            await Task.WhenAny(stream1.Input.CopyToAsync(stream2.Output), stream2.Input.CopyToAsync(stream1.Output));
+            //await using var stream2 = new SocketDuplexPipe(_socket);
+            using var stream2 = new NetworkStream(_socket);
+            await Task.WhenAny(res.Stream.CopyToAsync(stream2), stream2.CopyToAsync(res.Stream));
         }
         catch (Exception ex)
         {
@@ -86,6 +88,7 @@ public class ForwardDispatcher
         }
         finally
         {
+            res.TokenSource?.Cancel();
             logger.LogDebug($"[Forward]Swap OK {msgId}");
             _server.ResponseTasks.TryRemove(msgId, out _);
         }

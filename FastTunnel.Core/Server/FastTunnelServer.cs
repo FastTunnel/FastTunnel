@@ -24,7 +24,7 @@ public class FastTunnelServer
     public readonly IOptionsMonitor<DefaultServerConfig> ServerOption;
     private readonly ILogger<FastTunnelServer> logger;
 
-    public ConcurrentDictionary<string, TaskCompletionSource<IDuplexPipe>> ResponseTasks { get; } = new();
+    public ConcurrentDictionary<string, TaskCompletionSource<(Stream Stream, CancellationTokenSource Token)>> ResponseTasks { get; } = new();
 
     public ConcurrentDictionary<string, WebInfo> WebList { get; private set; } = new();
 

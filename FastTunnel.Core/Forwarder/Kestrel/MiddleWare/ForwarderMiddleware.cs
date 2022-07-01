@@ -10,11 +10,13 @@ using System.IO;
 using System.IO.Pipelines;
 using System.Net.WebSockets;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using FastTunnel.Core.Exceptions;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Forwarder.Kestrel;
 using FastTunnel.Core.Forwarder.Kestrel.Features;
+using FastTunnel.Core.Forwarder.Streams;
 using FastTunnel.Core.Models.Massage;
 using FastTunnel.Core.Protocol;
 using FastTunnel.Core.Server;
@@ -43,19 +45,15 @@ internal class ForwarderMiddleware
 
     internal async Task OnConnectionAsync(ConnectionContext context)
     {
-        logger.LogInformation("=========ForwarderMiddleware SART===========");
-
         var feat = context.Features.Get<IFastTunnelFeature>();
         if (feat == null)
         {
-            logger.LogInformation("=========ForwarderMiddleware END===========");
             // not fasttunnel request
             await next(context);
             return;
         }
         else
         {
-            logger.LogInformation("=========Swap STRART===========");
             if (feat.Method == ProtocolConst.HTTP_METHOD_SWAP)
             {
                 await doSwap(context);
@@ -68,25 +66,32 @@ internal class ForwarderMiddleware
             {
                 throw new NotSupportedException();
             }
-
-            logger.LogInformation("=========Swap END===========");
-            logger.LogInformation("=========ForwarderMiddleware END===========");
         }
     }
 
+    /// <summary>
+    /// 用户发起的请求
+    /// </summary>
+    /// <param name="context"></param>
+    /// <returns></returns>
     private async Task waitSwap(ConnectionContext context)
     {
         var feat = context.Features.Get<IFastTunnelFeature>();
         var requestId = Guid.NewGuid().ToString().Replace("-", "");
+
+        logger.LogInformation($"=========USER START {requestId}===========");
         var web = feat.MatchWeb;
 
-        TaskCompletionSource<IDuplexPipe> tcs = new();
+        TaskCompletionSource<(Stream, CancellationTokenSource)> tcs = new();
         logger.LogDebug($"[Http]Swap开始 {requestId}|{feat.Host}=>{web.WebConfig.LocalIp}:{web.WebConfig.LocalPort}");
-        tcs.SetTimeOut(10000, () => { logger.LogDebug($"[Proxy TimeOut]:{requestId}"); });
 
-        fastTunnelServer.ResponseTasks.TryAdd(requestId, tcs);
+        if (!fastTunnelServer.ResponseTasks.TryAdd(requestId, tcs))
+        {
+            return;
+        }
 
-        IDuplexPipe res = null;
+        //IDuplexPipe res = null;
+        (Stream Stream, CancellationTokenSource TokenSource) res = (null, null);
 
         try
         {
@@ -102,14 +107,19 @@ internal class ForwarderMiddleware
                 // 通讯异常，返回客户端离线
                 throw new ClienOffLineException("客户端离线");
             }
- 
+
             res = await tcs.Task;
 
-            //  using var reverseConnection = new DuplexPipeStream(context.Transport.Input, context.Transport.Output, true);
+            var tokenSource = CancellationTokenSource.CreateLinkedTokenSource(res.TokenSource.Token, context.ConnectionClosed);
 
-            var t1 = res.Input.CopyToAsync(context.Transport.Output, context.ConnectionClosed);
-            var t2 = context.Transport.Input.CopyToAsync(res.Output, context.ConnectionClosed);
-            await Task.WhenAny(t1, t2);
+            using var reverseConnection = new DuplexPipeStream(context.Transport.Input, context.Transport.Output, true);
+
+            //var t1 = res.Input.CopyToAsync(context.Transport.Output, context.ConnectionClosed);
+            //var t2 = context.Transport.Input.CopyToAsync(res.Output, context.ConnectionClosed);
+            var t1 = res.Stream.CopyToAsync(reverseConnection, tokenSource.Token);
+            var t2 = reverseConnection.CopyToAsync(res.Stream, tokenSource.Token);
+
+            await Task.WhenAny(t1, t2).WaitAsync(tokenSource.Token);
         }
         catch (Exception ex)
         {
@@ -117,34 +127,49 @@ internal class ForwarderMiddleware
         }
         finally
         {
-            logger.LogInformation("[Http] waitSwap结束");
+            logger.LogInformation($"=========USER END {requestId}===========");
             fastTunnelServer.ResponseTasks.TryRemove(requestId, out _);
 
             await context.Transport.Input.CompleteAsync();
             await context.Transport.Output.CompleteAsync();
 
-            await res.Input.CompleteAsync();
-            await res.Output.CompleteAsync();
+            res.TokenSource?.Cancel();
         }
     }
 
+    /// <summary>
+    /// 内网发起的请求
+    /// </summary>
+    /// <param name="context"></param>
+    /// <returns></returns>
+    /// <exception cref="Exception"></exception>
     private async Task doSwap(ConnectionContext context)
     {
         var feat = context.Features.Get<IFastTunnelFeature>();
         var requestId = feat.MessageId;
+
+        logger.LogInformation($"=========CLINET START {requestId}===========");
+
         if (!fastTunnelServer.ResponseTasks.TryRemove(requestId, out var responseStream))
         {
             throw new Exception($"[PROXY]:RequestId不存在 {requestId}");
         };
 
-        //using var reverseConnection = new DuplexPipeStream(context.Transport.Input, context.Transport.Output, true);
-        responseStream.TrySetResult(context.Transport);
+        CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(context.ConnectionClosed);
+
+        using var reverseConnection = new DuplexPipeStream(context.Transport.Input, context.Transport.Output, true);
+        responseStream.TrySetResult((reverseConnection, cancellationTokenSource));
 
         var closedAwaiter = new TaskCompletionSource<object>();
 
+        cancellationTokenSource.Token.Register(() =>
+        {
+            closedAwaiter.TrySetCanceled();
+        });
+
         try
         {
-            closedAwaiter.Task.Wait(context.ConnectionClosed);
+            await closedAwaiter.Task;
         }
         catch (Exception ex)
         {
@@ -152,10 +177,9 @@ internal class ForwarderMiddleware
         }
         finally
         {
-            logger.LogInformation($"=====================Swap End:{requestId}================== ");
+            logger.LogInformation($"=========CLINET END {requestId}===========");
             await context.Transport.Input.CompleteAsync();
             await context.Transport.Output.CompleteAsync();
-            context.Abort();
         }
     }
 }
