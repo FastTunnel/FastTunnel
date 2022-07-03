@@ -70,7 +70,7 @@ internal class ForwarderMiddleware
     }
 
     /// <summary>
-    /// 用户发起的请求
+    /// 用户向服务端发起的请求
     /// </summary>
     /// <param name="context"></param>
     /// <returns></returns>
@@ -79,7 +79,7 @@ internal class ForwarderMiddleware
         var feat = context.Features.Get<IFastTunnelFeature>();
         var requestId = Guid.NewGuid().ToString().Replace("-", "");
 
-        logger.LogInformation($"=========USER START {requestId}===========");
+        logger.LogDebug($"=========USER START {requestId}===========");
         var web = feat.MatchWeb;
 
         TaskCompletionSource<(Stream, CancellationTokenSource)> tcs = new();
@@ -90,7 +90,8 @@ internal class ForwarderMiddleware
             return;
         }
 
-        //IDuplexPipe res = null;
+        await Task.Yield();
+
         (Stream Stream, CancellationTokenSource TokenSource) res = (null, null);
 
         try
@@ -121,13 +122,12 @@ internal class ForwarderMiddleware
 
             await Task.WhenAny(t1, t2).WaitAsync(tokenSource.Token);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            logger.LogError(ex, "[waitResponse]");
         }
         finally
         {
-            logger.LogInformation($"=========USER END {requestId}===========");
+            logger.LogDebug($"=========USER END {requestId}===========");
             fastTunnelServer.ResponseTasks.TryRemove(requestId, out _);
 
             await context.Transport.Input.CompleteAsync();
@@ -138,7 +138,7 @@ internal class ForwarderMiddleware
     }
 
     /// <summary>
-    /// 内网发起的请求
+    /// 内网向服务端发起的请求
     /// </summary>
     /// <param name="context"></param>
     /// <returns></returns>
@@ -148,7 +148,7 @@ internal class ForwarderMiddleware
         var feat = context.Features.Get<IFastTunnelFeature>();
         var requestId = feat.MessageId;
 
-        logger.LogInformation($"=========CLINET START {requestId}===========");
+        logger.LogDebug($"=========CLINET START {requestId}===========");
 
         if (!fastTunnelServer.ResponseTasks.TryRemove(requestId, out var responseStream))
         {
@@ -171,13 +171,12 @@ internal class ForwarderMiddleware
         {
             await closedAwaiter.Task;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            logger.LogError(ex, "[setResponse]");
         }
         finally
         {
-            logger.LogInformation($"=========CLINET END {requestId}===========");
+            logger.LogDebug($"=========CLINET END {requestId}===========");
             await context.Transport.Input.CompleteAsync();
             await context.Transport.Output.CompleteAsync();
         }

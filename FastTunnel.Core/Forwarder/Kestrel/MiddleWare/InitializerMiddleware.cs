@@ -30,9 +30,9 @@ internal class InitializerMiddleware
 
     internal async Task OnConnectionAsync(ConnectionContext context)
     {
-        logger.LogInformation("=========TryAnalysisPipeAsync SART===========");
+        logger.LogDebug("=========TryAnalysisPipeAsync SART===========");
         await new FastTunelProtocol(context, fastTunnelServer).TryAnalysisPipeAsync();
-        logger.LogInformation("=========TryAnalysisPipeAsync END===========");
+        logger.LogDebug("=========TryAnalysisPipeAsync END===========");
 
         await next(context);
     }

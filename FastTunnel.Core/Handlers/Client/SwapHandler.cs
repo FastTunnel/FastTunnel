@@ -31,7 +31,7 @@ public class SwapHandler : IClientHandler
         var msgs = msg.Split('|');
         var requestId = msgs[0];
         var address = msgs[1];
-        _logger.LogInformation($"========Swap Start:{requestId}==========");
+        _logger.LogDebug($"========Swap Start:{requestId}==========");
 
         try
         {
@@ -52,7 +52,7 @@ public class SwapHandler : IClientHandler
         }
         finally
         {
-            _logger.LogInformation($"========Swap End:{requestId}==========");
+            _logger.LogDebug($"========Swap End:{requestId}==========");
         }
     }
 
