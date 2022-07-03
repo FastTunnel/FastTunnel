@@ -37,27 +37,36 @@ public class FastTunelProtocol
 
     IDuplexPipe Transport => context.Transport;
 
+    const char CharR = '\r';
+
+    private const byte ByteCR = (byte)'\r';
+    private const byte ByteLF = (byte)'\n';
+    private const byte ByteColon = (byte)':';
+    private const byte ByteSpace = (byte)' ';
+
     internal async Task TryAnalysisPipeAsync()
     {
         var _input = Transport.Input;
 
         ReadResult result;
         ReadOnlySequence<byte> readableBuffer;
+
         while (true)
         {
             result = await _input.ReadAsync(context.ConnectionClosed);
-            var tempBuffer = readableBuffer = result.Buffer;
+            readableBuffer = result.Buffer;
+            SequencePosition start = readableBuffer.Start;
 
             SequencePosition? position = null;
 
             do
             {
-                position = tempBuffer.PositionOf((byte)'\n');
+                position = readableBuffer.PositionOf(ByteLF);
 
                 if (position != null)
                 {
                     var readedPosition = readableBuffer.GetPosition(1, position.Value);
-                    if (ProcessLine(tempBuffer.Slice(0, position.Value), out var line))
+                    if (ProcessHeaderLine(readableBuffer.Slice(0, position.Value), out var _))
                     {
                         if (Method == ProtocolConst.HTTP_METHOD_SWAP)
                         {
@@ -65,7 +74,7 @@ public class FastTunelProtocol
                         }
                         else
                         {
-                            _input.AdvanceTo(readableBuffer.Start, readableBuffer.Start);
+                            _input.AdvanceTo(start, start);
                         }
 
                         if (IsFastTunnel)
@@ -73,7 +82,6 @@ public class FastTunelProtocol
                             context.Features.Set<IFastTunnelFeature>(new FastTunnelFeature()
                             {
                                 MatchWeb = MatchWeb,
-                                HasReadLInes = HasReadLInes,
                                 Method = Method,
                                 Host = Host,
                                 MessageId = MessageId,
@@ -82,7 +90,7 @@ public class FastTunelProtocol
                         return;
                     }
 
-                    tempBuffer = tempBuffer.Slice(readedPosition);
+                    readableBuffer = readableBuffer.Slice(readedPosition);
                 }
             }
             while (position != null && !readableBuffer.IsEmpty);
@@ -100,7 +108,6 @@ public class FastTunelProtocol
     public string MessageId;
     private bool isFirstLine = true;
 
-    public IList<string> HasReadLInes { get; private set; } = new List<string>();
     public FastTunnelServer fastTunnelServer { get; }
 
     /// <summary>
@@ -115,23 +122,22 @@ public class FastTunelProtocol
     /// Accept-Language: zh-CN,zh;q=0.9,en;q=0.8
     /// 
     /// </summary>
-    /// <param name="readOnlySequence"></param>
+    /// <param name="headerLine"></param>
     /// <returns>Header读取完毕？</returns>
-    private bool ProcessLine(ReadOnlySequence<byte> readOnlySequence, out string lineStr)
+    private bool ProcessHeaderLine(ReadOnlySequence<byte> headerLine, out string headerLineStr)
     {
-        lineStr = Encoding.UTF8.GetString(readOnlySequence);
-        HasReadLInes.Add(lineStr);
+        headerLineStr = Encoding.UTF8.GetString(headerLine);
 
         if (isFirstLine)
         {
-            Method = lineStr.Substring(0, lineStr.IndexOf(" ")).ToUpper();
+            Method = headerLineStr.Substring(0, headerLineStr.IndexOf(" ")).ToUpper();
 
             switch (Method)
             {
                 case ProtocolConst.HTTP_METHOD_SWAP:
                     // 客户端发起消息互转
-                    var endIndex = lineStr.IndexOf(" ", 7);
-                    MessageId = lineStr.Substring(7, endIndex - 7);
+                    var endIndex = headerLineStr.IndexOf(" ", 7);
+                    MessageId = headerLineStr.Substring(7, endIndex - 7);
                     break;
                 default:
                     // 常规Http请求，需要检查Host决定是否进行代理
@@ -142,21 +148,9 @@ public class FastTunelProtocol
         }
         else
         {
-            if (lineStr.Equals("\r"))
+            // TrailerHeader
+            if (headerLineStr.Equals("\r"))
             {
-                if (Method == ProtocolConst.HTTP_METHOD_SWAP)
-                {
-                    // do nothing
-                }
-                else
-                {
-                    // 匹配Host，
-                    if (fastTunnelServer.TryGetWebProxyByHost(Host, out var web))
-                    {
-                        MatchWeb = web;
-                    }
-                }
-
                 return true;
             }
 
@@ -168,15 +162,22 @@ public class FastTunelProtocol
                 default:
                     // 检查Host决定是否进行代理
                     // Host: test.test.cc:1270
-                    var lower = lineStr.Trim('\r').ToLower();
-                    if (lower.StartsWith("host:"))
+                    var lower = headerLineStr.Trim(CharR).ToLower();
+                    if (lower.StartsWith("host:", StringComparison.OrdinalIgnoreCase))
                     {
                         Host = lower.Split(" ")[1];
                         if (Host.Contains(":"))
                         {
                             Host = Host.Split(":")[0];
                         }
+
+                        // 匹配Host，
+                        if (fastTunnelServer.TryGetWebProxyByHost(Host, out var web))
+                        {
+                            MatchWeb = web;
+                        }
                     }
+
                     break;
             }
         }

@@ -26,25 +26,28 @@ public class SwapHandler : IClientHandler
         _logger = logger;
     }
 
+    public int SwapCount = 0;
+
     public async Task HandlerMsgAsync(FastTunnelClient cleint, string msg, CancellationToken cancellationToken)
     {
-        var msgs = msg.Split('|');
-        var requestId = msgs[0];
-        var address = msgs[1];
-        _logger.LogDebug($"========Swap Start:{requestId}==========");
-
+        string requestId = null;
         try
         {
-            using (var serverStream = await createRemote(requestId, cleint, cancellationToken))
-            using (var localStream = await createLocal(requestId, address, cancellationToken))
-            {
-                var taskX = serverStream.CopyToAsync(localStream, cancellationToken);
-                var taskY = localStream.CopyToAsync(serverStream, cancellationToken);
+            Interlocked.Increment(ref SwapCount);
+            var msgs = msg.Split('|');
+            requestId = msgs[0];
+            var address = msgs[1];
+            _logger.LogDebug($"========Swap Start:{requestId}==========");
 
-                await Task.WhenAny(taskX, taskY);
+            using var serverStream = await createRemote(requestId, cleint, cancellationToken);
+            using var localStream = await createLocal(requestId, address, cancellationToken);
 
-                _logger.LogDebug($"[HandlerMsgAsync] success {requestId}");
-            }
+            var taskX = serverStream.CopyToAsync(localStream, cancellationToken);
+            var taskY = localStream.CopyToAsync(serverStream, cancellationToken);
+
+            await Task.WhenAny(taskX, taskY).WaitAsync(cancellationToken);
+
+            _logger.LogDebug($"[HandlerMsgAsync] success {requestId}");
         }
         catch (Exception ex)
         {
@@ -52,6 +55,7 @@ public class SwapHandler : IClientHandler
         }
         finally
         {
+            Interlocked.Decrement(ref SwapCount);
             _logger.LogDebug($"========Swap End:{requestId}==========");
         }
     }

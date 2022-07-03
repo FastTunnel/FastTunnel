@@ -122,8 +122,6 @@ public class FastTunnelClient : IFastTunnelClient
 
     private async void HandleServerRequestAsync(byte cmd, string ctx, CancellationToken cancellationToken)
     {
-        await Task.Yield();
-
         try
         {
             IClientHandler handler;

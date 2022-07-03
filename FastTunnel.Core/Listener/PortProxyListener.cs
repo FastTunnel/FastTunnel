@@ -81,7 +81,7 @@ public class PortProxyListener
 
             Interlocked.Increment(ref m_numConnectedSockets);
 
-            _logerr.LogInformation($"【{ListenIp}:{ListenPort}】Accepted. There are {{0}} clients connected to the port",
+            _logerr.LogDebug($"【{ListenIp}:{ListenPort}】Accepted. There are {{0}} clients connected to the port",
                 m_numConnectedSockets);
 
             // 将此客户端交由Dispatcher进行管理

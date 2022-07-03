@@ -69,6 +69,9 @@ internal class ForwarderMiddleware
         }
     }
 
+    public int UserCount = 0;
+    public int ClientCount = 0;
+
     /// <summary>
     /// 用户向服务端发起的请求
     /// </summary>
@@ -78,6 +81,8 @@ internal class ForwarderMiddleware
     {
         var feat = context.Features.Get<IFastTunnelFeature>();
         var requestId = Guid.NewGuid().ToString().Replace("-", "");
+
+        Interlocked.Increment(ref UserCount);
 
         logger.LogDebug($"=========USER START {requestId}===========");
         var web = feat.MatchWeb;
@@ -90,12 +95,12 @@ internal class ForwarderMiddleware
             return;
         }
 
-        await Task.Yield();
-
         (Stream Stream, CancellationTokenSource TokenSource) res = (null, null);
 
         try
         {
+            var ss = context.LocalEndPoint;
+
             try
             {
                 // 发送指令给客户端，等待建立隧道
@@ -112,7 +117,6 @@ internal class ForwarderMiddleware
             res = await tcs.Task;
 
             var tokenSource = CancellationTokenSource.CreateLinkedTokenSource(res.TokenSource.Token, context.ConnectionClosed);
-
             using var reverseConnection = new DuplexPipeStream(context.Transport.Input, context.Transport.Output, true);
 
             //var t1 = res.Input.CopyToAsync(context.Transport.Output, context.ConnectionClosed);
@@ -127,6 +131,7 @@ internal class ForwarderMiddleware
         }
         finally
         {
+            Interlocked.Decrement(ref UserCount);
             logger.LogDebug($"=========USER END {requestId}===========");
             fastTunnelServer.ResponseTasks.TryRemove(requestId, out _);
 
@@ -145,6 +150,7 @@ internal class ForwarderMiddleware
     /// <exception cref="Exception"></exception>
     private async Task doSwap(ConnectionContext context)
     {
+        Interlocked.Increment(ref ClientCount);
         var feat = context.Features.Get<IFastTunnelFeature>();
         var requestId = feat.MessageId;
 
@@ -176,6 +182,7 @@ internal class ForwarderMiddleware
         }
         finally
         {
+            Interlocked.Decrement(ref ClientCount);
             logger.LogDebug($"=========CLINET END {requestId}===========");
             await context.Transport.Input.CompleteAsync();
             await context.Transport.Output.CompleteAsync();

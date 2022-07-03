@@ -13,7 +13,7 @@ using FastTunnel.Core.Models;
 
 namespace FastTunnel.Core.Forwarder.Kestrel.Features;
 
-public class FastTunnelFeature : IFastTunnelFeature
+public struct FastTunnelFeature : IFastTunnelFeature
 {
     public WebInfo MatchWeb { get; set; }
 
