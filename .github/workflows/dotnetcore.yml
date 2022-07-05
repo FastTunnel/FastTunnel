@@ -6,17 +6,6 @@ env:
   IMAGE_NAME: fasttunnel
 
 jobs:
-  #build:
-  # runs-on: ubuntu-latest
-  # steps:
-  # - uses: actions/checkout@v1
-  # - name: Setup .NET Core
-  #   uses: actions/setup-dotnet@v1
-  #   with:
-  #     dotnet-version: 6.0.*
-  # - name: Build with dotnet
-  #   run: chmod +x ./publish-win.sh && ./publish-win.sh
-      
   publish:
     name: publish-core
     runs-on: ubuntu-latest
@@ -26,7 +15,7 @@ jobs:
       - name: Setup dotnet
         uses: actions/setup-dotnet@v1
         with:
-           dotnet-version: 6.0.*
+           dotnet-version: 7.0.*
 
       # Publish
       - name: publish on version change
@@ -45,7 +34,7 @@ jobs:
       - name: Setup dotnet
         uses: actions/setup-dotnet@v1
         with:
-           dotnet-version: 6.0.*
+           dotnet-version: 7.0.*
 
       # Publish
       - name: publish on version change
@@ -64,7 +53,7 @@ jobs:
       - name: Setup dotnet
         uses: actions/setup-dotnet@v1
         with:
-           dotnet-version: 6.0.*
+           dotnet-version: 7.0.*
 
       # Publish
       - name: publish on version change
