@@ -4,9 +4,9 @@
 //     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
 // Copyright (c) 2019 Gui.H
 
+using FastTunnel.Core.Extensions;
 using FastTunnel.Hosting;
 using Microsoft.AspNetCore.Hosting;
-using FastTunnel.Core.Extensions;
 using Microsoft.Extensions.Configuration;
 
 [assembly: HostingStartup(typeof(FastTunnelHostingStartup))]
@@ -24,7 +24,7 @@ public class FastTunnelHostingStartup : IHostingStartup
 
         builder.UseKestrel((context, options) =>
         {
-            var basePort = context.Configuration.GetValue<int?>("FastTunnel:BasePort") ?? 1270;
+            var basePort = context.Configuration.GetValue<int?>("FastTunnel:BinPort") ?? 1270;
             options.ListenAnyIP(basePort, listenOptions =>
             {
                 listenOptions.UseConnectionFastTunnel();

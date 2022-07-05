@@ -5,7 +5,6 @@
 // Copyright (c) 2019 Gui.H
 
 using System.Threading.Tasks;
-using FastTunnel.Core.Forwarder.Kestrel;
 using FastTunnel.Core.Server;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.Extensions.Logging;

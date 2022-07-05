@@ -5,24 +5,18 @@
 // Copyright (c) 2019 Gui.H
 
 using System;
-using System.Buffers;
 using System.IO;
-using System.IO.Pipelines;
 using System.Net.WebSockets;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FastTunnel.Core.Exceptions;
 using FastTunnel.Core.Extensions;
-using FastTunnel.Core.Forwarder.Kestrel;
 using FastTunnel.Core.Forwarder.Kestrel.Features;
 using FastTunnel.Core.Forwarder.Streams;
 using FastTunnel.Core.Models.Massage;
 using FastTunnel.Core.Protocol;
 using FastTunnel.Core.Server;
-using FastTunnel.Core.Utilitys;
 using Microsoft.AspNetCore.Connections;
-using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.Extensions.Logging;
 
 namespace FastTunnel.Core.Forwarder.Kestrel.MiddleWare;
@@ -132,7 +126,7 @@ internal class ForwarderMiddleware
         finally
         {
             Interlocked.Decrement(ref UserCount);
-            logger.LogDebug($"=========USER END {requestId}===========");
+            logger.LogDebug($"=========USER END {requestId} {UserCount}===========");
             fastTunnelServer.ResponseTasks.TryRemove(requestId, out _);
 
             await context.Transport.Input.CompleteAsync();
@@ -183,7 +177,7 @@ internal class ForwarderMiddleware
         finally
         {
             Interlocked.Decrement(ref ClientCount);
-            logger.LogDebug($"=========CLINET END {requestId}===========");
+            logger.LogDebug($"=========CLINET END {requestId} {ClientCount}===========");
             await context.Transport.Input.CompleteAsync();
             await context.Transport.Output.CompleteAsync();
         }

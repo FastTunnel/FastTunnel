@@ -20,6 +20,9 @@ using Microsoft.Extensions.Options;
 
 namespace FastTunnel.Core.Client;
 
+/// <summary>
+/// 客户端
+/// </summary>
 public class FastTunnelClient : IFastTunnelClient
 {
     private ClientWebSocket socket;
@@ -48,8 +51,7 @@ public class FastTunnelClient : IFastTunnelClient
     /// <summary>
     /// 启动客户端
     /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="customLoginMsg">自定义登录信息，可进行扩展业务</param>
+    /// <param name="cancellationToken"></param>
     public async void StartAsync(CancellationToken cancellationToken)
     {
         _logger.LogInformation("===== FastTunnel Client Start =====");

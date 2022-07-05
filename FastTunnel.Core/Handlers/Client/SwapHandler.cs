@@ -46,8 +46,6 @@ public class SwapHandler : IClientHandler
             var taskY = localStream.CopyToAsync(serverStream, cancellationToken);
 
             await Task.WhenAny(taskX, taskY).WaitAsync(cancellationToken);
-
-            _logger.LogDebug($"[HandlerMsgAsync] success {requestId}");
         }
         catch (Exception ex)
         {
@@ -56,7 +54,7 @@ public class SwapHandler : IClientHandler
         finally
         {
             Interlocked.Decrement(ref SwapCount);
-            _logger.LogDebug($"========Swap End:{requestId}==========");
+            _logger.LogDebug($"========Swap End:{requestId} {SwapCount}==========");
         }
     }
 

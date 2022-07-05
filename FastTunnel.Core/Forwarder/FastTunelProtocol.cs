@@ -6,10 +6,7 @@
 
 using System;
 using System.Buffers;
-using System.Collections.Generic;
 using System.IO.Pipelines;
-using System.Linq;
-using System.Reflection.PortableExecutable;
 using System.Text;
 using System.Threading.Tasks;
 using FastTunnel.Core.Forwarder.Kestrel.Features;
@@ -17,7 +14,6 @@ using FastTunnel.Core.Models;
 using FastTunnel.Core.Protocol;
 using FastTunnel.Core.Server;
 using Microsoft.AspNetCore.Connections;
-using Microsoft.Extensions.FileSystemGlobbing;
 
 namespace FastTunnel.Core.Forwarder;
 

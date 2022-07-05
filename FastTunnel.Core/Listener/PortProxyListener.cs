@@ -54,7 +54,6 @@ public class PortProxyListener
 
     private void StartAccept(SocketAsyncEventArgs acceptEventArg)
     {
-        _logerr.LogDebug($"【{ListenIp}:{ListenPort}】: StartAccept");
         if (acceptEventArg == null)
         {
             acceptEventArg = new SocketAsyncEventArgs();

@@ -43,7 +43,7 @@ public class LoginHandler : ILoginHandler
                 var hostName = $"{item.SubDomain}.{server.ServerOption.CurrentValue.WebDomain}".Trim().ToLower();
                 var info = new WebInfo { Socket = client.webSocket, WebConfig = item };
 
-                logger.LogDebug($"new domain '{hostName}'");
+                logger.LogDebug($"New Http '{hostName}'");
                 server.WebList.AddOrUpdate(hostName, info, (key, oldInfo) => { return info; });
 
                 await client.webSocket.SendCmdAsync(MessageType.Log, $"  HTTP   | http://{hostName}:{client.ConnectionPort} => {item.LocalIp}:{item.LocalPort}", CancellationToken.None);

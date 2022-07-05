@@ -6,14 +6,12 @@
 
 using System;
 using System.IO;
-using System.IO.Pipelines;
 using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
 using FastTunnel.Core.Exceptions;
 using FastTunnel.Core.Extensions;
-using FastTunnel.Core.Forwarder.Streams;
 using FastTunnel.Core.Models;
 using FastTunnel.Core.Models.Massage;
 using FastTunnel.Core.Server;
@@ -34,6 +32,8 @@ public class ForwardDispatcher
         _config = config;
     }
 
+    int SwapCount;
+
     /// <summary>
     /// 
     /// </summary>
@@ -46,6 +46,8 @@ public class ForwardDispatcher
 
         (Stream Stream, CancellationTokenSource TokenSource) res = default;
 
+        Interlocked.Increment(ref SwapCount);
+
         try
         {
             logger.LogDebug($"[Forward]Swap开始 {msgId}|{_config.RemotePort}=>{_config.LocalIp}:{_config.LocalPort}");
@@ -53,7 +55,10 @@ public class ForwardDispatcher
             var tcs = new TaskCompletionSource<(Stream Stream, CancellationTokenSource TokenSource)>();
             tcs.SetTimeOut(10000, () => { logger.LogDebug($"[Dispatch TimeOut]:{msgId}"); });
 
-            _server.ResponseTasks.TryAdd(msgId, tcs);
+            if (!_server.ResponseTasks.TryAdd(msgId, tcs))
+            {
+                return;
+            }
 
             try
             {
@@ -88,8 +93,9 @@ public class ForwardDispatcher
         }
         finally
         {
+            Interlocked.Decrement(ref SwapCount);
             res.TokenSource?.Cancel();
-            logger.LogDebug($"[Forward]Swap OK {msgId}");
+            logger.LogDebug($"[Forward]Swap OK {msgId} {SwapCount}");
             _server.ResponseTasks.TryRemove(msgId, out _);
         }
     }

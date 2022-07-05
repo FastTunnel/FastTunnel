@@ -4,13 +4,11 @@
 //     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
 // Copyright (c) 2019 Gui.H
 
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using System;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.Configuration;
-using Serilog;
 using FastTunnel.Core.Extensions;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Hosting;
+using Serilog;
 
 namespace FastTunnel.Client;
 
@@ -49,12 +47,12 @@ class Program
         Host.CreateDefaultBuilder(args)
             .UseWindowsService()
             .UseSerilog((context, services, configuration) => configuration
-                .WriteTo.File("logs/log-.txt", rollingInterval: RollingInterval.Day)
-                .WriteTo.Console())
+                    .ReadFrom.Configuration(context.Configuration)
+                    .WriteTo.Console())
             .ConfigureServices((hostContext, services) =>
             {
                 // -------------------FastTunnel START------------------
-                services.AddFastTunnelClient(hostContext.Configuration.GetSection("ClientSettings"));
+                services.AddFastTunnelClient(hostContext.Configuration.GetSection("FastTunnel"));
                 // -------------------FastTunnel EDN--------------------
             });
 }

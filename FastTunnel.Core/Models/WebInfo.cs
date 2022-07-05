@@ -4,7 +4,6 @@
 //     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
 // Copyright (c) 2019 Gui.H
 
-using System;
 using System.Net.WebSockets;
 
 namespace FastTunnel.Core.Models;

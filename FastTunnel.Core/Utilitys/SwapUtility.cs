@@ -4,12 +4,8 @@
 //     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
 // Copyright (c) 2019 Gui.H
 
-using System;
 using System.Buffers;
-using System.Collections.Generic;
 using System.IO.Pipelines;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -40,7 +36,7 @@ internal class SwapUtility
 
             result = await pipe.Input.ReadAsync(cancellationToken);
             readableBuffer = result.Buffer;
- 
+
         }
     }
 }
