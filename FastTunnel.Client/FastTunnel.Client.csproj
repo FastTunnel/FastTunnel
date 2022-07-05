@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Version>3.0.0-Beta.1.22511</Version>
+    <Version>3.0.0-Beta.2.22705</Version>
     <TargetFramework>net7.0</TargetFramework>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
@@ -15,10 +15,10 @@
     </Content>
   </ItemGroup>
 
-	<ItemGroup>
-		<PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="7.0.0-preview.3.22175.4" />
-		<PackageReference Include="Serilog.AspNetCore" Version="5.0.0" />
-	</ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="7.0.0-preview.3.22175.4" />
+    <PackageReference Include="Serilog.AspNetCore" Version="5.0.0" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\FastTunnel.Core\FastTunnel.Core.csproj" />
