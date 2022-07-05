@@ -3,7 +3,6 @@
     <Version>3.0.0-Beta.2.22705</Version>
     <TargetFrameworks>net6.0</TargetFrameworks>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <TargetFrameworks>net6.0;net7.0</TargetFrameworks>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="Forwarder\Kestrel\FastTunnelConnectionContext.cs" />
