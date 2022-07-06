@@ -30,8 +30,6 @@
 ## 立即体验内网穿透
 官网：https://suidao.io  
 
-此网站基于本框架开发的穿透平台，用于分享测试使用，如果你需要低频使用内网穿透可以直接注册使用，免去自己搭建和维护的成本；但生产项目请勿使用此服务。
-
 ## 开源仓库地址
 [GitHub](https://github.com/SpringHgui/FastTunnel)  
 [Gitee](https://gitee.com/Hgui/FastTunnel)
