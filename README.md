@@ -12,7 +12,6 @@
 
 </div>
 
-
 ## What is FastTunnel？
 - FastTunnel is a high-performance cross-platform intranet penetration tool. With it, you can expose intranet services to the public network for yourself or anyone to access.
 - Unlike other penetration tools, the FastTunnel project is committed to creating an easy-to-extensible and easy-to-maintain intranet penetration framework.
@@ -20,7 +19,12 @@
 
 ## Docs
 [https://docs.suidao.io](https://docs.suidao.io)
- 
+
+***If you use the intranet to penetrate and expose port 3389, you must pay attention to the fact that the password of the computer must be set to be more complicated to avoid being hacked by hackers to crack the computer login password and cause losses.***
+
+***If you use the intranet to penetrate and expose port 3389, you must pay attention to the fact that the password of the computer must be set to be more complicated to avoid being hacked by hackers to crack the computer login password and cause losses.***
+
+***If you use the intranet to penetrate and expose port 3389, you must pay attention to the fact that the password of the computer must be set to be more complicated to avoid being hacked by hackers to crack the computer login password and cause losses.***
 ## Enjoy Now
 Official website : https://suidao.io  
 
