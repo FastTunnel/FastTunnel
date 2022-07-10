@@ -7,6 +7,8 @@ using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Handlers.Server;
 using FastTunnel.Core.Models;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Net.WebSockets;
@@ -66,19 +68,23 @@ namespace FastTunnel.Core.Forwarder.MiddleWare
                 return;
             }
 
-            var client = new TunnelClient(webSocket, fastTunnelServer, loginHandler, context.Connection.RemoteIpAddress);
+            var loggerFactory = context.RequestServices.GetRequiredService<ILoggerFactory>();
+            var log = loggerFactory.CreateLogger<TunnelClient>();
+            var client = new TunnelClient(webSocket, fastTunnelServer, loginHandler, context.Connection.RemoteIpAddress, log);
             client.ConnectionPort = context.Connection.LocalPort;
 
             try
             {
-                fastTunnelServer.OnClientLogin(client);
-                await client.ReviceAsync(CancellationToken.None);
-
-                fastTunnelServer.OnClientLogout(client);
+                fastTunnelServer.ClientLogin(client);
+                await client.ReviceAsync(context.RequestAborted);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                fastTunnelServer.OnClientLogout(client);
+                logger.LogError(ex, "客户端异常");
+            }
+            finally
+            {
+                fastTunnelServer.ClientLogout(client);
             }
         }
 

@@ -4,30 +4,25 @@
 //     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
 // Copyright (c) 2019 Gui.H
 
-using FastTunnel.Core.Config;
-using FastTunnel.Core.Models;
-using Microsoft.Extensions.Logging;
-using System;
-using FastTunnel.Core.Extensions;
-using FastTunnel.Core.Client;
-using System.Threading.Tasks;
 using System.Threading;
+using System.Threading.Tasks;
+using FastTunnel.Core.Client;
+using Microsoft.Extensions.Logging;
 
-namespace FastTunnel.Core.Handlers.Client
+namespace FastTunnel.Core.Handlers.Client;
+
+public class LogHandler : IClientHandler
 {
-    public class LogHandler : IClientHandler
+    private readonly ILogger<LogHandler> _logger;
+
+    public LogHandler(ILogger<LogHandler> logger)
     {
-        ILogger<LogHandler> _logger;
+        _logger = logger;
+    }
 
-        public LogHandler(ILogger<LogHandler> logger)
-        {
-            _logger = logger;
-        }
-
-        public async Task HandlerMsgAsync(FastTunnelClient cleint, string msg, CancellationToken cancellationToken)
-        {
-            _logger.LogInformation(msg.Replace("\n", string.Empty));
-            await Task.CompletedTask;
-        }
+    public async Task HandlerMsgAsync(FastTunnelClient cleint, string msg, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation(msg);
+        await Task.CompletedTask;
     }
 }

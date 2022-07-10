@@ -48,7 +48,7 @@ namespace FastTunnel.Core.Client
         /// 客户端登录
         /// </summary>
         /// <param name="client"></param>
-        internal void OnClientLogin(TunnelClient client)
+        internal void ClientLogin(TunnelClient client)
         {
             Interlocked.Increment(ref ConnectedClientCount);
             logger.LogInformation($"客户端连接 {client.RemoteIpAddress} 当前在线数：{ConnectedClientCount}");
@@ -60,7 +60,7 @@ namespace FastTunnel.Core.Client
         /// </summary>
         /// <param name="client"></param>
         /// <exception cref="NotImplementedException"></exception>
-        internal void OnClientLogout(TunnelClient client)
+        internal void ClientLogout(TunnelClient client)
         {
             Interlocked.Decrement(ref ConnectedClientCount);
             logger.LogInformation($"客户端关闭  {client.RemoteIpAddress} 当前在线数：{ConnectedClientCount}");

@@ -30,20 +30,18 @@ class Program
 
     public static IHostBuilder CreateHostBuilder(string[] args) =>
         Host.CreateDefaultBuilder(args)
-            .UseSerilog((hostBuilderContext, services, loggerConfiguration) =>
+            .UseSerilog((context, services, loggerConfiguration) =>
             {
-                var enableFileLog = (bool)(hostBuilderContext.Configuration.GetSection("EnableFileLog")?.Get(typeof(bool)) ?? false);
-                loggerConfiguration.WriteTo.Console();
-                if (enableFileLog)
-                {
-                    loggerConfiguration.WriteTo.File("Logs/log.txt", rollingInterval: RollingInterval.Day, retainedFileCountLimit: 7);
-                }
+                loggerConfiguration.ReadFrom.Configuration(context.Configuration)
+                  .ReadFrom.Services(services)
+                  .Enrich.FromLogContext()
+                  .WriteTo.Console();
             })
             .UseWindowsService()
             .ConfigureServices((hostContext, services) =>
             {
                 // -------------------FastTunnel START------------------
-                services.AddFastTunnelClient(hostContext.Configuration.GetSection("ClientSettings"));
+                services.AddFastTunnelClient(hostContext.Configuration.GetSection("FastTunnel"));
                 // -------------------FastTunnel EDN--------------------
             });
 }
