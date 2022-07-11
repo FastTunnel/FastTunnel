@@ -17,7 +17,5 @@ namespace FastTunnel.Core
         public const string FASTTUNNEL_VERSION = "FT_VERSION";
         public const string FASTTUNNEL_MSGID = "FT_MSGID";
         public const string FASTTUNNEL_TOKEN = "FT_TOKEN";
-
-        public const int MAX_CMD_LENGTH = 100;
     }
 }

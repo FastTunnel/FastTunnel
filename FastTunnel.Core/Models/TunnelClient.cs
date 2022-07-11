@@ -4,104 +4,108 @@
 //     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
 // Copyright (c) 2019 Gui.H
 
-using FastTunnel.Core.Client;
-using FastTunnel.Core.Handlers.Server;
-using FastTunnel.Core.Protocol;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
-using System.Linq;
+using System.IO.Pipelines;
 using System.Net;
+using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using FastTunnel.Core.Client;
+using FastTunnel.Core.Handlers.Server;
+using FastTunnel.Core.Utilitys;
+using Microsoft.Extensions.Logging;
 
-namespace FastTunnel.Core.Models
+namespace FastTunnel.Core.Models;
+
+public class TunnelClient
 {
-    public class TunnelClient
+    public WebSocket webSocket { get; private set; }
+
+    /// <summary>
+    /// 服务端端口号
+    /// </summary>
+    public int ConnectionPort { get; set; }
+
+    private readonly FastTunnelServer fastTunnelServer;
+    private readonly ILoginHandler loginHandler;
+    private readonly ILogger<TunnelClient> logger;
+
+    public IPAddress RemoteIpAddress { get; private set; }
+
+    private readonly IList<WebInfo> webInfos = new List<WebInfo>();
+    private readonly IList<ForwardInfo<ForwardHandlerArg>> forwardInfos = new List<ForwardInfo<ForwardHandlerArg>>();
+
+    public TunnelClient(
+        WebSocket webSocket, FastTunnelServer fastTunnelServer,
+        ILoginHandler loginHandler, IPAddress remoteIpAddress, ILogger<TunnelClient> logger)
     {
-        public WebSocket webSocket { get; private set; }
+        this.logger = logger;
+        this.webSocket = webSocket;
+        this.fastTunnelServer = fastTunnelServer;
+        this.loginHandler = loginHandler;
+        this.RemoteIpAddress = remoteIpAddress;
+    }
 
-        /// <summary>
-        /// 服务端端口号
-        /// </summary>
-        public int ConnectionPort { get; set; }
+    internal void AddWeb(WebInfo info)
+    {
+        webInfos.Add(info);
+    }
 
-        readonly FastTunnelServer fastTunnelServer;
-        readonly ILoginHandler loginHandler;
+    internal void AddForward(ForwardInfo<ForwardHandlerArg> forwardInfo)
+    {
+        forwardInfos.Add(forwardInfo);
+    }
 
-        public IPAddress RemoteIpAddress { get; private set; }
+    /// <summary>
+    /// 接收客户端的消息
+    /// </summary>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    public async Task ReviceAsync(CancellationToken cancellationToken)
+    {
+        var utility = new WebSocketUtility(webSocket, ProcessLine);
+        await utility.ProcessLinesAsync(cancellationToken);
+    }
 
-        readonly IList<WebInfo> webInfos = new List<WebInfo>();
-        readonly IList<ForwardInfo<ForwardHandlerArg>> forwardInfos = new List<ForwardInfo<ForwardHandlerArg>>();
 
-        public TunnelClient(WebSocket webSocket, FastTunnelServer fastTunnelServer, ILoginHandler loginHandler, IPAddress remoteIpAddress)
+    private async void ProcessLine(ReadOnlySequence<byte> line, CancellationToken cancellationToken)
+    {
+        var cmd = Encoding.UTF8.GetString(line);
+        await HandleCmdAsync(this, cmd, cancellationToken);
+    }
+
+    private async Task<bool> HandleCmdAsync(TunnelClient tunnelClient, string lineCmd, CancellationToken cancellationToken)
+    {
+        try
         {
-            this.webSocket = webSocket;
-            this.fastTunnelServer = fastTunnelServer;
-            this.loginHandler = loginHandler;
-            this.RemoteIpAddress = remoteIpAddress;
+            return await loginHandler.HandlerMsg(fastTunnelServer, tunnelClient, lineCmd.Substring(1), cancellationToken);
         }
-
-        internal void AddWeb(WebInfo info)
+        catch (Exception ex)
         {
-            webInfos.Add(info);
+            Console.WriteLine($"处理客户端消息失败：cmd={lineCmd} {ex}");
+            return false;
         }
+    }
 
-        internal void AddForward(ForwardInfo<ForwardHandlerArg> forwardInfo)
+    internal void Logout()
+    {
+        // forward监听终止
+        if (forwardInfos != null)
         {
-            forwardInfos.Add(forwardInfo);
-        }
-
-        public async Task ReviceAsync(CancellationToken cancellationToken)
-        {
-            var buffer = new byte[FastTunnelConst.MAX_CMD_LENGTH];
-            var tunnelProtocol = new TunnelProtocol();
-
-            while (true)
+            foreach (var item in forwardInfos)
             {
-                var res = await webSocket.ReceiveAsync(buffer, cancellationToken);
-                var cmds = tunnelProtocol.HandleBuffer(buffer, 0, res.Count);
-                if (cmds == null) continue;
-
-                foreach (var item in cmds)
+                try
                 {
-                    if (!await HandleCmdAsync(this, item))
-                    {
-                        return;
-                    };
+                    item.Listener.Stop();
                 }
-            }
-        }
-        private async Task<bool> HandleCmdAsync(TunnelClient tunnelClient, string lineCmd)
-        {
-            try
-            {
-                return await loginHandler.HandlerMsg(fastTunnelServer, tunnelClient, lineCmd.Substring(1));
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"处理客户端消息失败：cmd={lineCmd} {ex}");
-                return false;
+                catch { }
             }
         }
 
-        internal void Logout()
-        {
-            // forward监听终止
-            if (forwardInfos != null)
-            {
-                foreach (var item in forwardInfos)
-                {
-                    try
-                    {
-                        item.Listener.Stop();
-                    }
-                    catch { }
-                }
-            }
-
-            webSocket.CloseAsync(WebSocketCloseStatus.Empty, "", CancellationToken.None);
-        }
+        webSocket.CloseAsync(WebSocketCloseStatus.Empty, "", CancellationToken.None);
     }
 }

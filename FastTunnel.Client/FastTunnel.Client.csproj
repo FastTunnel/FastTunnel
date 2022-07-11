@@ -7,6 +7,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="7.0.0-preview.3.22175.4" />
     <PackageReference Include="Serilog.Extensions.Hosting" Version="5.0.0-dev-00095" />
+    <PackageReference Include="Serilog.Settings.Configuration" Version="3.3.1-dev-00337" />
     <PackageReference Include="Serilog.Sinks.Console" Version="4.0.2-dev-00890" />
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.1-dev-00947" />
   </ItemGroup>
@@ -16,6 +17,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="appsettings.Development.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="appsettings.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
@@ -28,9 +32,7 @@
   </ItemGroup>
 
   <ProjectExtensions>
-    <VisualStudio>
-      <UserProperties appsettings_1json__JsonSchema="" />
-    </VisualStudio>
+    <VisualStudio><UserProperties appsettings_1development_1json__JsonSchema="https://json.schemastore.org/appsettings.json" appsettings_1json__JsonSchema="" /></VisualStudio>
   </ProjectExtensions>
 
 </Project>

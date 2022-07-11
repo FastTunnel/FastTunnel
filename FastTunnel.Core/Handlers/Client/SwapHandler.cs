@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019-2022 Gui.H. https://github.com/FastTunnel/FastTunnel
+// Copyright (c) 2019-2022 Gui.H. https://github.com/FastTunnel/FastTunnel
 // The FastTunnel licenses this file to you under the Apache License Version 2.0.
 // For more details,You may obtain License file at: https://github.com/FastTunnel/FastTunnel/blob/v2/LICENSE
 
@@ -30,8 +30,14 @@ namespace FastTunnel.Core.Handlers.Client
             var requestId = msgs[0];
             var address = msgs[1];
 
+            await swap(cleint, requestId, address, cancellationToken);
+        }
+
+        private async Task swap(FastTunnelClient cleint, string requestId, string address, CancellationToken cancellationToken)
+        {
             try
             {
+                _logger.LogDebug($"======Swap {requestId} Start======");
                 using (Stream serverStream = await createRemote(requestId, cleint, cancellationToken))
                 using (Stream localStream = await createLocal(requestId, address, cancellationToken))
                 {
@@ -44,6 +50,10 @@ namespace FastTunnel.Core.Handlers.Client
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Swap error {requestId}");
+            }
+            finally
+            {
+                _logger.LogDebug($"======Swap {requestId} End======");
             }
         }
 

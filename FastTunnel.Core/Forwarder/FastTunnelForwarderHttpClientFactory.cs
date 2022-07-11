@@ -52,11 +52,6 @@ namespace FastTunnel.Core.Forwarder
             var contextRequest = _httpContextAccessor.HttpContext;
             //var lifetime = contextRequest.Features.Get<IConnectionLifetimeFeature>()!;
 
-            contextRequest.RequestAborted.Register(() =>
-            {
-                logger.LogDebug($"[ConnectionClosed]");
-            });
-
             try
             {
                 var res = await proxyAsync(host, context, contextRequest.RequestAborted);
