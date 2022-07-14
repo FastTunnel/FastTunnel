@@ -5,12 +5,13 @@
 // Copyright (c) 2019 Gui.H
 
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace FastTunnel.Core.Client;
 
 public interface IFastTunnelClient
 {
-    void StartAsync(CancellationToken cancellationToken);
+    Task StartAsync(CancellationToken cancellationToken);
 
-    void Stop(CancellationToken cancellationToken);
+    Task StopAsync(CancellationToken cancellationToken);
 }

@@ -5,6 +5,8 @@
 // Copyright (c) 2019 Gui.H
 
 using System;
+using System.Buffers;
+using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
@@ -12,26 +14,26 @@ using System.Threading.Tasks;
 using FastTunnel.Core.Config;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Handlers.Client;
+using FastTunnel.Core.Models;
 using FastTunnel.Core.Models.Massage;
-using FastTunnel.Core.Protocol;
 using FastTunnel.Core.Utilitys;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace FastTunnel.Core.Client;
 
-/// <summary>
-/// 客户端
-/// </summary>
 public class FastTunnelClient : IFastTunnelClient
 {
     private ClientWebSocket socket;
 
     protected readonly ILogger<FastTunnelClient> _logger;
-    private readonly SwapHandler _newCustomerHandler;
-    private readonly LogHandler _logHandler;
+    protected DefaultClientConfig ClientConfig { get; private set; }
 
-    public DefaultClientConfig ClientConfig { get; private set; }
+    private readonly SwapHandler swapHandler;
+    private readonly LogHandler logHandler;
+
+    private static ReadOnlySpan<byte> EndSpan => new ReadOnlySpan<byte>(new byte[] { (byte)'\n' });
 
     public SuiDaoServer Server { get; protected set; }
 
@@ -41,9 +43,10 @@ public class FastTunnelClient : IFastTunnelClient
         LogHandler logHandler,
         IOptionsMonitor<DefaultClientConfig> configuration)
     {
+        ReadOnlySpan<int> span = new ReadOnlySpan<int>();
         _logger = logger;
-        _newCustomerHandler = newCustomerHandler;
-        _logHandler = logHandler;
+        swapHandler = newCustomerHandler;
+        this.logHandler = logHandler;
         ClientConfig = configuration.CurrentValue;
         Server = ClientConfig.Server;
     }
@@ -51,8 +54,7 @@ public class FastTunnelClient : IFastTunnelClient
     /// <summary>
     /// 启动客户端
     /// </summary>
-    /// <param name="cancellationToken"></param>
-    public async void StartAsync(CancellationToken cancellationToken)
+    public virtual async Task StartAsync(CancellationToken cancellationToken)
     {
         _logger.LogInformation("===== FastTunnel Client Start =====");
 
@@ -75,32 +77,29 @@ public class FastTunnelClient : IFastTunnelClient
 
     private async Task loginAsync(CancellationToken cancellationToken)
     {
-        try
+        var logMsg = GetLoginMsg(cancellationToken);
+        if (socket != null)
         {
-            var logMsg = GetLoginMsg(cancellationToken);
-
-            // 连接到的目标IP
-            socket = new ClientWebSocket();
-            socket.Options.RemoteCertificateValidationCallback = delegate { return true; };
-            socket.Options.SetRequestHeader(ProtocolConst.FASTTUNNEL_VERSION, AssemblyUtility.GetVersion().ToString());
-            socket.Options.SetRequestHeader(ProtocolConst.FASTTUNNEL_TOKEN, ClientConfig.Token);
-
-            _logger.LogInformation($"正在连接服务端 {Server.ServerAddr}:{Server.ServerPort}");
-            await socket.ConnectAsync(
-                new Uri($"{Server.Protocol}://{Server.ServerAddr}:{Server.ServerPort}"), cancellationToken);
-
-            _logger.LogDebug("连接服务端成功");
-
-            // 登录
-            await socket.SendCmdAsync(MessageType.LogIn, logMsg, cancellationToken);
+            socket.Abort();
         }
-        catch (Exception)
-        {
-            throw;
-        }
+
+        // 连接到的目标IP
+        socket = new ClientWebSocket();
+        socket.Options.RemoteCertificateValidationCallback = delegate { return true; };
+        socket.Options.SetRequestHeader(FastTunnelConst.FASTTUNNEL_VERSION, AssemblyUtility.GetVersion().ToString());
+        socket.Options.SetRequestHeader(FastTunnelConst.FASTTUNNEL_TOKEN, ClientConfig.Token);
+
+        _logger.LogInformation($"正在连接服务端 {Server.ServerAddr}:{Server.ServerPort}");
+        await socket.ConnectAsync(
+            new Uri($"{Server.Protocol}://{Server.ServerAddr}:{Server.ServerPort}"), cancellationToken);
+
+        _logger.LogDebug("连接服务端成功");
+
+        // 登录
+        await socket.SendCmdAsync(MessageType.LogIn, logMsg, cancellationToken);
     }
 
-    public virtual string GetLoginMsg(CancellationToken cancellationToken)
+    protected virtual string GetLoginMsg(CancellationToken cancellationToken)
     {
         Server = ClientConfig.Server;
         return new LogInMassage
@@ -110,46 +109,53 @@ public class FastTunnelClient : IFastTunnelClient
         }.ToJson();
     }
 
-    private async Task ReceiveServerAsync(CancellationToken cancellationToken)
+
+    protected async Task ReceiveServerAsync(CancellationToken cancellationToken)
     {
-        var buffer = new byte[ProtocolConst.MAX_CMD_LENGTH];
-        while (!cancellationToken.IsCancellationRequested)
-        {
-            var res = await socket.ReceiveAsync(buffer, cancellationToken);
-            var type = buffer[0];
-            var content = Encoding.UTF8.GetString(buffer, 1, res.Count - 1);
-            HandleServerRequestAsync(type, content, cancellationToken);
-        }
+        var utility = new WebSocketUtility(socket, ProcessLine);
+        await utility.ProcessLinesAsync(cancellationToken);
     }
 
-    private async void HandleServerRequestAsync(byte cmd, string ctx, CancellationToken cancellationToken)
+    private void ProcessLine(ReadOnlySequence<byte> line, CancellationToken cancellationToken)
+    {
+        HandleServerRequestAsync(line, cancellationToken);
+    }
+
+    private void HandleServerRequestAsync(ReadOnlySequence<byte> line, CancellationToken cancellationToken)
     {
         try
         {
+            var row = line.ToArray();
+            var cmd = row[0];
             IClientHandler handler;
             switch ((MessageType)cmd)
             {
                 case MessageType.SwapMsg:
                 case MessageType.Forward:
-                    handler = _newCustomerHandler;
+                    handler = swapHandler;
                     break;
                 case MessageType.Log:
-                    handler = _logHandler;
+                    handler = logHandler;
                     break;
                 default:
                     throw new Exception($"未处理的消息：cmd={cmd}");
             }
 
-            await handler.HandlerMsgAsync(this, ctx, cancellationToken);
+            var content = Encoding.UTF8.GetString(line.Slice(1));
+            handler.HandlerMsgAsync(this, content, cancellationToken);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "HandleServerRequest Error");
+            _logger.LogError(ex);
         }
     }
 
-    public void Stop(CancellationToken cancellationToken)
+    public async Task StopAsync(CancellationToken cancellationToken)
     {
         _logger.LogInformation("===== FastTunnel Client Stoping =====");
+        if (socket != null)
+        {
+            socket.Abort();
+        }
     }
 }

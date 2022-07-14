@@ -31,10 +31,9 @@ public class ServiceFastTunnelClient : IHostedService
         await Task.CompletedTask;
     }
 
-    public Task StopAsync(CancellationToken cancellationToken)
+    public async Task StopAsync(CancellationToken cancellationToken)
     {
-        _fastTunnelClient.Stop(cancellationToken);
-        return Task.CompletedTask;
+        await _fastTunnelClient.StopAsync(cancellationToken);
     }
 
     private void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)

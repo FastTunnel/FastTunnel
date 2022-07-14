@@ -28,11 +28,11 @@ public class LoginHandler : ILoginHandler
         this.logger = logger;
     }
 
-    protected async Task HandleLoginAsync(FastTunnelServer server, TunnelClient client, LogInMassage requet)
+    protected async Task HandleLoginAsync(FastTunnelServer server, TunnelClient client, LogInMassage requet, CancellationToken cancellationToken)
     {
         var hasTunnel = false;
 
-        await client.webSocket.SendCmdAsync(MessageType.Log, $"穿透协议 | 映射关系（公网=>内网）", CancellationToken.None);
+        await client.webSocket.SendCmdAsync(MessageType.Log, $"穿透协议 | 映射关系（公网=>内网）", cancellationToken);
         Thread.Sleep(300);
 
         if (requet.Webs != null && requet.Webs.Any())
@@ -113,10 +113,10 @@ public class LoginHandler : ILoginHandler
             await client.webSocket.SendCmdAsync(MessageType.Log, TunnelResource.NoTunnel, CancellationToken.None);
     }
 
-    public virtual async Task<bool> HandlerMsg(FastTunnelServer fastTunnelServer, TunnelClient tunnelClient, string lineCmd)
+    public virtual async Task<bool> HandlerMsg(FastTunnelServer fastTunnelServer, TunnelClient tunnelClient, string lineCmd, CancellationToken cancellationToken)
     {
         var msg = JsonSerializer.Deserialize<LogInMassage>(lineCmd);
-        await HandleLoginAsync(fastTunnelServer, tunnelClient, msg);
+        await HandleLoginAsync(fastTunnelServer, tunnelClient, msg, cancellationToken);
         return NeedRecive;
     }
 }

@@ -5,14 +5,20 @@
 // Copyright (c) 2019 Gui.H
 
 using System;
+using System.Buffers;
 using System.Collections.Generic;
+using System.IO.Pipelines;
 using System.Net;
+using System.Net.Sockets;
 using System.Net.WebSockets;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using FastTunnel.Core.Client;
 using FastTunnel.Core.Handlers.Server;
-using FastTunnel.Core.Protocol;
 using FastTunnel.Core.Server;
+using FastTunnel.Core.Utilitys;
+using Microsoft.Extensions.Logging;
 
 namespace FastTunnel.Core.Models;
 
@@ -27,14 +33,18 @@ public class TunnelClient
 
     private readonly FastTunnelServer fastTunnelServer;
     private readonly ILoginHandler loginHandler;
+    private readonly ILogger<TunnelClient> logger;
 
     public IPAddress RemoteIpAddress { get; private set; }
 
     private readonly IList<WebInfo> webInfos = new List<WebInfo>();
     private readonly IList<ForwardInfo<ForwardHandlerArg>> forwardInfos = new List<ForwardInfo<ForwardHandlerArg>>();
 
-    public TunnelClient(WebSocket webSocket, FastTunnelServer fastTunnelServer, ILoginHandler loginHandler, IPAddress remoteIpAddress)
+    public TunnelClient(
+        WebSocket webSocket, FastTunnelServer fastTunnelServer,
+        ILoginHandler loginHandler, IPAddress remoteIpAddress, ILogger<TunnelClient> logger)
     {
+        this.logger = logger;
         this.webSocket = webSocket;
         this.fastTunnelServer = fastTunnelServer;
         this.loginHandler = loginHandler;
@@ -51,32 +61,29 @@ public class TunnelClient
         forwardInfos.Add(forwardInfo);
     }
 
+    /// <summary>
+    /// 接收客户端的消息
+    /// </summary>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
     public async Task ReviceAsync(CancellationToken cancellationToken)
     {
-        var buffer = new byte[ProtocolConst.MAX_CMD_LENGTH];
-        var tunnelProtocol = new TunnelProtocol();
-
-        while (true)
-        {
-            var res = await webSocket.ReceiveAsync(buffer, cancellationToken);
-            var cmds = tunnelProtocol.HandleBuffer(buffer, 0, res.Count);
-            if (cmds == null) continue;
-
-            foreach (var item in cmds)
-            {
-                if (!await HandleCmdAsync(this, item))
-                {
-                    return;
-                };
-            }
-        }
+        var utility = new WebSocketUtility(webSocket, ProcessLine);
+        await utility.ProcessLinesAsync(cancellationToken);
     }
 
-    private async Task<bool> HandleCmdAsync(TunnelClient tunnelClient, string lineCmd)
+
+    private async void ProcessLine(ReadOnlySequence<byte> line, CancellationToken cancellationToken)
+    {
+        var cmd = Encoding.UTF8.GetString(line);
+        await HandleCmdAsync(this, cmd, cancellationToken);
+    }
+
+    private async Task<bool> HandleCmdAsync(TunnelClient tunnelClient, string lineCmd, CancellationToken cancellationToken)
     {
         try
         {
-            return await loginHandler.HandlerMsg(fastTunnelServer, tunnelClient, lineCmd.Substring(1));
+            return await loginHandler.HandlerMsg(fastTunnelServer, tunnelClient, lineCmd.Substring(1), cancellationToken);
         }
         catch (Exception ex)
         {

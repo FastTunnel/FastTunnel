@@ -14,6 +14,7 @@ using FastTunnel.Core.Models.Massage;
 using FastTunnel.Core.Protocol;
 using FastTunnel.Core.Server;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace FastTunnel.Core.Handlers.Server;
@@ -69,7 +70,9 @@ public class FastTunnelClientHandler
             return;
         }
 
-        var client = new TunnelClient(webSocket, fastTunnelServer, loginHandler, context.Connection.RemoteIpAddress);
+        var loggerFactory = context.RequestServices.GetRequiredService<ILoggerFactory>();
+        var log = loggerFactory.CreateLogger<TunnelClient>();
+        var client = new TunnelClient(webSocket, fastTunnelServer, loginHandler, context.Connection.RemoteIpAddress, log);
         client.ConnectionPort = context.Connection.LocalPort;
 
         try
