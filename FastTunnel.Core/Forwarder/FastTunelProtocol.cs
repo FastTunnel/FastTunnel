@@ -53,8 +53,7 @@ public class FastTunelProtocol
             readableBuffer = result.Buffer;
             SequencePosition start = readableBuffer.Start;
 
-            SequencePosition? position = null;
-
+            SequencePosition? position;
             do
             {
                 position = readableBuffer.PositionOf(ByteLF);
@@ -62,7 +61,7 @@ public class FastTunelProtocol
                 if (position != null)
                 {
                     var readedPosition = readableBuffer.GetPosition(1, position.Value);
-                    if (ProcessHeaderLine(readableBuffer.Slice(0, position.Value), out var _))
+                    if (ProcessHeaderLine(readableBuffer.Slice(0, position.Value), out _))
                     {
                         if (Method == ProtocolConst.HTTP_METHOD_SWAP)
                         {
@@ -101,10 +100,10 @@ public class FastTunelProtocol
 
     public string Method;
     public string Host = null;
-    public string MessageId;
+    public Guid MessageId;
     private bool isFirstLine = true;
 
-    public FastTunnelServer fastTunnelServer { get; }
+    private FastTunnelServer fastTunnelServer { get; }
 
     /// <summary>
     ///
@@ -133,7 +132,7 @@ public class FastTunelProtocol
                 case ProtocolConst.HTTP_METHOD_SWAP:
                     // 客户端发起消息互转
                     var endIndex = headerLineStr.IndexOf(" ", 7);
-                    MessageId = headerLineStr.Substring(7, endIndex - 7);
+                    MessageId = Guid.Parse(headerLineStr.Substring(7, endIndex - 7));
                     break;
                 default:
                     // 常规Http请求，需要检查Host决定是否进行代理

@@ -15,6 +15,7 @@ using FastTunnel.Core.Forwarder.Kestrel.Features;
 using FastTunnel.Core.Forwarder.Streams;
 using FastTunnel.Core.Models.Massage;
 using FastTunnel.Core.Protocol;
+using FastTunnel.Core.Refs;
 using FastTunnel.Core.Server;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.Extensions.Logging;
@@ -74,7 +75,7 @@ internal class ForwarderMiddleware
     private async Task waitSwap(ConnectionContext context)
     {
         var feat = context.Features.Get<IFastTunnelFeature>();
-        var requestId = Guid.NewGuid().ToString().Replace("-", "");
+        var requestId = Guid.NewGuid();
 
         Interlocked.Increment(ref UserCount);
 
@@ -162,14 +163,9 @@ internal class ForwarderMiddleware
 
         var closedAwaiter = new TaskCompletionSource<object>();
 
-        cancellationTokenSource.Token.Register(() =>
-        {
-            closedAwaiter.TrySetCanceled();
-        });
-
         try
         {
-            await closedAwaiter.Task;
+            await closedAwaiter.Task.WaitAsync(cancellationTokenSource.Token);
         }
         catch (Exception)
         {

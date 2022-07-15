@@ -42,7 +42,7 @@ public class ForwardDispatcher
     /// <returns></returns>
     public async Task DispatchAsync(Socket _socket, WebSocket client)
     {
-        var msgId = Guid.NewGuid().ToString().Replace("-", "");
+        var msgId = Guid.NewGuid();
 
         (Stream Stream, CancellationTokenSource TokenSource) res = default;
 
@@ -51,10 +51,7 @@ public class ForwardDispatcher
         try
         {
             logger.LogDebug($"[Forward]Swap开始 {msgId}|{_config.RemotePort}=>{_config.LocalIp}:{_config.LocalPort}");
-
             var tcs = new TaskCompletionSource<(Stream Stream, CancellationTokenSource TokenSource)>();
-            tcs.SetTimeOut(10000, () => { logger.LogDebug($"[Dispatch TimeOut]:{msgId}"); });
-
             if (!_server.ResponseTasks.TryAdd(msgId, tcs))
             {
                 return;
@@ -81,11 +78,11 @@ public class ForwardDispatcher
                 return;
             }
 
-            res = await tcs.Task;
+            res = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
             //await using var stream2 = new SocketDuplexPipe(_socket);
             using var stream2 = new NetworkStream(_socket);
-            await Task.WhenAny(res.Stream.CopyToAsync(stream2), stream2.CopyToAsync(res.Stream));
+            await Task.WhenAny(res.Stream.CopyToAsync(stream2), stream2.CopyToAsync(res.Stream)).WaitAsync(res.TokenSource.Token);
         }
         catch (Exception ex)
         {

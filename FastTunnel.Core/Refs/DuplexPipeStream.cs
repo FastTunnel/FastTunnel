@@ -11,12 +11,10 @@ using System.IO.Pipelines;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using FastTunnel.Core.Extensions;
-using FastTunnel.Core.Refs;
 
-namespace FastTunnel.Core.Forwarder.Streams;
+namespace FastTunnel.Core.Refs;
 
-internal class DuplexPipeStream : System.IO.Stream
+internal class DuplexPipeStream : Stream
 {
     private readonly PipeReader _input;
     private readonly PipeWriter _output;

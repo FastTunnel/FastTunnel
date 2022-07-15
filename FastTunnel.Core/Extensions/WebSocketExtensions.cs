@@ -25,9 +25,6 @@ public static class WebSocketExtensions
         }
 
         var buffer = Encoding.UTF8.GetBytes($"{(char)type}{content}\n");
-        if (type != MessageType.LogIn && buffer.Length > ProtocolConst.MAX_CMD_LENGTH)
-            throw new ArgumentOutOfRangeException(nameof(content));
-
         await socket.SendAsync(buffer, WebSocketMessageType.Binary, false, cancellationToken);
     }
 }

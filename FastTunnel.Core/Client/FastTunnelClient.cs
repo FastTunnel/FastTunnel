@@ -146,7 +146,7 @@ public class FastTunnelClient : IFastTunnelClient
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex);
+            _logger.LogError(ex, "[HandleServerRequest Error]");
         }
     }
 

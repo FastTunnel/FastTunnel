@@ -4,6 +4,7 @@
 //     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
 // Copyright (c) 2019 Gui.H
 
+using System;
 using System.Collections.Generic;
 using FastTunnel.Core.Models;
 
@@ -16,6 +17,8 @@ internal interface IFastTunnelFeature
     public IList<string> HasReadLInes { get; set; }
 
     public string Method { get; set; }
+
     public string Host { get; set; }
-    public string MessageId { get; set; }
+
+    public Guid MessageId { get; set; }
 }

@@ -23,7 +23,10 @@ public class FastTunnelServer
     public readonly IOptionsMonitor<DefaultServerConfig> ServerOption;
     private readonly ILogger<FastTunnelServer> logger;
 
-    public ConcurrentDictionary<string, TaskCompletionSource<(Stream Stream, CancellationTokenSource Token)>> ResponseTasks { get; } = new();
+    /// <summary>
+    /// 待转发列表
+    /// </summary>
+    public ConcurrentDictionary<Guid, TaskCompletionSource<(Stream Stream, CancellationTokenSource Token)>> ResponseTasks { get; } = new();
 
     public ConcurrentDictionary<string, WebInfo> WebList { get; private set; } = new();
 

@@ -8,7 +8,7 @@ using System.IO.Pipelines;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
-namespace FastTunnel.Core.Extensions;
+namespace FastTunnel.Core.Refs;
 
 internal static class ValueTaskExtensions
 {
