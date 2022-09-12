@@ -74,19 +74,16 @@ namespace FastTunnel.Core.Listener
             }
         }
 
-        private void ProcessAcceptAsync(SocketAsyncEventArgs e)
+        private async void ProcessAcceptAsync(SocketAsyncEventArgs e)
         {
             if (e.SocketError == SocketError.Success)
             {
                 var accept = e.AcceptSocket;
 
-                Interlocked.Increment(ref m_numConnectedSockets);
-
-                _logerr.LogInformation($"【{ListenIp}:{ListenPort}】Accepted. There are {{0}} clients connected to the port",
-                    m_numConnectedSockets);
+                IncrementClients();
 
                 // 将此客户端交由Dispatcher进行管理
-                _requestDispatcher.DispatchAsync(accept, client);
+                _requestDispatcher.DispatchAsync(accept, client, this);
 
                 // Accept the next connection request
                 StartAccept(e);
@@ -122,6 +119,20 @@ namespace FastTunnel.Core.Listener
                 shutdown = true;
                 listenSocket.Close();
             }
+        }
+
+        internal void IncrementClients()
+        {
+            Interlocked.Increment(ref m_numConnectedSockets);
+            _logerr.LogInformation($"[Listener:{ListenPort}] Accepted. There are {{0}} clients connected", m_numConnectedSockets);
+
+        }
+
+        internal void DecrementClients()
+        {
+            Interlocked.Decrement(ref m_numConnectedSockets);
+            _logerr.LogInformation($"[Listener:{ListenPort}] DisConnet. There are {{0}} clients connecting", m_numConnectedSockets);
+
         }
     }
 }

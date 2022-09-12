@@ -7,6 +7,7 @@
 using FastTunnel.Core.Client;
 using FastTunnel.Core.Exceptions;
 using FastTunnel.Core.Extensions;
+using FastTunnel.Core.Listener;
 using FastTunnel.Core.Models;
 using FastTunnel.Core.Sockets;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -41,7 +42,7 @@ namespace FastTunnel.Core.Handlers.Server
         /// <param name="_socket">用户请求</param>
         /// <param name="client">FastTunnel客户端</param>
         /// <returns></returns>
-        public async Task DispatchAsync(Socket _socket, WebSocket client)
+        public async Task DispatchAsync(Socket _socket, WebSocket client, PortProxyListener listener)
         {
             var msgId = Guid.NewGuid().ToString().Replace("-", "");
 
@@ -51,7 +52,6 @@ namespace FastTunnel.Core.Handlers.Server
                 logger.LogDebug($"[Forward]Swap开始 {msgId}|{_config.RemotePort}=>{_config.LocalIp}:{_config.LocalPort}");
 
                 var tcs = new TaskCompletionSource<Stream>();
-                tcs.SetTimeOut(10000, () => { logger.LogDebug($"[Dispatch TimeOut]:{msgId}"); });
 
                 _server.ResponseTasks.TryAdd(msgId, (tcs, CancellationToken.None));
 
@@ -76,13 +76,11 @@ namespace FastTunnel.Core.Handlers.Server
                     return;
                 }
 
-                using (var stream1 = await tcs.Task)
+                using (var stream1 = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(10)))
                 using (var stream2 = new NetworkStream(_socket, true) { ReadTimeout = 1000 * 60 * 10 })
                 {
                     await Task.WhenAny(stream1.CopyToAsync(stream2), stream2.CopyToAsync(stream1));
                 }
-
-                logger.LogDebug($"[Forward]Swap OK {msgId}");
             }
             catch (Exception ex)
             {
@@ -90,7 +88,9 @@ namespace FastTunnel.Core.Handlers.Server
             }
             finally
             {
+                logger.LogDebug($"[Forward]Swap结束 {msgId}");
                 _server.ResponseTasks.TryRemove(msgId, out _);
+                listener.DecrementClients();
             }
         }
 
