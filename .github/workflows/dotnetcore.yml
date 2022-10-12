@@ -20,7 +20,7 @@ jobs:
        dotnet-version: 7.0.*
        include-prerelease: true
    - name: Build with dotnet
-     run: chmod +x ./publish-win.sh && ./publish-win.sh
+     run: chmod +x ./publish.sh
       
   publish:
     name: publish-core
@@ -104,7 +104,7 @@ jobs:
         run: |
           IMAGE_ID=springhgui/$IMAGE_NAME
           IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
-          VERSION=latest
+          VERSION=$(date "+%Y.%m.%d")
 
           echo IMAGE_ID=$IMAGE_ID
           echo VERSION=$VERSION
