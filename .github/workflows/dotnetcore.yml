@@ -7,7 +7,7 @@ on:
 
 env:
   # 设置 docker 镜像名
-  IMAGE_NAME: fasttunnel
+  IMAGE_NAME: fasttunnel-v2
 
 jobs:
   build:
