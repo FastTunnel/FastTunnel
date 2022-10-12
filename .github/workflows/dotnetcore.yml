@@ -109,10 +109,15 @@ jobs:
           echo IMAGE_ID=$IMAGE_ID
           echo VERSION=$VERSION
           # 设置镜像 id 和版本号
+          echo [tag] $IMAGE_NAME $IMAGE_ID:$VERSION
           docker tag $IMAGE_NAME $IMAGE_ID:$VERSION
           # 进行 push
+          echo [push] $IMAGE_ID:$VERSION
           docker push $IMAGE_ID:$VERSION
           # 再上传一份覆盖latest
-          docker tag $IMAGE_NAME:$VERSION $IMAGE_ID:latest
+          echo [tag] $IMAGE_ID:$VERSION $IMAGE_ID:latest
+          docker tag $IMAGE_ID:$VERSION $IMAGE_ID:latest
+          
+          echo [push] $IMAGE_ID:latest
           docker push $IMAGE_ID:latest
           
