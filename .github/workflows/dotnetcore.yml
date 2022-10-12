@@ -1,6 +1,10 @@
 name: Build
 
-on: [push]
+on:
+  push:
+    branches:
+    - v3
+    
 env:
   # 设置 docker 镜像名
   IMAGE_NAME: fasttunnel
@@ -81,11 +85,19 @@ jobs:
         run: |
           IMAGE_ID=springhgui/$IMAGE_NAME
           IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
-          VERSION=latest
+          VERSION=$(date "+%Y.%m.%d")
 
           echo IMAGE_ID=$IMAGE_ID
           echo VERSION=$VERSION
           # 设置镜像 id 和版本号
+          echo [tag] $IMAGE_NAME $IMAGE_ID:$VERSION
           docker tag $IMAGE_NAME $IMAGE_ID:$VERSION
           # 进行 push
+          echo [push] $IMAGE_ID:$VERSION
           docker push $IMAGE_ID:$VERSION
+          # 再上传一份覆盖latest
+          echo [tag] $IMAGE_ID:$VERSION $IMAGE_ID:latest
+          docker tag $IMAGE_ID:$VERSION $IMAGE_ID:latest
+          
+          echo [push] $IMAGE_ID:latest
+          docker push $IMAGE_ID:latest
