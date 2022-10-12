@@ -3,7 +3,7 @@ name: Build
 on:
   push:
     branches:
-    - master
+    - v2
 
 env:
   # 设置 docker 镜像名
