@@ -95,7 +95,7 @@ jobs:
       - uses: actions/checkout@v2
         # 构建镜像，指定镜像名
       - name: Build image
-        run: docker build . --file Dockerfile --tag $IMAGE_NAME:$(date "+%Y.%m.%d")
+        run: docker build . --file Dockerfile --tag $IMAGE_NAME
         # 登录到 dockerhub，使用 GitHub secrets 传入账号密码，密码被加密存储在 GitHub 服务器，添加方法见下图。
       - name: Log into registry
         run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u springhgui --password-stdin
