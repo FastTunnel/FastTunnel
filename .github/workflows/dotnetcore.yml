@@ -18,6 +18,7 @@ jobs:
      uses: actions/setup-dotnet@v1
      with:
        dotnet-version: 7.0.*
+       include-prerelease: true
    - name: Build with dotnet
      run: chmod +x ./publish-win.sh && ./publish-win.sh
       
@@ -31,7 +32,7 @@ jobs:
         uses: actions/setup-dotnet@v1
         with:
            dotnet-version: 7.0.*
-
+           include-prerelease: true
       # Publish
       - name: publish on version change
         id: publish_nuget
@@ -77,6 +78,7 @@ jobs:
         uses: actions/setup-dotnet@v1
         with:
            dotnet-version: 7.0.*
+           include-prerelease: true
 
       # Publish
       - name: publish on version change
