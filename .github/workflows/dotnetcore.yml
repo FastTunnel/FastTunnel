@@ -112,3 +112,7 @@ jobs:
           docker tag $IMAGE_NAME $IMAGE_ID:$VERSION
           # 进行 push
           docker push $IMAGE_ID:$VERSION
+          # 再上传一份覆盖latest
+          docker tag $IMAGE_NAME:$VERSION $IMAGE_ID:latest
+          docker push $IMAGE_ID:latest
+          
