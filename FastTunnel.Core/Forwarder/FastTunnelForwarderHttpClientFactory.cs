@@ -67,7 +67,7 @@ public class FastTunnelForwarderHttpClientFactory : ForwarderHttpClientFactory
         }
         finally
         {
-            Interlocked.Increment(ref connectionCount);
+            Interlocked.Decrement(ref connectionCount);
             logger.LogDebug($"统计YARP连接数：{connectionCount}");
         }
     }
