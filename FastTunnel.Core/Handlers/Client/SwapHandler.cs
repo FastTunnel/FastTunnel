@@ -18,6 +18,7 @@ namespace FastTunnel.Core.Handlers.Client
     public class SwapHandler : IClientHandler
     {
         readonly ILogger<SwapHandler> _logger;
+        static int connectionCount;
 
         public SwapHandler(ILogger<SwapHandler> logger)
         {
@@ -37,6 +38,7 @@ namespace FastTunnel.Core.Handlers.Client
         {
             try
             {
+                Interlocked.Increment(ref connectionCount);
                 _logger.LogDebug($"======Swap {requestId} Start======");
                 using (Stream serverStream = await createRemote(requestId, cleint, cancellationToken))
                 using (Stream localStream = await createLocal(requestId, address, cancellationToken))
@@ -53,7 +55,9 @@ namespace FastTunnel.Core.Handlers.Client
             }
             finally
             {
+                Interlocked.Decrement(ref connectionCount);
                 _logger.LogDebug($"======Swap {requestId} End======");
+                _logger.LogDebug($"统计SwapHandler连接数：{connectionCount}");
             }
         }
 

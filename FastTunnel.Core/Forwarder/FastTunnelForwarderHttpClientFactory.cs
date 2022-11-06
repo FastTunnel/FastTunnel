@@ -1,6 +1,8 @@
-// Copyright (c) 2019-2022 Gui.H. https://github.com/FastTunnel/FastTunnel
-// The FastTunnel licenses this file to you under the Apache License Version 2.0.
-// For more details,You may obtain License file at: https://github.com/FastTunnel/FastTunnel/blob/v2/LICENSE
+// Licensed under the Apache License, Version 2.0 (the "License").
+// You may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
+// Copyright (c) 2019 Gui.H
 
 using FastTunnel.Core.Client;
 using FastTunnel.Core.Extensions;
@@ -22,100 +24,106 @@ using System.Threading.Tasks;
 using System.Xml.Linq;
 using Yarp.ReverseProxy.Forwarder;
 
-namespace FastTunnel.Core.Forwarder
+namespace FastTunnel.Core.Forwarder;
+
+public class FastTunnelForwarderHttpClientFactory : ForwarderHttpClientFactory
 {
-    public class FastTunnelForwarderHttpClientFactory : ForwarderHttpClientFactory
+    readonly ILogger<FastTunnelForwarderHttpClientFactory> logger;
+    readonly FastTunnelServer fastTunnelServer;
+    private readonly IHttpContextAccessor _httpContextAccessor;
+    static int connectionCount;
+
+    public FastTunnelForwarderHttpClientFactory(
+        ILogger<FastTunnelForwarderHttpClientFactory> logger,
+        IHttpContextAccessor httpContextAccessor, FastTunnelServer fastTunnelServer)
     {
-        readonly ILogger<FastTunnelForwarderHttpClientFactory> logger;
-        readonly FastTunnelServer fastTunnelServer;
-        private readonly IHttpContextAccessor _httpContextAccessor;
+        this.fastTunnelServer = fastTunnelServer;
+        this.logger = logger;
+        _httpContextAccessor = httpContextAccessor;
+    }
 
-        public FastTunnelForwarderHttpClientFactory(
-            ILogger<FastTunnelForwarderHttpClientFactory> logger,
-            IHttpContextAccessor httpContextAccessor, FastTunnelServer fastTunnelServer)
+    protected override void ConfigureHandler(ForwarderHttpClientContext context, SocketsHttpHandler handler)
+    {
+        base.ConfigureHandler(context, handler);
+        handler.ConnectCallback = ConnectCallback;
+    }
+
+    private async ValueTask<Stream> ConnectCallback(SocketsHttpConnectionContext context, CancellationToken cancellationToken)
+    {
+        var host = context.InitialRequestMessage.RequestUri.Host;
+
+        var contextRequest = _httpContextAccessor.HttpContext;
+        //var lifetime = contextRequest.Features.Get<IConnectionLifetimeFeature>()!;
+
+        try
         {
-            this.fastTunnelServer = fastTunnelServer;
-            this.logger = logger;
-            _httpContextAccessor = httpContextAccessor;
+            Interlocked.Increment(ref connectionCount);
+            var res = await proxyAsync(host, context, contextRequest.RequestAborted);
+            return res;
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally
+        {
+            Interlocked.Increment(ref connectionCount);
+            logger.LogDebug($"统计YARP连接数：{connectionCount}");
+        }
+    }
+
+    public async ValueTask<Stream> proxyAsync(string host, SocketsHttpConnectionContext context, CancellationToken cancellation)
+    {
+        WebInfo web;
+        if (!fastTunnelServer.WebList.TryGetValue(host, out web))
+        {
+            // 客户端已离线
+            return await OfflinePage(host, context);
         }
 
-        protected override void ConfigureHandler(ForwarderHttpClientContext context, SocketsHttpHandler handler)
+        var msgId = Guid.NewGuid().ToString().Replace("-", "");
+
+        TaskCompletionSource<Stream> tcs = new();
+        logger.LogDebug($"[Http]Swap开始 {msgId}|{host}=>{web.WebConfig.LocalIp}:{web.WebConfig.LocalPort}");
+
+        cancellation.Register(() =>
         {
-            base.ConfigureHandler(context, handler);
-            handler.ConnectCallback = ConnectCallback;
-        }
+            logger.LogDebug($"[Proxy TimeOut]:{msgId}");
+            tcs.TrySetCanceled();
+        });
 
-        private async ValueTask<Stream> ConnectCallback(SocketsHttpConnectionContext context, CancellationToken cancellationToken)
+        fastTunnelServer.ResponseTasks.TryAdd(msgId, (tcs, cancellation));
+
+        try
         {
-            var host = context.InitialRequestMessage.RequestUri.Host;
+            // 发送指令给客户端，等待建立隧道
+            await web.Socket.SendCmdAsync(MessageType.SwapMsg, $"{msgId}|{web.WebConfig.LocalIp}:{web.WebConfig.LocalPort}", cancellation);
+            var res = await tcs.Task.WaitAsync(cancellation);
 
-            var contextRequest = _httpContextAccessor.HttpContext;
-            //var lifetime = contextRequest.Features.Get<IConnectionLifetimeFeature>()!;
-
-            try
-            {
-                var res = await proxyAsync(host, context, contextRequest.RequestAborted);
-                return res;
-            }
-            catch (Exception)
-            {
-                throw;
-            }
+            logger.LogDebug($"[Http]Swap OK {msgId}");
+            return res;
         }
-
-        public async ValueTask<Stream> proxyAsync(string host, SocketsHttpConnectionContext context, CancellationToken cancellation)
+        catch (WebSocketException)
         {
-            WebInfo web;
-            if (!fastTunnelServer.WebList.TryGetValue(host, out web))
-            {
-                // 客户端已离线
-                return await OfflinePage(host, context);
-            }
-
-            var msgId = Guid.NewGuid().ToString().Replace("-", "");
-
-            TaskCompletionSource<Stream> tcs = new();
-            logger.LogDebug($"[Http]Swap开始 {msgId}|{host}=>{web.WebConfig.LocalIp}:{web.WebConfig.LocalPort}");
-
-            cancellation.Register(() =>
-            {
-                logger.LogDebug($"[Proxy TimeOut]:{msgId}");
-                tcs.TrySetCanceled();
-            });
-
-            fastTunnelServer.ResponseTasks.TryAdd(msgId, (tcs, cancellation));
-
-            try
-            {
-                // 发送指令给客户端，等待建立隧道
-                await web.Socket.SendCmdAsync(MessageType.SwapMsg, $"{msgId}|{web.WebConfig.LocalIp}:{web.WebConfig.LocalPort}", cancellation);
-                var res = await tcs.Task.WaitAsync(cancellation);
-
-                logger.LogDebug($"[Http]Swap OK {msgId}");
-                return res;
-            }
-            catch (WebSocketException)
-            {
-                // 通讯异常，返回客户端离线
-                return await OfflinePage(host, context);
-            }
-            catch (Exception)
-            {
-                throw;
-            }
-            finally
-            {
-                fastTunnelServer.ResponseTasks.TryRemove(msgId, out _);
-            }
+            // 通讯异常，返回客户端离线
+            return await OfflinePage(host, context);
         }
-
-
-        private async ValueTask<Stream> OfflinePage(string host, SocketsHttpConnectionContext context)
+        catch (Exception)
         {
-            var bytes = Encoding.UTF8.GetBytes(
-                $"HTTP/1.1 200 OK\r\nContent-Type:text/html; charset=utf-8\r\n\r\n{TunnelResource.Page_Offline}\r\n");
-
-            return await Task.FromResult(new ResponseStream(bytes));
+            throw;
         }
+        finally
+        {
+            fastTunnelServer.ResponseTasks.TryRemove(msgId, out _);
+        }
+    }
+
+
+    private async ValueTask<Stream> OfflinePage(string host, SocketsHttpConnectionContext context)
+    {
+        var bytes = Encoding.UTF8.GetBytes(
+            $"HTTP/1.1 200 OK\r\nContent-Type:text/html; charset=utf-8\r\n\r\n{TunnelResource.Page_Offline}\r\n");
+
+        return await Task.FromResult(new ResponseStream(bytes));
     }
 }

@@ -15,6 +15,7 @@ using Microsoft.Extensions.Options;
 using System.IO;
 using Yarp.ReverseProxy.Configuration;
 using System.Collections.Generic;
+using FastTunnel.Core.Forwarder.MiddleWare;
 
 namespace FastTunnel.Core.Client
 {
@@ -51,7 +52,7 @@ namespace FastTunnel.Core.Client
         internal void ClientLogin(TunnelClient client)
         {
             Interlocked.Increment(ref ConnectedClientCount);
-            logger.LogInformation($"客户端连接 {client.RemoteIpAddress} 当前在线数：{ConnectedClientCount}");
+            logger.LogInformation($"客户端连接 {client.RemoteIpAddress} 当前在线数：{ConnectedClientCount}，统计CLIENT连接数：{FastTunnelClientHandler.ConnectionCount}");
             Clients.Add(client);
         }
 
@@ -63,7 +64,7 @@ namespace FastTunnel.Core.Client
         internal void ClientLogout(TunnelClient client)
         {
             Interlocked.Decrement(ref ConnectedClientCount);
-            logger.LogInformation($"客户端关闭  {client.RemoteIpAddress} 当前在线数：{ConnectedClientCount}");
+            logger.LogInformation($"客户端关闭  {client.RemoteIpAddress} 当前在线数：{ConnectedClientCount}，统计CLIENT连接数：{FastTunnelClientHandler.ConnectionCount}");
             Clients.Remove(client);
             client.Logout();
         }
