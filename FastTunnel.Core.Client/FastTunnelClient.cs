@@ -17,7 +17,6 @@ using FastTunnel.Core.Handlers.Client;
 using FastTunnel.Core.Models;
 using FastTunnel.Core.Models.Massage;
 using FastTunnel.Core.Utilitys;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 

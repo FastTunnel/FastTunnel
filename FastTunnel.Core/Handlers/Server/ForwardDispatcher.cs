@@ -9,7 +9,6 @@ using FastTunnel.Core.Exceptions;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Listener;
 using FastTunnel.Core.Models;
-using FastTunnel.Core.Sockets;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.Extensions.Logging;
 using System;

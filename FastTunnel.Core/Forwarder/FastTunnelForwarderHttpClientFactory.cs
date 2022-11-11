@@ -7,7 +7,6 @@
 using FastTunnel.Core.Client;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Models;
-using FastTunnel.Core.Sockets;
 using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;

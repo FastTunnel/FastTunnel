@@ -4,9 +4,7 @@
 //     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
 // Copyright (c) 2019 Gui.H
 
-using FastTunnel.Core.Config;
 using FastTunnel.Core.Client;
-using FastTunnel.Core.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;

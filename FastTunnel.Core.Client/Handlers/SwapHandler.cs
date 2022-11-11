@@ -9,9 +9,9 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using FastTunnel.Core.Sockets;
 using Microsoft.Extensions.Logging;
 using System.Net.Security;
+using FastTunnel.Core.Client.Sockets;
 
 namespace FastTunnel.Core.Handlers.Client
 {

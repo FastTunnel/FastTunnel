@@ -11,9 +11,7 @@ using FastTunnel.Core.Config;
 using FastTunnel.Core.Filters;
 using FastTunnel.Core.Forwarder;
 using FastTunnel.Core.Forwarder.MiddleWare;
-using FastTunnel.Core.Handlers.Client;
 using FastTunnel.Core.Handlers.Server;
-using FastTunnel.Core.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Filters;
@@ -27,25 +25,6 @@ namespace FastTunnel.Core.Extensions;
 
 public static class ServicesExtensions
 {
-    /// <summary>
-    /// 客户端依赖及HostedService
-    /// </summary>
-    /// <param name="services"></param>
-    public static void AddFastTunnelClient(this IServiceCollection services, IConfigurationSection configurationSection)
-    {
-        services.Configure<DefaultClientConfig>(configurationSection);
-        services.AddFastTunnelClient();
-    }
-
-    public static void AddFastTunnelClient(this IServiceCollection services)
-    {
-        services.AddTransient<IFastTunnelClient, FastTunnelClient>()
-            .AddSingleton<IExceptionFilter, FastTunnelExceptionFilter>()
-            .AddSingleton<LogHandler>()
-            .AddSingleton<SwapHandler>();
-
-        services.AddHostedService<ServiceFastTunnelClient>();
-    }
 
     /// <summary>
     /// 添加服务端后台进程
