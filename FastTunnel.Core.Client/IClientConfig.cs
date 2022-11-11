@@ -12,13 +12,16 @@ using System.Threading.Tasks;
 using FastTunnel.Core.Config;
 using FastTunnel.Core.Models;
 
-namespace FastTunnel.Core.Client;
-
-public interface IClientConfig
+namespace FastTunnel.Core.Client
 {
-    public SuiDaoServer Server { get; set; }
+    public interface IClientConfig
+    {
+        public SuiDaoServer Server { get; set; }
 
-    public IEnumerable<WebConfig> Webs { get; set; }
+        public IEnumerable<WebConfig> Webs { get; set; }
 
-    public IEnumerable<ForwardConfig> Forwards { get; set; }
+        public IEnumerable<ForwardConfig> Forwards { get; set; }
+    }
+
 }
+

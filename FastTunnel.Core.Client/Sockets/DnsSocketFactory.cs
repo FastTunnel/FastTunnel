@@ -13,15 +13,18 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace FastTunnel.Core.Client.Sockets;
-
-public class DnsSocketFactory
+namespace FastTunnel.Core.Client.Sockets
 {
-    public static async Task<Socket> ConnectAsync(string host, int port)
+
+    public class DnsSocketFactory
     {
-        var Socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-        var dnsEndPoint = new DnsEndPoint(host, port);
-        await Socket.ConnectAsync(dnsEndPoint);
-        return Socket;
+        public static async Task<Socket> ConnectAsync(string host, int port)
+        {
+            var Socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            var dnsEndPoint = new DnsEndPoint(host, port);
+            await Socket.ConnectAsync(dnsEndPoint);
+            return Socket;
+        }
     }
+
 }

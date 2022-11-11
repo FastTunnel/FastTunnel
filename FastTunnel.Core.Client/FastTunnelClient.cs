@@ -140,7 +140,13 @@ public class FastTunnelClient : IFastTunnelClient
                     throw new Exception($"未处理的消息：cmd={cmd}");
             }
 
+#if NETCOREAPP3_1
+            var content = Encoding.UTF8.GetString(line.Slice(1).ToArray());
+#endif
+
+#if NET5_0_OR_GREATER
             var content = Encoding.UTF8.GetString(line.Slice(1));
+#endif
             handler.HandlerMsgAsync(this, content, cancellationToken);
         }
         catch (Exception ex)

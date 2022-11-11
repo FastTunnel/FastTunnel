@@ -13,16 +13,18 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 
-namespace FastTunnel.Core.Handlers.Client;
-
-public interface IClientHandler
+namespace FastTunnel.Core.Handlers.Client
 {
-    /// <summary>
-    /// 处理消息
-    /// </summary>
-    /// <param name="cleint"></param>
-    /// <param name="msg"></param>
-    /// <param name="cancellationToken"></param>
-    /// <returns></returns>
-    Task HandlerMsgAsync(FastTunnelClient cleint, string msg, CancellationToken cancellationToken);
+    public interface IClientHandler
+    {
+        /// <summary>
+        /// 处理消息
+        /// </summary>
+        /// <param name="cleint"></param>
+        /// <param name="msg"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        Task HandlerMsgAsync(FastTunnelClient cleint, string msg, CancellationToken cancellationToken);
+    }
+
 }
