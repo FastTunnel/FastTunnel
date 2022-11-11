@@ -29,7 +29,7 @@ namespace FastTunnel.Core.Forwarder.MiddleWare
         public async Task Handle(HttpContext context, Func<Task> next)
         {
             Interlocked.Increment(ref connectionCount);
-             
+
             try
             {
                 if (context.Request.Method != "PROXY")
@@ -78,6 +78,7 @@ namespace FastTunnel.Core.Forwarder.MiddleWare
                 await closedAwaiter.Task.WaitAsync(cts.Token);
                 logger.LogDebug($"[PROXY]:Closed {requestId}");
             }
+            catch (TaskCanceledException) { }
             catch (Exception ex)
             {
                 logger.LogError(ex);
