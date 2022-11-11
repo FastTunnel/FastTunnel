@@ -19,7 +19,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		.github\workflows\dotnetcore.yml = .github\workflows\dotnetcore.yml
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FastTunnel.Core.Client", "FastTunnel.Core.Client\FastTunnel.Core.Client.csproj", "{67DB3ED6-B1DD-49AA-8C5D-34FABC3C643B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FastTunnel.Core.Client", "FastTunnel.Core.Client\FastTunnel.Core.Client.csproj", "{67DB3ED6-B1DD-49AA-8C5D-34FABC3C643B}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Samples", "Samples", "{0D467306-9D40-467C-A9BA-DA5225844DB3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MauiApp1", "MauiApp1\MauiApp1.csproj", "{6B8C58B8-2525-441D-9C7E-DD69C55D5F98}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -47,6 +51,12 @@ Global
 		{67DB3ED6-B1DD-49AA-8C5D-34FABC3C643B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{67DB3ED6-B1DD-49AA-8C5D-34FABC3C643B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{67DB3ED6-B1DD-49AA-8C5D-34FABC3C643B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6B8C58B8-2525-441D-9C7E-DD69C55D5F98}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6B8C58B8-2525-441D-9C7E-DD69C55D5F98}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6B8C58B8-2525-441D-9C7E-DD69C55D5F98}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{6B8C58B8-2525-441D-9C7E-DD69C55D5F98}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6B8C58B8-2525-441D-9C7E-DD69C55D5F98}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6B8C58B8-2525-441D-9C7E-DD69C55D5F98}.Release|Any CPU.Deploy.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -55,6 +65,7 @@ Global
 		{C8ADFEB1-59DB-4CE3-8D04-5B547107BCCB} = {0E2A9DA2-26AE-4657-B4C5-3A913E2F5A3C}
 		{7D560A9A-E480-40F4-AAF7-398447438255} = {0E2A9DA2-26AE-4657-B4C5-3A913E2F5A3C}
 		{67DB3ED6-B1DD-49AA-8C5D-34FABC3C643B} = {0E2A9DA2-26AE-4657-B4C5-3A913E2F5A3C}
+		{6B8C58B8-2525-441D-9C7E-DD69C55D5F98} = {0D467306-9D40-467C-A9BA-DA5225844DB3}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {3D9C6B44-6706-4EE8-9043-802BBE474A2E}
