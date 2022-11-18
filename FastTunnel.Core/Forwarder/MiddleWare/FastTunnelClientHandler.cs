@@ -24,6 +24,10 @@ namespace FastTunnel.Core.Forwarder.MiddleWare
         readonly Version serverVersion;
         readonly ILoginHandler loginHandler;
 
+        static int connectionCount;
+
+        public static int ConnectionCount => connectionCount;
+
         public FastTunnelClientHandler(
             ILogger<FastTunnelClientHandler> logger, FastTunnelServer fastTunnelServer, ILoginHandler loginHandler)
         {
@@ -44,7 +48,16 @@ namespace FastTunnel.Core.Forwarder.MiddleWare
                     return;
                 };
 
-                await handleClient(context, version);
+                Interlocked.Increment(ref connectionCount);
+
+                try
+                {
+                    await handleClient(context, version);
+                }
+                finally
+                {
+                    Interlocked.Decrement(ref connectionCount);
+                }
             }
             catch (Exception ex)
             {

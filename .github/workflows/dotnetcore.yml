@@ -3,11 +3,11 @@ name: Build
 on:
   push:
     branches:
-    - master
+    - v2
 
 env:
   # 设置 docker 镜像名
-  IMAGE_NAME: fasttunnel
+  IMAGE_NAME: fasttunnel-v2
 
 jobs:
   build:
@@ -18,8 +18,9 @@ jobs:
      uses: actions/setup-dotnet@v1
      with:
        dotnet-version: 7.0.*
+       include-prerelease: true
    - name: Build with dotnet
-     run: chmod +x ./publish-win.sh && ./publish-win.sh
+     run: chmod +x ./publish.sh
       
   publish:
     name: publish-core
@@ -31,7 +32,7 @@ jobs:
         uses: actions/setup-dotnet@v1
         with:
            dotnet-version: 7.0.*
-
+           include-prerelease: true
       # Publish
       - name: publish on version change
         id: publish_nuget
@@ -77,6 +78,7 @@ jobs:
         uses: actions/setup-dotnet@v1
         with:
            dotnet-version: 7.0.*
+           include-prerelease: true
 
       # Publish
       - name: publish on version change
@@ -102,11 +104,20 @@ jobs:
         run: |
           IMAGE_ID=springhgui/$IMAGE_NAME
           IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
-          VERSION=latest
+          VERSION=$(date "+%Y.%m.%d")
 
           echo IMAGE_ID=$IMAGE_ID
           echo VERSION=$VERSION
           # 设置镜像 id 和版本号
+          echo [tag] $IMAGE_NAME $IMAGE_ID:$VERSION
           docker tag $IMAGE_NAME $IMAGE_ID:$VERSION
           # 进行 push
+          echo [push] $IMAGE_ID:$VERSION
           docker push $IMAGE_ID:$VERSION
+          # 再上传一份覆盖latest
+          echo [tag] $IMAGE_ID:$VERSION $IMAGE_ID:latest
+          docker tag $IMAGE_ID:$VERSION $IMAGE_ID:latest
+          
+          echo [push] $IMAGE_ID:latest
+          docker push $IMAGE_ID:latest
+          

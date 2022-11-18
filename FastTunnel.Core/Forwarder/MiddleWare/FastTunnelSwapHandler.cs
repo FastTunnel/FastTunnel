@@ -16,6 +16,9 @@ namespace FastTunnel.Core.Forwarder.MiddleWare
     {
         ILogger<FastTunnelClientHandler> logger;
         FastTunnelServer fastTunnelServer;
+        static int connectionCount;
+
+        public static int ConnectionCount => connectionCount;
 
         public FastTunnelSwapHandler(ILogger<FastTunnelClientHandler> logger, FastTunnelServer fastTunnelServer)
         {
@@ -25,6 +28,8 @@ namespace FastTunnel.Core.Forwarder.MiddleWare
 
         public async Task Handle(HttpContext context, Func<Task> next)
         {
+            Interlocked.Increment(ref connectionCount);
+
             try
             {
                 if (context.Request.Method != "PROXY")
@@ -73,9 +78,15 @@ namespace FastTunnel.Core.Forwarder.MiddleWare
                 await closedAwaiter.Task.WaitAsync(cts.Token);
                 logger.LogDebug($"[PROXY]:Closed {requestId}");
             }
+            catch (TaskCanceledException) { }
             catch (Exception ex)
             {
                 logger.LogError(ex);
+            }
+            finally
+            {
+                Interlocked.Decrement(ref connectionCount);
+                logger.LogDebug($"统计SWAP连接数：{ConnectionCount}");
             }
         }
     }

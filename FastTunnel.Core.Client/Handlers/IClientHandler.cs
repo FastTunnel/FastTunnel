@@ -26,4 +26,5 @@ namespace FastTunnel.Core.Handlers.Client
         /// <returns></returns>
         Task HandlerMsgAsync(FastTunnelClient cleint, string msg, CancellationToken cancellationToken);
     }
+
 }

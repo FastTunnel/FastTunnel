@@ -19,6 +19,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		.github\workflows\dotnetcore.yml = .github\workflows\dotnetcore.yml
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FastTunnel.Core.Client", "FastTunnel.Core.Client\FastTunnel.Core.Client.csproj", "{67DB3ED6-B1DD-49AA-8C5D-34FABC3C643B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -41,6 +43,10 @@ Global
 		{7D560A9A-E480-40F4-AAF7-398447438255}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7D560A9A-E480-40F4-AAF7-398447438255}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7D560A9A-E480-40F4-AAF7-398447438255}.Release|Any CPU.Build.0 = Release|Any CPU
+		{67DB3ED6-B1DD-49AA-8C5D-34FABC3C643B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{67DB3ED6-B1DD-49AA-8C5D-34FABC3C643B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{67DB3ED6-B1DD-49AA-8C5D-34FABC3C643B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{67DB3ED6-B1DD-49AA-8C5D-34FABC3C643B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -48,6 +54,7 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{C8ADFEB1-59DB-4CE3-8D04-5B547107BCCB} = {0E2A9DA2-26AE-4657-B4C5-3A913E2F5A3C}
 		{7D560A9A-E480-40F4-AAF7-398447438255} = {0E2A9DA2-26AE-4657-B4C5-3A913E2F5A3C}
+		{67DB3ED6-B1DD-49AA-8C5D-34FABC3C643B} = {0E2A9DA2-26AE-4657-B4C5-3A913E2F5A3C}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {3D9C6B44-6706-4EE8-9043-802BBE474A2E}
