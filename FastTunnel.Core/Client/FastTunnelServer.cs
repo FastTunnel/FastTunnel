@@ -64,7 +64,7 @@ namespace FastTunnel.Core.Client
         internal void ClientLogout(TunnelClient client)
         {
             Interlocked.Decrement(ref ConnectedClientCount);
-            logger.LogInformation($"客户端关闭  {client.RemoteIpAddress} 当前在线数：{ConnectedClientCount}，统计CLIENT连接数：{FastTunnelClientHandler.ConnectionCount}");
+            logger.LogInformation($"客户端关闭  {client.RemoteIpAddress} 当前在线数：{ConnectedClientCount}，统计CLIENT连接数：{FastTunnelClientHandler.ConnectionCount - 1}");
             Clients.Remove(client);
             client.Logout();
         }
