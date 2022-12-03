@@ -55,22 +55,29 @@ namespace FastTunnel.Core.Listener
 
         private void StartAccept(SocketAsyncEventArgs acceptEventArg)
         {
-            _logerr.LogDebug($"【{ListenIp}:{ListenPort}】: StartAccept");
-            if (acceptEventArg == null)
+            try
             {
-                acceptEventArg = new SocketAsyncEventArgs();
-                acceptEventArg.Completed += new EventHandler<SocketAsyncEventArgs>(AcceptEventArg_Completed);
-            }
-            else
-            {
-                // socket must be cleared since the context object is being reused
-                acceptEventArg.AcceptSocket = null;
-            }
+                _logerr.LogDebug($"【{ListenIp}:{ListenPort}】: StartAccept");
+                if (acceptEventArg == null)
+                {
+                    acceptEventArg = new SocketAsyncEventArgs();
+                    acceptEventArg.Completed += new EventHandler<SocketAsyncEventArgs>(AcceptEventArg_Completed);
+                }
+                else
+                {
+                    // socket must be cleared since the context object is being reused
+                    acceptEventArg.AcceptSocket = null;
+                }
 
-            bool willRaiseEvent = listenSocket.AcceptAsync(acceptEventArg);
-            if (!willRaiseEvent)
+                bool willRaiseEvent = listenSocket.AcceptAsync(acceptEventArg);
+                if (!willRaiseEvent)
+                {
+                    ProcessAcceptAsync(acceptEventArg);
+                }
+            }
+            catch (Exception ex)
             {
-                ProcessAcceptAsync(acceptEventArg);
+                _logerr.LogError(ex, "待处理异常");
             }
         }
 

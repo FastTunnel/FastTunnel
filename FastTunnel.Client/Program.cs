@@ -10,6 +10,7 @@ using System;
 using Microsoft.Extensions.Configuration;
 using Serilog;
 using FastTunnel.Core.Client.Extensions;
+using Serilog.Events;
 
 namespace FastTunnel.Client;
 
@@ -17,13 +18,20 @@ class Program
 {
     public static void Main(string[] args)
     {
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+            .Enrich.FromLogContext()
+            .WriteTo.Console().WriteTo.File("Logs/log-.log", rollingInterval: RollingInterval.Day)
+            .CreateBootstrapLogger();
+
         try
         {
             CreateHostBuilder(args).Build().Run();
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.Message);
+            Log.Fatal(ex, "致命异常");
+            throw;
         }
     }
 
