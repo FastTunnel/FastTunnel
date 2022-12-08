@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFrameworks>net6.0;net7.0</TargetFrameworks>
-    <Version>2.1.1</Version>
+    <Version>2.1.2</Version>
     <PackageProjectUrl>https://github.com/SpringHgui/FastTunnel</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Copyright>FastTunnel</Copyright>
@@ -27,7 +27,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="5.0.0" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="5.0.0" />
-    <PackageReference Include="Yarp.ReverseProxy" Version="1.1.0" />
+    <PackageReference Include="Yarp.ReverseProxy" Version="1.1.1" />
   </ItemGroup>
   
   <ItemGroup>
