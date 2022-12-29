@@ -11,15 +11,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FastTunnel.Server", "FastTu
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Core", "Core", "{0E2A9DA2-26AE-4657-B4C5-3A913E2F5A3C}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FastTunnel.Api", "FastTunnel.Api\FastTunnel.Api.csproj", "{7D560A9A-E480-40F4-AAF7-398447438255}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{54494A47-33E6-488B-B7D4-DBE8FD34916A}"
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
 		.github\workflows\dotnetcore.yml = .github\workflows\dotnetcore.yml
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FastTunnel.Core.Client", "FastTunnel.Core.Client\FastTunnel.Core.Client.csproj", "{67DB3ED6-B1DD-49AA-8C5D-34FABC3C643B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FastTunnel.Core.Client", "FastTunnel.Core.Client\FastTunnel.Core.Client.csproj", "{67DB3ED6-B1DD-49AA-8C5D-34FABC3C643B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -39,10 +37,6 @@ Global
 		{DEF2E322-9075-4C3F-9967-7EAF0EE28CEB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DEF2E322-9075-4C3F-9967-7EAF0EE28CEB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DEF2E322-9075-4C3F-9967-7EAF0EE28CEB}.Release|Any CPU.Build.0 = Release|Any CPU
-		{7D560A9A-E480-40F4-AAF7-398447438255}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{7D560A9A-E480-40F4-AAF7-398447438255}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{7D560A9A-E480-40F4-AAF7-398447438255}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{7D560A9A-E480-40F4-AAF7-398447438255}.Release|Any CPU.Build.0 = Release|Any CPU
 		{67DB3ED6-B1DD-49AA-8C5D-34FABC3C643B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{67DB3ED6-B1DD-49AA-8C5D-34FABC3C643B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{67DB3ED6-B1DD-49AA-8C5D-34FABC3C643B}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -53,7 +47,6 @@ Global
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{C8ADFEB1-59DB-4CE3-8D04-5B547107BCCB} = {0E2A9DA2-26AE-4657-B4C5-3A913E2F5A3C}
-		{7D560A9A-E480-40F4-AAF7-398447438255} = {0E2A9DA2-26AE-4657-B4C5-3A913E2F5A3C}
 		{67DB3ED6-B1DD-49AA-8C5D-34FABC3C643B} = {0E2A9DA2-26AE-4657-B4C5-3A913E2F5A3C}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
