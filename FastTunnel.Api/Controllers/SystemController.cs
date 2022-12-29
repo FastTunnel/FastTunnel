@@ -31,7 +31,7 @@ public class SystemController : BaseController
     [HttpGet]
     public ApiResponse GetResponseTempList()
     {
-        ApiResponse.data = new
+        ApiResponse.Data = new
         {
             Count = fastTunnelServer.ResponseTasks.Count,
             Rows = fastTunnelServer.ResponseTasks.Select(x => new
@@ -50,7 +50,7 @@ public class SystemController : BaseController
     [HttpGet]
     public ApiResponse GetAllWebList()
     {
-        ApiResponse.data = new
+        ApiResponse.Data = new
         {
             Count = fastTunnelServer.WebList.Count,
             Rows = fastTunnelServer.WebList.Select(x => new { x.Key, x.Value.WebConfig.LocalIp, x.Value.WebConfig.LocalPort })
@@ -66,7 +66,7 @@ public class SystemController : BaseController
     [HttpGet]
     public ApiResponse GetServerOption()
     {
-        ApiResponse.data = fastTunnelServer.ServerOption;
+        ApiResponse.Data = fastTunnelServer.ServerOption;
         return ApiResponse;
     }
 
@@ -77,7 +77,7 @@ public class SystemController : BaseController
     [HttpGet]
     public ApiResponse GetAllForwardList()
     {
-        ApiResponse.data = new
+        ApiResponse.Data = new
         {
             Count = fastTunnelServer.ForwardList.Count,
             Rows = fastTunnelServer.ForwardList.Select(x => new { x.Key, x.Value.SSHConfig.LocalIp, x.Value.SSHConfig.LocalPort, x.Value.SSHConfig.RemotePort })
@@ -94,7 +94,7 @@ public class SystemController : BaseController
     [HttpGet]
     public ApiResponse GetOnlineClientCount()
     {
-        ApiResponse.data = fastTunnelServer.ConnectedClientCount;
+        ApiResponse.Data = fastTunnelServer.ConnectedClientCount;
         return ApiResponse;
     }
 }

@@ -67,8 +67,9 @@ public class FastTunnelClient : IFastTunnelClient
             catch (Exception ex)
             {
                 _logger.LogError(ex.Message);
-                await Task.Delay(TimeSpan.FromSeconds(10), cancellationToken);
             }
+
+            await Task.Delay(TimeSpan.FromSeconds(10), cancellationToken);
         }
 
         _logger.LogInformation("===== FastTunnel Client End =====");

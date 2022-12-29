@@ -71,7 +71,6 @@ public class TunnelClient
         await utility.ProcessLinesAsync(cancellationToken);
     }
 
-
     private async void ProcessLine(ReadOnlySequence<byte> line, CancellationToken cancellationToken)
     {
         var cmd = Encoding.UTF8.GetString(line);
@@ -100,6 +99,7 @@ public class TunnelClient
             {
                 try
                 {
+                    fastTunnelServer.ForwardList.TryRemove(item.SSHConfig.RemotePort, out _);
                     item.Listener.Stop();
                 }
                 catch { }
