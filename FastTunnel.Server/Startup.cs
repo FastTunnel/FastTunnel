@@ -69,7 +69,7 @@ public class Startup
         app.UseFastTunnelServer();
         // -------------------FastTunnel STEP2 END-------------------
 
-        app.UseStaticFiles();
+        // app.UseStaticFiles();
         app.UseAuthentication();
         app.UseAuthorization();
 

@@ -39,8 +39,8 @@ namespace FastTunnel.Api.Controllers
         {
             if ((serverOptionsMonitor.CurrentValue?.Api?.Accounts?.Length ?? 0) == 0)
             {
-                ApiResponse.errorCode = ErrorCodeEnum.NoAccount;
-                ApiResponse.errorMessage = "账号或密码错误";
+                ApiResponse.Success = false;
+                ApiResponse.Message = "账号或密码错误";
                 return ApiResponse;
             }
 
@@ -51,8 +51,8 @@ namespace FastTunnel.Api.Controllers
 
             if (account == null)
             {
-                ApiResponse.errorCode = ErrorCodeEnum.NoAccount;
-                ApiResponse.errorMessage = "账号或密码错误";
+                ApiResponse.Success = false;
+                ApiResponse.Message = "账号或密码错误";
                 return ApiResponse;
             }
 
@@ -61,7 +61,7 @@ namespace FastTunnel.Api.Controllers
                     new Claim("Name", account.Name)
                 };
 
-            ApiResponse.data = GenerateToken(
+            ApiResponse.Data = GenerateToken(
                 claims,
                 serverOptionsMonitor.CurrentValue.Api.JWT.IssuerSigningKey,
                 serverOptionsMonitor.CurrentValue.Api.JWT.Expires,
