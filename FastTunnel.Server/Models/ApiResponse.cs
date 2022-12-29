@@ -12,9 +12,9 @@ namespace FastTunnel.Server.Models
         /// 错误码
         /// 0 成功，其他为失败
         /// </summary>
-        public ErrorCodeEnum errorCode { get; set; }
+        public ErrorCodeEnum code { get; set; }
 
-        public string errorMessage { get; set; }
+        public string message { get; set; }
 
         public object data { get; set; }
     }

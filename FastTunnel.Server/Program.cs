@@ -6,6 +6,7 @@
 
 using System.Net.Http;
 using System.Net.Sockets;
+using FastTunnel.Api.Filters;
 using FastTunnel.Core.Extensions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -36,11 +37,19 @@ public class Program
             });
 
             // Add services to the container.
-
+            builder.Services.AddSingleton<CustomExceptionFilterAttribute>();
             builder.Services.AddControllers();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("corsPolicy", policy =>
+                {
+                    policy.AllowAnyHeader().AllowAnyMethod().AllowAnyOrigin()
+                        .WithExposedHeaders("Set-Token");
+                });
+            });
 
             builder.Host.UseSerilog((context, services, configuration) => configuration
                     .ReadFrom.Configuration(context.Configuration)
@@ -66,6 +75,7 @@ public class Program
                 app.UseSwaggerUI();
             }
 
+            app.UseCors("corsPolicy");
             app.UseHttpsRedirection();
 
             app.UseStaticFiles();

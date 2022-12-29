@@ -25,9 +25,9 @@ namespace FastTunnel.Api.Filters
             _logger.LogError(context.Exception, "【全局异常捕获】");
             var res = new ApiResponse()
             {
-                errorCode = ErrorCodeEnum.Exception,
+                code = ErrorCodeEnum.Exception,
                 data = null,
-                errorMessage = context.Exception.Message,
+                message = context.Exception.Message,
             };
 
             var result = new JsonResult(res) { StatusCode = 200 };

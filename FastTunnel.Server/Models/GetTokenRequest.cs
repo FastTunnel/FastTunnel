@@ -11,7 +11,7 @@ namespace FastTunnel.Api.Models
     public class GetTokenRequest
     {
         [Required]
-        public string name { get; set; }
+        public string account { get; set; }
 
         [Required]
         public string password { get; set; }
