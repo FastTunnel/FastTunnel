@@ -48,7 +48,10 @@ public class TunnelClient
         this.fastTunnelServer = fastTunnelServer;
         this.loginHandler = loginHandler;
         this.RemoteIpAddress = remoteIpAddress;
+        StartTime = DateTime.Now;
     }
+
+    public DateTime StartTime { get; }
 
     internal void AddWeb(WebInfo info)
     {

@@ -20,7 +20,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace FastTunnel.Core.Handlers.Server
+namespace FastTunnel.Core.Handlers
 {
     public class ForwardDispatcher
     {

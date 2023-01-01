@@ -97,4 +97,15 @@ public class SystemController : BaseController
         ApiResponse.data = fastTunnelServer.ConnectedClientCount;
         return ApiResponse;
     }
+
+    [HttpGet]
+    public ApiResponse Clients()
+    {
+        ApiResponse.data = fastTunnelServer.Clients.Select(x => new
+        {
+            RemoteIpAddress = x.RemoteIpAddress.ToString(),
+            StartTime = x.StartTime.ToString("yyyyy-MM-dd HH:mm:ss")
+        });
+        return ApiResponse;
+    }
 }
