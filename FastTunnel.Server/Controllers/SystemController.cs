@@ -80,8 +80,13 @@ public class SystemController : BaseController
         ApiResponse.data = new
         {
             Count = fastTunnelServer.ForwardList.Count,
-            Rows = fastTunnelServer.ForwardList.Select(x => new { x.Key, x.Value.SSHConfig.LocalIp, x.Value.SSHConfig.LocalPort, x.Value.SSHConfig.RemotePort })
-
+            Rows = fastTunnelServer.ForwardList.Select(x => new
+            {
+                x.Key,
+                x.Value.SSHConfig.LocalIp,
+                x.Value.SSHConfig.LocalPort,
+                x.Value.SSHConfig.RemotePort
+            })
         };
 
         return ApiResponse;
@@ -103,8 +108,10 @@ public class SystemController : BaseController
     {
         ApiResponse.data = fastTunnelServer.Clients.Select(x => new
         {
+            x.WebInfos,
+            x.ForwardInfos,
             RemoteIpAddress = x.RemoteIpAddress.ToString(),
-            StartTime = x.StartTime.ToString("yyyyy-MM-dd HH:mm:ss")
+            StartTime = x.StartTime.ToString("yyyy-MM-dd HH:mm:ss")
         });
         return ApiResponse;
     }

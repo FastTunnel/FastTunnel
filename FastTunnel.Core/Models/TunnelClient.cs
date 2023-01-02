@@ -36,8 +36,8 @@ public class TunnelClient
 
     public IPAddress RemoteIpAddress { get; private set; }
 
-    private readonly IList<WebInfo> webInfos = new List<WebInfo>();
-    private readonly IList<ForwardInfo<ForwardHandlerArg>> forwardInfos = new List<ForwardInfo<ForwardHandlerArg>>();
+    public readonly IList<WebInfo> WebInfos = new List<WebInfo>();
+    public readonly IList<ForwardInfo<ForwardHandlerArg>> ForwardInfos = new List<ForwardInfo<ForwardHandlerArg>>();
 
     public TunnelClient(
         WebSocket webSocket, FastTunnelServer fastTunnelServer,
@@ -48,19 +48,19 @@ public class TunnelClient
         this.fastTunnelServer = fastTunnelServer;
         this.loginHandler = loginHandler;
         this.RemoteIpAddress = remoteIpAddress;
-        StartTime = DateTime.Now;
+        this.StartTime = DateTime.Now;
     }
 
     public DateTime StartTime { get; }
 
     internal void AddWeb(WebInfo info)
     {
-        webInfos.Add(info);
+        WebInfos.Add(info);
     }
 
     internal void AddForward(ForwardInfo<ForwardHandlerArg> forwardInfo)
     {
-        forwardInfos.Add(forwardInfo);
+        ForwardInfos.Add(forwardInfo);
     }
 
     /// <summary>
@@ -96,9 +96,9 @@ public class TunnelClient
     internal void Logout()
     {
         // forward监听终止
-        if (forwardInfos != null)
+        if (ForwardInfos != null)
         {
-            foreach (var item in forwardInfos)
+            foreach (var item in ForwardInfos)
             {
                 try
                 {
