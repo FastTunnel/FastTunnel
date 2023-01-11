@@ -36,7 +36,7 @@
 [GitHub](https://github.com/SpringHgui/FastTunnel)  
 [Gitee](https://gitee.com/Hgui/FastTunnel)
 
-**有帮助的朋友点下右上角项目的⭐Star支持一下本项目，有需求和bug请提交issue，同时欢迎各位coder进行PR**
+**有帮助的朋友点下右上角项目的⭐Star支持一下本项目，本项开发进度需要社区的推动，无论是提交issue还是pr，亦或是完善文档，如果您想加入FastTunnel组织请发邮件给我！**
 
 ## GVP最有价值开源项目
 
