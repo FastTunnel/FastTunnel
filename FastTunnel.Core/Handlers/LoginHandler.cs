@@ -107,7 +107,7 @@ public class LoginHandler : ILoginHandler
                         logger.LogDebug($"SSH proxy success: {item.RemotePort} => {item.LocalIp}:{item.LocalPort}");
 
                         client.AddForward(forwardInfo);
-                        await client.webSocket.SendCmdAsync(MessageType.Log, $"  TCP    | {server.ServerOption.CurrentValue.WebDomain}:{item.RemotePort} => {item.LocalIp}:{item.LocalPort}", CancellationToken.None);
+                        await client.webSocket.SendCmdAsync(MessageType.Log, $"  {item.Protocol}    | {server.ServerOption.CurrentValue.WebDomain}:{item.RemotePort} => {item.LocalIp}:{item.LocalPort}", CancellationToken.None);
                     }
                     catch (Exception ex)
                     {
