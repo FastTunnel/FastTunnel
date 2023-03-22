@@ -24,12 +24,17 @@
     <Compile Remove="Listener\PortProxyListenerV2.cs" />
     <Compile Remove="Listener\TcpServerHandler.cs" />
   </ItemGroup>
-  <ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net6.0'">
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="5.0.0" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="5.0.0" />
-    <PackageReference Include="Yarp.ReverseProxy" Version="1.1.1" />
   </ItemGroup>
-  
+  <ItemGroup Condition="'$(TargetFramework)' == 'net7.0'">
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="7.0.0" />
+  </ItemGroup>
+  <ItemGroup >
+    <PackageReference Include="Yarp.ReverseProxy" Version="2.0.0" />
+  </ItemGroup>
   <ItemGroup>
     <Compile Update="TunnelResource.Designer.cs">
       <DesignTime>True</DesignTime>
