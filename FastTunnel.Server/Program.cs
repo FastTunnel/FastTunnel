@@ -48,7 +48,9 @@ public class Program
             builder.Services.AddControllers();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
+#if DEBUG
             builder.Services.AddSwaggerGen();
+#endif
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("corsPolicy", policy =>
@@ -109,8 +111,10 @@ public class Program
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {
+#if DEBUG
                 app.UseSwagger();
                 app.UseSwaggerUI();
+#endif
             }
 
             app.UseCors("corsPolicy");
