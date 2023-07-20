@@ -6,7 +6,7 @@ color 0e
 @echo ==================================
 @echo Start Install FastTunnel.Client
 
-sc create FastTunnel.Client binPath=%~dp0\FastTunnel.Client.exe start= auto 
-sc description FastTunnel.Client "FastTunnel-开源内网穿透服务，仓库地址：https://github.com/SpringHgui/FastTunnel star项目以支持作者"
+sc create FastTunnel.Client binPath="%~dp0FastTunnel.Client.exe" start=auto 
+sc description FastTunnel.Client "FastTunnel-开源内网穿透服务，仓库地址：https://github.com/SpringHgui/FastTunnel 点下star项目以支持作者"
 Net Start FastTunnel.Client
 pause
