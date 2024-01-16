@@ -11,6 +11,8 @@ using Microsoft.Extensions.Configuration;
 using Serilog;
 using FastTunnel.Core.Client.Extensions;
 using Serilog.Events;
+using Microsoft.Extensions.DependencyInjection;
+using FastTunnel.Core.Config;
 
 namespace FastTunnel.Client;
 

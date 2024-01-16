@@ -10,24 +10,23 @@ using FastTunnel.Core.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace FastTunnel.Core.Client.Extensions
+namespace FastTunnel.Core.Client.Extensions;
+
+public static class ServicesExtensions
 {
-    public static class ServicesExtensions
+    /// <summary>
+    /// 客户端依赖及HostedService
+    /// </summary>
+    /// <param name="services"></param>
+    public static void AddFastTunnelClient(this IServiceCollection services, IConfigurationSection configurationSection)
     {
-        /// <summary>
-        /// 客户端依赖及HostedService
-        /// </summary>
-        /// <param name="services"></param>
-        public static void AddFastTunnelClient(this IServiceCollection services, IConfigurationSection configurationSection)
-        {
-            services.Configure<DefaultClientConfig>(configurationSection);
+        services.Configure<DefaultClientConfig>(configurationSection);
 
-            services.AddTransient<IFastTunnelClient, FastTunnelClient>()
-                .AddSingleton<LogHandler>()
-                .AddSingleton<SwapHandler>();
+        services.AddTransient<IFastTunnelClient, FastTunnelClient>()
+            .AddSingleton<LogHandler>()
+            .AddSingleton<SwapHandler>();
 
-            services.AddHostedService<ServiceFastTunnelClient>();
-        }
-
+        services.AddHostedService<ServiceFastTunnelClient>();
     }
 }
+

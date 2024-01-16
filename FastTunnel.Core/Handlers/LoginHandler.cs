@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using FastTunnel.Core.Client;
@@ -20,6 +21,13 @@ using Microsoft.Extensions.Logging;
 using Yarp.ReverseProxy.Configuration;
 
 namespace FastTunnel.Core.Handlers.Server;
+
+
+[JsonSourceGenerationOptions(WriteIndented = false)]
+[JsonSerializable(typeof(LogInMassage))]
+internal partial class SourceGenerationContext : JsonSerializerContext
+{
+}
 
 public class LoginHandler : ILoginHandler
 {
@@ -133,9 +141,11 @@ public class LoginHandler : ILoginHandler
             await client.webSocket.SendCmdAsync(MessageType.Log, TunnelResource.NoTunnel, CancellationToken.None);
     }
 
+
     public virtual async Task<bool> HandlerMsg(FastTunnelServer fastTunnelServer, TunnelClient tunnelClient, string lineCmd, CancellationToken cancellationToken)
     {
-        var msg = JsonSerializer.Deserialize<LogInMassage>(lineCmd);
+        var msg = JsonSerializer.Deserialize<LogInMassage>(lineCmd, SourceGenerationContext.Default.LogInMassage);
+
         await HandleLoginAsync(fastTunnelServer, tunnelClient, msg, cancellationToken);
         return NeedRecive;
     }

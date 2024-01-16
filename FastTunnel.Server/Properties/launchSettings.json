@@ -11,7 +11,7 @@
   "profiles": {
     "FastTunnel.Server": {
       "commandName": "Project",
-      "launchBrowser": true,
+      "launchBrowser": false,
       "launchUrl": "http://localhost:1270/swagger",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"

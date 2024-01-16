@@ -9,6 +9,8 @@ using System.Buffers;
 using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using FastTunnel.Core.Config;
@@ -21,6 +23,15 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace FastTunnel.Core.Client;
+
+#if NET6_0_OR_GREATER
+[JsonSourceGenerationOptions(WriteIndented = false)]
+[JsonSerializable(typeof(LogInMassage))]
+[JsonSerializable(typeof(Message<TunnelMassage>))]
+public partial class SourceGenerationContext : JsonSerializerContext
+{
+}
+#endif
 
 public class FastTunnelClient : IFastTunnelClient
 {
@@ -99,14 +110,25 @@ public class FastTunnelClient : IFastTunnelClient
         await socket.SendCmdAsync(MessageType.LogIn, logMsg, cancellationToken);
     }
 
+
     protected virtual string GetLoginMsg(CancellationToken cancellationToken)
     {
         Server = ClientConfig.Server;
+
+# if NET8_0_OR_GREATER
+        return new LogInMassage
+        {
+            Webs = ClientConfig.Webs,
+            Forwards = ClientConfig.Forwards,
+        }.ToJson(jsonTypeInfo: SourceGenerationContext.Default.LogInMassage);
+
+#else
         return new LogInMassage
         {
             Webs = ClientConfig.Webs,
             Forwards = ClientConfig.Forwards,
         }.ToJson();
+#endif
     }
 
 

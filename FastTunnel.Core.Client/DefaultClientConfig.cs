@@ -12,6 +12,7 @@ namespace FastTunnel.Core.Config
 {
     public class DefaultClientConfig : IClientConfig
     {
+        public DefaultClientConfig() { }
         public SuiDaoServer Server { get; set; }
 
         public string Token { get; set; }

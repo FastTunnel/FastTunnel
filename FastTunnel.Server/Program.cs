@@ -5,6 +5,7 @@
 // Copyright (c) 2019 Gui.H
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Net.Http;
 using System.Net.Sockets;
 using System.Text;
@@ -28,17 +29,18 @@ namespace FastTunnel.Server;
 
 public class Program
 {
+    [RequiresUnreferencedCode("")]
     public static void Main(string[] args)
     {
         Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
-            .Enrich.FromLogContext()
-            .WriteTo.Console().WriteTo.File("Logs/log-.log", rollingInterval: RollingInterval.Day)
-            .CreateBootstrapLogger();
+                .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+                .Enrich.FromLogContext()
+                .WriteTo.Console().WriteTo.File("Logs/log-.log", rollingInterval: RollingInterval.Day)
+                .CreateBootstrapLogger();
 
         try
         {
-            var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+            var builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions
             {
                 Args = args
             });
@@ -48,9 +50,9 @@ public class Program
             builder.Services.AddControllers();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
-#if DEBUG
-            builder.Services.AddSwaggerGen();
-#endif
+            //#if DEBUG
+            //            builder.Services.AddSwaggerGen();
+            //#endif
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("corsPolicy", policy =>
@@ -111,10 +113,10 @@ public class Program
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {
-#if DEBUG
-                app.UseSwagger();
-                app.UseSwaggerUI();
-#endif
+                //#if DEBUG
+                //                app.UseSwagger();
+                //                app.UseSwaggerUI();
+                //#endif
             }
 
             app.UseCors("corsPolicy");

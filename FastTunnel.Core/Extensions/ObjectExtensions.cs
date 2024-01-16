@@ -5,10 +5,25 @@
 // Copyright (c) 2019 Gui.H
 using System.Text.Json;
 
+#if NET8_0_OR_GREATER
+using System.Text.Json.Serialization.Metadata;
+#endif
+
 namespace FastTunnel.Core.Extensions
 {
     public static class ObjectExtensions
     {
+#if NET8_0_OR_GREATER
+        public static string ToJson<T>(this T message, JsonTypeInfo<T> jsonTypeInfo)
+        {
+            if (message == null)
+            {
+                return null;
+            }
+
+            return JsonSerializer.Serialize(message, jsonTypeInfo: jsonTypeInfo);
+        }
+#else
         public static string ToJson(this object message)
         {
             if (message == null)
@@ -19,5 +34,6 @@ namespace FastTunnel.Core.Extensions
             var jsonOptions = new JsonSerializerOptions { WriteIndented = false };
             return JsonSerializer.Serialize(message, message.GetType(), jsonOptions);
         }
+#endif
     }
 }
