@@ -6,6 +6,7 @@
 
 using System;
 using System.Buffers;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Text;
@@ -100,9 +101,24 @@ public class FastTunnelClient : IFastTunnelClient
         socket.Options.SetRequestHeader(FastTunnelConst.FASTTUNNEL_VERSION, AssemblyUtility.GetVersion().ToString());
         socket.Options.SetRequestHeader(FastTunnelConst.FASTTUNNEL_TOKEN, ClientConfig.Token);
 
-        _logger.LogInformation($"正在连接服务端 {Server.ServerAddr}:{Server.ServerPort}");
-        await socket.ConnectAsync(
-            new Uri($"{Server.Protocol}://{Server.ServerAddr}:{Server.ServerPort}"), cancellationToken);
+        string address = Server.ServerAddr; // 你可以替换为任何你想 ping 的地址
+        Ping ping = new Ping();
+        PingReply reply = await ping.SendPingAsync(address);
+
+        if (reply.Status == IPStatus.Success)
+        {
+            _logger.LogInformation($"Ping to {address} successful.");
+            _logger.LogInformation($"Address: {reply.Address}");
+            _logger.LogInformation($"Status: {reply.Status}");
+        }
+        else
+        {
+            _logger.LogInformation($"Ping to {address} failed. Status: {reply.Status}");
+        }
+
+        var url = $"{Server.Protocol}://{Server.ServerAddr}:{Server.ServerPort}";
+        _logger.LogInformation($"正在连接服务端 {url}");
+        await socket.ConnectAsync(new Uri(url), cancellationToken);
 
         _logger.LogDebug("连接服务端成功");
 
