@@ -8,6 +8,7 @@ on:
 env:
   # 设置 docker 镜像名
   IMAGE_NAME: fasttunnel-v2
+  IMAGE_CLIENT_NAME: fasttunnel-client-v2
 
 jobs:
   build:
@@ -88,8 +89,8 @@ jobs:
           # Filepath of the project to be packaged, relative to root of repository
           PROJECT_FILE_PATH: FastTunnel.Api/FastTunnel.Api.csproj
           NUGET_KEY: ${{secrets.NUGET_API_KEY}}
-  docker:
-    name: publish-docker
+  docker-server:
+    name: publish-docker-server
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -111,6 +112,38 @@ jobs:
           # 设置镜像 id 和版本号
           echo [tag] $IMAGE_NAME $IMAGE_ID:$VERSION
           docker tag $IMAGE_NAME $IMAGE_ID:$VERSION
+          # 进行 push
+          echo [push] $IMAGE_ID:$VERSION
+          docker push $IMAGE_ID:$VERSION
+          # 再上传一份覆盖latest
+          echo [tag] $IMAGE_ID:$VERSION $IMAGE_ID:latest
+          docker tag $IMAGE_ID:$VERSION $IMAGE_ID:latest
+          
+          echo [push] $IMAGE_ID:latest
+          docker push $IMAGE_ID:latest
+  docker-client:
+    name: publish-docker-client
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        # 构建镜像，指定镜像名
+      - name: Build image
+        run: docker build . --file Dockerfile --tag IMAGE_CLIENT_NAME
+        # 登录到 dockerhub，使用 GitHub secrets 传入账号密码，密码被加密存储在 GitHub 服务器，添加方法见下图。
+      - name: Log into registry
+        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u springhgui --password-stdin
+
+      - name: Push image
+        run: |
+          IMAGE_ID=springhgui/IMAGE_CLIENT_NAME
+          IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+          VERSION=$(date "+%Y.%m.%d")
+
+          echo IMAGE_ID=$IMAGE_ID
+          echo VERSION=$VERSION
+          # 设置镜像 id 和版本号
+          echo [tag] IMAGE_CLIENT_NAME $IMAGE_ID:$VERSION
+          docker tag IMAGE_CLIENT_NAME $IMAGE_ID:$VERSION
           # 进行 push
           echo [push] $IMAGE_ID:$VERSION
           docker push $IMAGE_ID:$VERSION
