@@ -61,10 +61,9 @@
 
 ## QQ群交流群
 加群交流FastTunnel相关的使用问题、bug、需求等
-<div align="center">
-  <img src="images/qqgroup.png" width="180" align=center />
-  <img src="images/FastTunnel-2.png" width="180" align=center />
-</div>
+群1：798672272
+群2：935214348
+群3：768089177
 
 ## License
 Apache License 2.0
