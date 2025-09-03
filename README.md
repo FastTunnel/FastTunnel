@@ -60,11 +60,9 @@ But do not use this service for important items.
 </a>
  
 ## Join QQ Group
-
-<div align="center">
-  <img src="images/qqgroup.png" width="180" align=center />
-  <img src="images/FastTunnel-2.png" width="180" align=center />
-</div>
+Group1：798672272
+Group2：935214348
+Group3：768089177
 
 ## License
 Apache License 2.0
