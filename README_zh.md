@@ -33,7 +33,7 @@
 **使用内网穿透暴露3389端口的，一定要注意，电脑的密码一定要设置复杂一点，避免被黑客破解计算机登录密码，造成损失。**   
 
 ## 文档
-[文档](https://docs.opentask.run/docs/fasttunel/getting-started)
+[文档](https://github.com/SpringHgui/opentask-doc/blob/master/docs/fasttunel/getting-started.md)
 
 ## 开源仓库地址
 [GitHub](https://github.com/SpringHgui/FastTunnel)  
