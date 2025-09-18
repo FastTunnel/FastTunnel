@@ -31,7 +31,7 @@ But do not use this service for important items.
 
 
 ## Docs
-[Docs](https://docs.opentask.run/docs/fasttunel/getting-started)
+[Docs](https://github.com/SpringHgui/opentask-doc/blob/master/docs/fasttunel/getting-started.md)
 
 ## Repositories
 
