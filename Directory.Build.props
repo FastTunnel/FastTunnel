@@ -3,7 +3,7 @@
     <PackageProjectUrl>https://github.com/SpringHgui/FastTunnel</PackageProjectUrl>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <TargetFramework>net10.0</TargetFramework>
-    <Version>3.1.0-Beta.2.22705</Version>
+    <Version>3.1.0-Beta.1.260520</Version>
     <Copyright>FastTunnel</Copyright>
     <Description>expose a local server behind a NAT or firewall to the internet like ngrok and frp</Description>
     <Authors>Gui.H</Authors>
