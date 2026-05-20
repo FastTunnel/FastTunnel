@@ -12,10 +12,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System.Text;
-
-#if DEBUG
-using Microsoft.OpenApi.Models;
-#endif
+using Microsoft.OpenApi;
 
 namespace FastTunnel.Server;
 
@@ -31,12 +28,10 @@ public class Startup
     // This method gets called by the runtime. Use this method to add services to the container.
     public void ConfigureServices(IServiceCollection services)
     {
-#if DEBUG
         services.AddSwaggerGen(c =>
         {
             c.SwaggerDoc("v2", new OpenApiInfo { Title = "FastTunel.Api", Version = "v2" });
         });
-#endif
     }
 
     // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -45,10 +40,8 @@ public class Startup
         if (env.IsDevelopment())
         {
             app.UseDeveloperExceptionPage();
-#if DEBUG
             app.UseSwagger();
             app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v2/swagger.json", "FastTunel.WebApi v2"));
-#endif
         }
 
         app.UseRouting();
