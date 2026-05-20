@@ -5,6 +5,7 @@
 // Copyright (c) 2019 Gui.H
 
 using System;
+using System.Buffers;
 using System.Buffers.Binary;
 using System.IO;
 using System.Net;
@@ -60,10 +61,19 @@ public class SwapHandler : IClientHandler
             {
                 using var localStream = await createLocal(requestId, address, cancellationToken);
 
-                var taskX = serverStream.CopyToAsync(localStream, cancellationToken);
-                var taskY = localStream.CopyToAsync(serverStream, cancellationToken);
+                // 使用一个与双向拷贝联动的 CTS，任一方向结束后立即取消另一方向，避免半关闭后空转。
+                using var swapCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                var taskX = serverStream.CopyToAsync(localStream, swapCts.Token);
+                var taskY = localStream.CopyToAsync(serverStream, swapCts.Token);
 
-                await Task.WhenAny(taskX, taskY).WaitAsync(cancellationToken);
+                try
+                {
+                    await Task.WhenAny(taskX, taskY);
+                }
+                finally
+                {
+                    swapCts.Cancel();
+                }
             }
         }
         catch (Exception ex)
@@ -103,6 +113,7 @@ public class SwapHandler : IClientHandler
         async Task TunnelToLocalAsync()
         {
             var header = new byte[2];
+            var buffer = ArrayPool<byte>.Shared.Rent(MaxDatagramSize);
             try
             {
                 while (!cts.IsCancellationRequested)
@@ -111,14 +122,14 @@ public class SwapHandler : IClientHandler
                         break;
 
                     int len = BinaryPrimitives.ReadUInt16BigEndian(header);
-                    var buffer = len == 0 ? Array.Empty<byte>() : new byte[len];
+                    if (len > MaxDatagramSize) break; // 协议异常，避免越界
                     if (len > 0 && !await ReadExactAsync(serverStream, buffer, 0, len, cts.Token))
                         break;
 
                     lastActive = DateTime.UtcNow;
                     try
                     {
-                        await udp.SendAsync(buffer, len, localTarget);
+                        await udp.SendAsync(buffer.AsMemory(0, len), localTarget, cts.Token);
                     }
                     catch (Exception ex)
                     {
@@ -128,6 +139,7 @@ public class SwapHandler : IClientHandler
             }
             finally
             {
+                ArrayPool<byte>.Shared.Return(buffer);
                 cts.Cancel();
             }
         }
@@ -149,16 +161,24 @@ public class SwapHandler : IClientHandler
                     var data = result.Buffer;
                     if (data.Length > MaxDatagramSize) continue;
 
-                    var frame = new byte[2 + data.Length];
-                    BinaryPrimitives.WriteUInt16BigEndian(frame.AsSpan(0, 2), (ushort)data.Length);
-                    if (data.Length > 0)
+                    // 拼接 [长度 + 负载] 到一个池化缓冲区，只调用一次 WriteAsync，减少 await 次数与头部阻塞。
+                    int frameLen = 2 + data.Length;
+                    var frame = ArrayPool<byte>.Shared.Rent(frameLen);
+                    try
                     {
-                        Buffer.BlockCopy(data, 0, frame, 2, data.Length);
-                    }
+                        BinaryPrimitives.WriteUInt16BigEndian(frame.AsSpan(0, 2), (ushort)data.Length);
+                        if (data.Length > 0)
+                        {
+                            Buffer.BlockCopy(data, 0, frame, 2, data.Length);
+                        }
 
-                    lastActive = DateTime.UtcNow;
-                    await serverStream.WriteAsync(frame, 0, frame.Length, cts.Token);
-                    await serverStream.FlushAsync(cts.Token);
+                        lastActive = DateTime.UtcNow;
+                        await serverStream.WriteAsync(frame.AsMemory(0, frameLen), cts.Token);
+                    }
+                    finally
+                    {
+                        ArrayPool<byte>.Shared.Return(frame);
+                    }
                 }
             }
             finally

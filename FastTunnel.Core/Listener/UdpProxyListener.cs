@@ -5,6 +5,7 @@
 // Copyright (c) 2019 Gui.H
 
 using System;
+using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.IO;
@@ -201,14 +202,24 @@ public class UdpProxyListener : IPortListener
             try
             {
                 _lastActive = DateTime.UtcNow;
-                Span<byte> header = stackalloc byte[2];
-                BinaryPrimitives.WriteUInt16BigEndian(header, (ushort)payload.Length);
-                await _tunnelStream.WriteAsync(header.ToArray(), 0, 2, token);
-                if (payload.Length > 0)
+
+                // 拼接 [长度 + 负载] 到一个池化缓冲区，只调用一次 WriteAsync，
+                // 避免原来两次 await 造成的头部阻塞、以及 .ToArray() 额外分配。
+                int frameLen = 2 + payload.Length;
+                var frame = ArrayPool<byte>.Shared.Rent(frameLen);
+                try
                 {
-                    await _tunnelStream.WriteAsync(payload, 0, payload.Length, token);
+                    BinaryPrimitives.WriteUInt16BigEndian(frame.AsSpan(0, 2), (ushort)payload.Length);
+                    if (payload.Length > 0)
+                    {
+                        Buffer.BlockCopy(payload, 0, frame, 2, payload.Length);
+                    }
+                    await _tunnelStream.WriteAsync(frame.AsMemory(0, frameLen), token);
                 }
-                await _tunnelStream.FlushAsync(token);
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(frame);
+                }
             }
             finally
             {
@@ -219,6 +230,7 @@ public class UdpProxyListener : IPortListener
         private async Task ReadFromTunnelAsync(CancellationToken token)
         {
             var header = new byte[2];
+            var buffer = ArrayPool<byte>.Shared.Rent(MaxDatagramSize);
             try
             {
                 while (!token.IsCancellationRequested)
@@ -227,8 +239,7 @@ public class UdpProxyListener : IPortListener
                         break;
 
                     int len = BinaryPrimitives.ReadUInt16BigEndian(header);
-                    var buffer = len == 0 ? Array.Empty<byte>() : new byte[len];
-
+                    if (len > MaxDatagramSize) break; // 协议异常，避免越界
                     if (len > 0 && !await ReadExactAsync(_tunnelStream, buffer, 0, len, token))
                         break;
 
@@ -236,7 +247,7 @@ public class UdpProxyListener : IPortListener
 
                     try
                     {
-                        await _udpServer.SendAsync(buffer, len, _remoteEp);
+                        await _udpServer.SendAsync(buffer.AsMemory(0, len), _remoteEp, token);
                     }
                     catch (Exception ex)
                     {
@@ -251,6 +262,7 @@ public class UdpProxyListener : IPortListener
             }
             finally
             {
+                ArrayPool<byte>.Shared.Return(buffer);
                 _onClosed?.Invoke(_remoteEp);
             }
         }

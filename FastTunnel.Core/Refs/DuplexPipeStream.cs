@@ -28,6 +28,17 @@ internal class DuplexPipeStream : Stream
         _throwOnCancelled = throwOnCancelled;
     }
 
+    /// <summary>
+    /// 暴露底层的 PipeReader，以便零拷贝路径可以跳过 Stream 封装，
+    /// 直接使用 PipeReader.CopyToAsync(PipeWriter) 等内置零分配拷贝。
+    /// </summary>
+    internal PipeReader Input => _input;
+
+    /// <summary>
+    /// 暴露底层的 PipeWriter（同上）。
+    /// </summary>
+    internal PipeWriter Output => _output;
+
     public void CancelPendingRead()
     {
         _cancelCalled = true;

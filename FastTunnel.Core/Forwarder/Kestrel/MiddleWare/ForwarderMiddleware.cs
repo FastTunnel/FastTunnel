@@ -82,7 +82,10 @@ internal class ForwarderMiddleware
         logger.LogDebug($"=========USER START {requestId}===========");
         var web = feat.MatchWeb;
 
-        TaskCompletionSource<(Stream, CancellationTokenSource)> tcs = new();
+        // RunContinuationsAsynchronously 避免 doSwap 的线程被 waitSwap 的后续工作占用，
+        // 防止高并发下同一客户端的多个请求被内联序列化。
+        var tcs = new TaskCompletionSource<(Stream, CancellationTokenSource)>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
         logger.LogDebug($"[Http]Swap开始 {requestId}|{feat.Host}=>{web.WebConfig.LocalIp}:{web.WebConfig.LocalPort}");
 
         if (!fastTunnelServer.ResponseTasks.TryAdd(requestId, tcs))
@@ -94,8 +97,6 @@ internal class ForwarderMiddleware
 
         try
         {
-            var ss = context.LocalEndPoint;
-
             try
             {
                 // 发送指令给客户端，等待建立隧道
@@ -104,25 +105,65 @@ internal class ForwarderMiddleware
             catch (WebSocketException)
             {
                 web.LogOut();
-
-                // 通讯异常，返回客户端离线
+                throw new ClienOffLineException("客户端离线");
+            }
+            catch (SocketClosedException)
+            {
+                // 控制平面 WebSocket 已关闭，同样识别为客户端离线
+                web.LogOut();
                 throw new ClienOffLineException("客户端离线");
             }
 
-            res = await tcs.Task;
+            // 关键 Bug 修复：给 await 加上取消令牌，避免客户端不回包时永久挂起，
+            // 造成 ResponseTasks 与连接资源泄漏。
+            res = await tcs.Task.WaitAsync(context.ConnectionClosed);
 
-            var tokenSource = CancellationTokenSource.CreateLinkedTokenSource(res.TokenSource.Token, context.ConnectionClosed);
-            using var reverseConnection = new DuplexPipeStream(context.Transport.Input, context.Transport.Output, true);
+            using var tokenSource = CancellationTokenSource.CreateLinkedTokenSource(
+                res.TokenSource.Token, context.ConnectionClosed);
 
-            //var t1 = res.Input.CopyToAsync(context.Transport.Output, context.ConnectionClosed);
-            //var t2 = context.Transport.Input.CopyToAsync(res.Output, context.ConnectionClosed);
-            var t1 = res.Stream.CopyToAsync(reverseConnection, tokenSource.Token);
-            var t2 = reverseConnection.CopyToAsync(res.Stream, tokenSource.Token);
+            // 零拷贝快路径：swap 侧与 user 侧都是 Pipe，直接使用 PipeReader.CopyToAsync(PipeWriter)，
+            // 避免 Stream.CopyToAsync 默认 81920 字节中转缓冲区与额外的 Span 拷贝。
+            Task t1, t2;
+            if (res.Stream is DuplexPipeStream dps)
+            {
+                t1 = dps.Input.CopyToAsync(context.Transport.Output, tokenSource.Token);
+                t2 = context.Transport.Input.CopyToAsync(dps.Output, tokenSource.Token);
+            }
+            else
+            {
+                // 兼容路径：若对端不是 DuplexPipeStream。
+                using var reverseConnection = new DuplexPipeStream(
+                    context.Transport.Input, context.Transport.Output, true);
+                t1 = res.Stream.CopyToAsync(reverseConnection, tokenSource.Token);
+                t2 = reverseConnection.CopyToAsync(res.Stream, tokenSource.Token);
+                try
+                {
+                    await Task.WhenAny(t1, t2);
+                }
+                finally
+                {
+                    tokenSource.Cancel();
+                }
+                return;
+            }
 
-            await Task.WhenAny(t1, t2).WaitAsync(tokenSource.Token);
+            try
+            {
+                // 任一方向结束后立即取消另一方向，不再等到 finally 才传递取消。
+                await Task.WhenAny(t1, t2);
+            }
+            finally
+            {
+                tokenSource.Cancel();
+            }
         }
-        catch (Exception)
+        catch (OperationCanceledException)
         {
+            // 用户连接关闭/超时取消，正常路径
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, $"[Http]Swap 异常 {requestId}");
         }
         finally
         {
@@ -130,10 +171,11 @@ internal class ForwarderMiddleware
             logger.LogDebug($"=========USER END {requestId} {UserCount}===========");
             fastTunnelServer.ResponseTasks.TryRemove(requestId, out _);
 
+            // 先取消另一侧（唤醒 doSwap），再完成本侧管道，避免 doSwap 端在未取消时错误使用已关闭资源。
+            res.TokenSource?.Cancel();
+
             await context.Transport.Input.CompleteAsync();
             await context.Transport.Output.CompleteAsync();
-
-            res.TokenSource?.Cancel();
         }
     }
 
@@ -156,19 +198,25 @@ internal class ForwarderMiddleware
             throw new Exception($"[PROXY]:RequestId不存在 {requestId}");
         };
 
-        CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(context.ConnectionClosed);
+        // 修正：该链接 CTS 原本从未被释放，每个请求都会在 ConnectionClosed 上遗留一个注册。
+        using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(context.ConnectionClosed);
 
         using var reverseConnection = new DuplexPipeStream(context.Transport.Input, context.Transport.Output, true);
         responseStream.TrySetResult((reverseConnection, cancellationTokenSource));
 
-        var closedAwaiter = new TaskCompletionSource<object>();
-
         try
         {
-            await closedAwaiter.Task.WaitAsync(cancellationTokenSource.Token);
+            // 等待 waitSwap 完成后的取消信号。原先使用一个从未 SetResult 的 TaskCompletionSource，
+            // 这里直接用 Task.Delay(Infinite, token) 更简洁，避免多余的 TCS 分配。
+            await Task.Delay(Timeout.Infinite, cancellationTokenSource.Token);
         }
-        catch (Exception)
+        catch (OperationCanceledException)
         {
+            // 正常退出路径
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, $"[PROXY]doSwap 异常 {requestId}");
         }
         finally
         {
