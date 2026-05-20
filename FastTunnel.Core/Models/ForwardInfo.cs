@@ -15,5 +15,5 @@ public class ForwardInfo<T>
 
     public ForwardConfig SSHConfig { get; set; }
 
-    public PortProxyListener Listener { get; set; }
+    public IPortListener Listener { get; set; }
 }

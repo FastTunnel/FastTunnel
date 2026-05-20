@@ -7,31 +7,32 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
-using System.Net.WebSockets;
 using System.Threading;
 using FastTunnel.Core.Handlers.Server;
 using Microsoft.Extensions.Logging;
 
 namespace FastTunnel.Core.Listener;
 
-public class PortProxyListener
+/// <summary>
+/// TCP 端口转发监听器
+/// </summary>
+public class PortProxyListener : IPortListener
 {
     private readonly ILogger _logerr;
 
-    public string ListenIp { get; set; }
+    public string ListenIp { get; }
 
-    public int ListenPort { get; set; }
+    public int ListenPort { get; }
 
     private int m_numConnectedSockets;
     private bool shutdown;
-    private ForwardDispatcher _requestDispatcher;
+    private readonly ForwardDispatcher _requestDispatcher;
     private readonly Socket listenSocket;
-    private readonly WebSocket client;
 
-    public PortProxyListener(string ip, int port, ILogger logerr, WebSocket client)
+    public PortProxyListener(string ip, int port, ILogger logerr, ForwardDispatcher requestDispatcher)
     {
-        this.client = client;
         _logerr = logerr;
+        _requestDispatcher = requestDispatcher;
         this.ListenIp = ip;
         this.ListenPort = port;
 
@@ -42,11 +43,9 @@ public class PortProxyListener
         listenSocket.Bind(localEndPoint);
     }
 
-    public void Start(ForwardDispatcher requestDispatcher)
+    public void Start()
     {
         shutdown = false;
-        _requestDispatcher = requestDispatcher;
-
         listenSocket.Listen();
 
         StartAccept(null);
@@ -84,7 +83,7 @@ public class PortProxyListener
                 m_numConnectedSockets);
 
             // 将此客户端交由Dispatcher进行管理
-            _requestDispatcher.DispatchAsync(accept, client);
+            _requestDispatcher.DispatchAsync(accept);
 
             // Accept the next connection request
             StartAccept(e);

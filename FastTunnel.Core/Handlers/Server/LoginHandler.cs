@@ -81,22 +81,34 @@ public class LoginHandler : ILoginHandler
                             server.ForwardList.TryRemove(item.RemotePort, out var _);
                         }
 
+                        var dispatcher = new ForwardDispatcher(logger, server, item, client.webSocket);
+
+                        IPortListener ls;
+                        if (item.Protocol == ProtocolEnum.UDP)
+                        {
+                            ls = new UdpProxyListener("0.0.0.0", item.RemotePort, logger, dispatcher);
+                        }
+                        else
+                        {
+                            ls = new PortProxyListener("0.0.0.0", item.RemotePort, logger, dispatcher);
+                        }
+
                         // TODO: 客户端离线时销毁
-                        var ls = new PortProxyListener("0.0.0.0", item.RemotePort, logger, client.webSocket);
-                        ls.Start(new ForwardDispatcher(logger, server, item));
+                        ls.Start();
 
                         var forwardInfo = new ForwardInfo<ForwardHandlerArg> { Listener = ls, Socket = client.webSocket, SSHConfig = item };
 
                         // TODO: 客户端离线时销毁
                         server.ForwardList.TryAdd(item.RemotePort, forwardInfo);
-                        logger.LogDebug($"SSH proxy success: {item.RemotePort} => {item.LocalIp}:{item.LocalPort}");
+                        logger.LogDebug($"{item.Protocol} proxy success: {item.RemotePort} => {item.LocalIp}:{item.LocalPort}");
 
                         client.AddForward(forwardInfo);
-                        await client.webSocket.SendCmdAsync(MessageType.Log, $"  TCP    | {server.ServerOption.CurrentValue.WebDomain}:{item.RemotePort} => {item.LocalIp}:{item.LocalPort}", CancellationToken.None);
+                        var protoLabel = item.Protocol == ProtocolEnum.UDP ? "UDP" : "TCP";
+                        await client.webSocket.SendCmdAsync(MessageType.Log, $"  {protoLabel,-6} | {server.ServerOption.CurrentValue.WebDomain}:{item.RemotePort} => {item.LocalIp}:{item.LocalPort}", CancellationToken.None);
                     }
                     catch (Exception ex)
                     {
-                        logger.LogError($"SSH proxy error: {item.RemotePort} => {item.LocalIp}:{item.LocalPort}");
+                        logger.LogError($"{item.Protocol} proxy error: {item.RemotePort} => {item.LocalIp}:{item.LocalPort}");
                         logger.LogError(ex.Message);
                         await client.webSocket.SendCmdAsync(MessageType.Log, ex.Message, CancellationToken.None);
                         continue;

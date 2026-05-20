@@ -23,24 +23,67 @@ public class ForwardDispatcher
 {
     private readonly FastTunnelServer _server;
     private readonly ForwardConfig _config;
+    private readonly WebSocket _client;
     private readonly ILogger logger;
 
-    public ForwardDispatcher(ILogger logger, FastTunnelServer server, ForwardConfig config)
+    public ForwardDispatcher(ILogger logger, FastTunnelServer server, ForwardConfig config, WebSocket client)
     {
         this.logger = logger;
         _server = server;
         _config = config;
+        _client = client;
     }
 
     int SwapCount;
 
     /// <summary>
-    /// 
+    /// 申请一条与 FastTunnel 客户端之间的 swap 隧道流。
+    /// 用于 UDP 端口转发等需要直接持有底层流的场景。
+    /// </summary>
+    /// <param name="protocol">"tcp" 或 "udp"</param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    public async Task<(Stream Stream, CancellationTokenSource TokenSource)> RequestSwapAsync(
+        string protocol, CancellationToken cancellationToken)
+    {
+        var msgId = Guid.NewGuid();
+        var tcs = new TaskCompletionSource<(Stream Stream, CancellationTokenSource Token)>();
+        if (!_server.ResponseTasks.TryAdd(msgId, tcs))
+        {
+            throw new InvalidOperationException("无法申请 swap 通道");
+        }
+
+        try
+        {
+            var payload = string.Equals(protocol, "udp", StringComparison.OrdinalIgnoreCase)
+                ? $"{msgId}|udp|{_config.LocalIp}:{_config.LocalPort}"
+                : $"{msgId}|{_config.LocalIp}:{_config.LocalPort}";
+
+            await _client.SendCmdAsync(MessageType.Forward, payload, cancellationToken);
+        }
+        catch
+        {
+            _server.ResponseTasks.TryRemove(msgId, out _);
+            throw;
+        }
+
+        try
+        {
+            return await tcs.Task.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+        }
+        catch
+        {
+            _server.ResponseTasks.TryRemove(msgId, out _);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// 处理 TCP 端口转发请求
     /// </summary>
     /// <param name="_socket">用户请求</param>
-    /// <param name="client">FastTunnel客户端</param>
     /// <returns></returns>
-    public async Task DispatchAsync(Socket _socket, WebSocket client)
+    public async Task DispatchAsync(Socket _socket)
     {
         var msgId = Guid.NewGuid();
 
@@ -59,7 +102,7 @@ public class ForwardDispatcher
 
             try
             {
-                await client.SendCmdAsync(MessageType.Forward, $"{msgId}|{_config.LocalIp}:{_config.LocalPort}", CancellationToken.None);
+                await _client.SendCmdAsync(MessageType.Forward, $"{msgId}|{_config.LocalIp}:{_config.LocalPort}", CancellationToken.None);
             }
             catch (SocketClosedException sex)
             {
@@ -80,7 +123,6 @@ public class ForwardDispatcher
 
             res = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-            //await using var stream2 = new SocketDuplexPipe(_socket);
             using var stream2 = new NetworkStream(_socket);
             await Task.WhenAny(res.Stream.CopyToAsync(stream2), stream2.CopyToAsync(res.Stream)).WaitAsync(res.TokenSource.Token);
         }

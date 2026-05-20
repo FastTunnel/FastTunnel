@@ -20,6 +20,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		Dockerfile = Dockerfile
 		.github\workflows\dotnetcore.yml = .github\workflows\dotnetcore.yml
 		publish.sh = publish.sh
+		udp_client.ps1 = udp_client.ps1
+		udp_client_proxyed.ps1 = udp_client_proxyed.ps1
+		udp_server.ps1 = udp_server.ps1
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FastTunnel.Hosting", "FastTunnel.Hosting\FastTunnel.Hosting.csproj", "{D7F07110-E85C-4F0E-B479-AEC9760CD2A7}"
