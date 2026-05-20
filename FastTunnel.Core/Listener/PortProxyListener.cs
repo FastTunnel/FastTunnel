@@ -15,7 +15,7 @@ using System.Threading;
 
 namespace FastTunnel.Core.Listener
 {
-    public class PortProxyListener
+    public class PortProxyListener : IPortListener
     {
         readonly ILogger _logerr;
 

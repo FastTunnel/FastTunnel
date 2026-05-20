@@ -71,9 +71,11 @@ public class Program
             (builder.Configuration as IConfigurationBuilder).AddJsonFile("config/appsettings.json", optional: false, reloadOnChange: true);
             (builder.Configuration as IConfigurationBuilder).AddJsonFile($"config/appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true); ;
 
-            // -------------------FastTunnel STEP1 OF 3------------------
+            // -------------------FastTunnel STEP1 OF 2------------------
             builder.Services.AddFastTunnelServer(builder.Configuration.GetSection("FastTunnel"));
             // -------------------FastTunnel STEP1 END-------------------
+
+            builder.Services.AddOpenApi();
 
             var Configuration = builder.Configuration;
             var apioptions = Configuration.GetSection("FastTunnel").Get<DefaultServerConfig>();
@@ -113,10 +115,7 @@ public class Program
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {
-                //#if DEBUG
-                //                app.UseSwagger();
-                //                app.UseSwaggerUI();
-                //#endif
+                app.MapOpenApi();
             }
 
             app.UseCors("corsPolicy");
@@ -129,11 +128,10 @@ public class Program
 
             app.MapControllers();
 
-            // -------------------FastTunnel STEP2 OF 3------------------
+            // -------------------FastTunnel STEP2 OF 2------------------
             app.UseFastTunnelServer();
-            // -------------------FastTunnel STEP2 END-------------------
-
             app.MapFastTunnelServer();
+            // -------------------FastTunnel STEP2 END-------------------
 
             app.Run();
         }

@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <Nullable>enable</Nullable>
@@ -34,7 +34,7 @@
   </ItemGroup>
 
   <ProjectExtensions>
-    <VisualStudio><UserProperties appsettings_1development_1json__JsonSchema="https://json.schemastore.org/appsettings.json" appsettings_1json__JsonSchema="" /></VisualStudio>
+    <VisualStudio><UserProperties appsettings_1json__JsonSchema="" /></VisualStudio>
   </ProjectExtensions>
 
 </Project>

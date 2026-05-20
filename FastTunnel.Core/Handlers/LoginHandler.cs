@@ -105,7 +105,9 @@ public class LoginHandler : ILoginHandler
                         }
 
                         // TODO: 客户端离线时销毁
-                        var ls = new PortProxyListener("0.0.0.0", item.RemotePort, logger, client.webSocket);
+                        IPortListener ls = item.Protocol == ProtocolEnum.UDP
+                            ? new UdpProxyListener("0.0.0.0", item.RemotePort, logger, client.webSocket)
+                            : new PortProxyListener("0.0.0.0", item.RemotePort, logger, client.webSocket);
                         ls.Start(new ForwardDispatcher(logger, server, item));
 
                         var forwardInfo = new ForwardInfo<ForwardHandlerArg> { Listener = ls, Socket = client.webSocket, SSHConfig = item };
