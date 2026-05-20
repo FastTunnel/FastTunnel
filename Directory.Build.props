@@ -1,0 +1,12 @@
+<!-- Centralized build settings for the solution. Edit <TargetFramework> to change the unified .NET version. -->
+<Project>
+  <PropertyGroup>
+    <!-- Unified target framework for all projects in the repository -->
+    <TargetFramework>net10.0</TargetFramework>
+
+    <!-- Common defaults mirrored from several projects; adjust if needed -->
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+</Project>
