@@ -5,14 +5,7 @@
 // Copyright (c) 2019 Gui.H
 
 using FastTunnel.Core.Extensions;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using System.Text;
-using Microsoft.OpenApi;
 
 namespace FastTunnel.Server;
 
@@ -28,10 +21,7 @@ public class Startup
     // This method gets called by the runtime. Use this method to add services to the container.
     public void ConfigureServices(IServiceCollection services)
     {
-        services.AddSwaggerGen(c =>
-        {
-            c.SwaggerDoc("v2", new OpenApiInfo { Title = "FastTunel.Api", Version = "v2" });
-        });
+        services.AddOpenApi();
     }
 
     // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -40,8 +30,6 @@ public class Startup
         if (env.IsDevelopment())
         {
             app.UseDeveloperExceptionPage();
-            app.UseSwagger();
-            app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v2/swagger.json", "FastTunel.WebApi v2"));
         }
 
         app.UseRouting();
@@ -51,11 +39,16 @@ public class Startup
         app.UseAuthentication();
         app.UseAuthorization();
         // --------------------- Custom UI ----------------
-
+     
         app.UseFastTunnelServer();
 
         app.UseEndpoints(endpoints =>
         {
+            if (env.IsDevelopment())
+            {
+                endpoints.MapOpenApi();
+            }
+           
             endpoints.MapControllers();
             endpoints.MapFallback(async (HttpContext ctx) =>
             {
