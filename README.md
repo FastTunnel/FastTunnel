@@ -13,10 +13,9 @@
 </div>
 <div align="center">
 
-# Sponsor
-If `FastTunel` gives you value, might as well ☕ [sponsor a cup of coffee](https://afdian.com/a/gui_h/plan)~。  
+# More open source projects
 
-## new open-source task scheduling system, welcome to learn more about [OpenTask](https://github.com/SpringHgui/OpenTask)
+## Since I couldn't afford Navicat, I built my own Navicat. [Daro - Navicat replacement](https://github.com/SpringHgui/daro)
 
 </div>
 
