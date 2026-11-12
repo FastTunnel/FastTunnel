@@ -305,5 +305,7 @@ jobs:
           else
             gh release create "$TAG" --title "$TAG" --notes-file notes.md --prerelease="$PRE" dist/*
           fi
-          gh release view "$TAG" --json tagName,prerelease,assets \
-            --jq '{tag: .tagName, prerelease: .prerelease, assetCount: (.assets | length)}'
+          # 收尾不再回读 Release 做汇总打印：gh 的 create/edit/upload 任一步失败都会非零退出并被 set -e 拦住，
+          # 而多一个回读命令就多一个能把“发布已成功”报成“流水线失败”的点
+          echo "已发布 https://github.com/${GITHUB_REPOSITORY}/releases/tag/$TAG"
+          echo "本次上传 $(ls -1 dist | wc -l) 个文件（含 sha256sums.txt）"
