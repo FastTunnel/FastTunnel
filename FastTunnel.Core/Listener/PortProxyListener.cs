@@ -40,8 +40,28 @@ namespace FastTunnel.Core.Listener
             IPAddress ipa = IPAddress.Parse(ListenIp);
             IPEndPoint localEndPoint = new IPEndPoint(ipa, ListenPort);
 
-            listenSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            listenSocket.Bind(localEndPoint);
+            if (ipa.AddressFamily == AddressFamily.InterNetworkV6)
+            {
+                try
+                {
+                    listenSocket = new Socket(AddressFamily.InterNetworkV6, SocketType.Stream, ProtocolType.Tcp);
+                    // DualMode：一个监听口同时接 IPv6 与 IPv4 客户端。
+                    listenSocket.DualMode = true;
+                    listenSocket.Bind(localEndPoint);
+                }
+                catch (SocketException)
+                {
+                    // IPv6-only VPS 上可能没有 IPv4 栈，回退纯 IPv6 监听。
+                    listenSocket.Close();
+                    listenSocket = new Socket(AddressFamily.InterNetworkV6, SocketType.Stream, ProtocolType.Tcp);
+                    listenSocket.Bind(localEndPoint);
+                }
+            }
+            else
+            {
+                listenSocket = new Socket(ipa.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+                listenSocket.Bind(localEndPoint);
+            }
         }
 
         public void Start(ForwardDispatcher requestDispatcher)

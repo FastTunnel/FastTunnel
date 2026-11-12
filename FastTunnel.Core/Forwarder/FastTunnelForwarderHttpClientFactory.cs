@@ -7,6 +7,7 @@
 using FastTunnel.Core.Client;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Models;
+using FastTunnel.Core.Utilitys;
 using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
@@ -96,7 +97,7 @@ public class FastTunnelForwarderHttpClientFactory : ForwarderHttpClientFactory
         try
         {
             // 发送指令给客户端，等待建立隧道
-            await web.Socket.SendCmdAsync(MessageType.SwapMsg, $"{msgId}|{web.WebConfig.LocalIp}:{web.WebConfig.LocalPort}", cancellation);
+            await web.Socket.SendCmdAsync(MessageType.SwapMsg, $"{msgId}|{ForwardAddress.Format(web.WebConfig.LocalIp, web.WebConfig.LocalPort)}", cancellation);
             var res = await tcs.Task.WaitAsync(cancellation);
 
             logger.LogDebug($"[Http]Swap OK {msgId}");

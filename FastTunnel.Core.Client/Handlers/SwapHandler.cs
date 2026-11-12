@@ -4,6 +4,7 @@
 
 using FastTunnel.Core.Client;
 using FastTunnel.Core.Client.Sockets;
+using FastTunnel.Core.Utilitys;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Buffers;
@@ -90,20 +91,9 @@ namespace FastTunnel.Core.Handlers.Client
 
                 using Stream serverStream = await createRemote(requestId, cleint, cancellationToken);
 
-                var parts = address.Split(':');
-                var host = parts[0];
-                var port = int.Parse(parts[1]);
+                DnsSocketFactory.SplitHostPort(address, out var host, out var port);
 
-                IPAddress ipAddress;
-                if (!IPAddress.TryParse(host, out ipAddress))
-                {
-                    var entries = await Dns.GetHostAddressesAsync(host);
-                    ipAddress = entries.Length > 0 ? entries[0] : IPAddress.Loopback;
-                }
-                var localTarget = new IPEndPoint(ipAddress, port);
-
-                udp = new UdpClient(0); // ephemeral local port
-                udp.Connect(localTarget);
+                udp = await DnsSocketFactory.CreateUdpClientAsync(host, port);
 
                 using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 var token = linkedCts.Token;
@@ -177,7 +167,7 @@ namespace FastTunnel.Core.Handlers.Client
 
         private async Task<Stream> createLocal(string requestId, string localhost, CancellationToken cancellationToken)
         {
-            var socket = await DnsSocketFactory.ConnectAsync(localhost.Split(":")[0], int.Parse(localhost.Split(":")[1]));
+            var socket = await DnsSocketFactory.ConnectAsync(localhost);
             return new NetworkStream(socket, true) { ReadTimeout = 1000 * 60 * 10 };
         }
 
@@ -193,7 +183,7 @@ namespace FastTunnel.Core.Handlers.Client
                 serverStream = sslStream;
             }
 
-            var reverse = $"PROXY /{requestId} HTTP/1.1\r\nHost: {cleint.Server.ServerAddr}:{cleint.Server.ServerPort}\r\n\r\n";
+            var reverse = $"PROXY /{requestId} HTTP/1.1\r\nHost: {ForwardAddress.UriHost(cleint.Server.ServerAddr)}:{cleint.Server.ServerPort}\r\n\r\n";
             var requestMsg = Encoding.UTF8.GetBytes(reverse);
             await serverStream.WriteAsync(requestMsg, cancellationToken);
             return serverStream;

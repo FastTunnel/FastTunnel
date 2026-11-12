@@ -116,7 +116,7 @@ public class FastTunnelClient : IFastTunnelClient
             _logger.LogInformation($"Ping to {address} failed. Status: {reply.Status}");
         }
 
-        var url = $"{Server.Protocol}://{Server.ServerAddr}:{Server.ServerPort}";
+        var url = $"{Server.Protocol}://{ForwardAddress.UriHost(Server.ServerAddr)}:{Server.ServerPort}";
         _logger.LogInformation($"正在连接服务端 {url}");
         await socket.ConnectAsync(new Uri(url), cancellationToken);
 

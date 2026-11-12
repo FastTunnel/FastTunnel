@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -105,9 +106,10 @@ public class LoginHandler : ILoginHandler
                         }
 
                         // TODO: 客户端离线时销毁
+                        // IPv6Any + DualMode（见监听器实现）：同一端口同时接 IPv4 与 IPv6 用户。
                         IPortListener ls = item.Protocol == ProtocolEnum.UDP
-                            ? new UdpProxyListener("0.0.0.0", item.RemotePort, logger, client.webSocket)
-                            : new PortProxyListener("0.0.0.0", item.RemotePort, logger, client.webSocket);
+                            ? new UdpProxyListener(IPAddress.IPv6Any.ToString(), item.RemotePort, logger, client.webSocket)
+                            : new PortProxyListener(IPAddress.IPv6Any.ToString(), item.RemotePort, logger, client.webSocket);
                         ls.Start(new ForwardDispatcher(logger, server, item));
 
                         var forwardInfo = new ForwardInfo<ForwardHandlerArg> { Listener = ls, Socket = client.webSocket, SSHConfig = item };

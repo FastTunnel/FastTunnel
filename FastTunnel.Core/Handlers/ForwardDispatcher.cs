@@ -9,6 +9,7 @@ using FastTunnel.Core.Exceptions;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Listener;
 using FastTunnel.Core.Models;
+using FastTunnel.Core.Utilitys;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.Extensions.Logging;
 using System;
@@ -56,7 +57,7 @@ namespace FastTunnel.Core.Handlers
 
                 try
                 {
-                    await client.SendCmdAsync(MessageType.Forward, $"{msgId}|{_config.LocalIp}:{_config.LocalPort}", CancellationToken.None);
+                    await client.SendCmdAsync(MessageType.Forward, $"{msgId}|{ForwardAddress.Format(_config.LocalIp, _config.LocalPort)}", CancellationToken.None);
                 }
                 catch (SocketClosedException sex)
                 {
@@ -122,7 +123,7 @@ namespace FastTunnel.Core.Handlers
             try
             {
                 logger.LogDebug($"[Forward-UDP]Swap开始 {msgId}|{_config.RemotePort}=>{_config.LocalIp}:{_config.LocalPort}");
-                await client.SendCmdAsync(MessageType.Forward, $"{msgId}|udp|{_config.LocalIp}:{_config.LocalPort}", cancellationToken);
+                await client.SendCmdAsync(MessageType.Forward, $"{msgId}|udp|{ForwardAddress.Format(_config.LocalIp, _config.LocalPort)}", cancellationToken);
                 return await tcs.Task.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
             }
             catch (Exception ex)

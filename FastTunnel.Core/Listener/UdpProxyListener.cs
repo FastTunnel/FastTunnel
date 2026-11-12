@@ -53,7 +53,27 @@ namespace FastTunnel.Core.Listener
             _requestDispatcher = requestDispatcher;
 
             var ipa = IPAddress.Parse(ListenIp);
-            _udpClient = new UdpClient(new IPEndPoint(ipa, ListenPort));
+            if (ipa.AddressFamily == AddressFamily.InterNetworkV6)
+            {
+                try
+                {
+                    _udpClient = new UdpClient(AddressFamily.InterNetworkV6);
+                    // DualMode：同一个监听口同时收 IPv6 与 IPv4（IPv4 以 ::ffff:x.x.x.x 形式呈现）。
+                    _udpClient.Client.DualMode = true;
+                    _udpClient.Client.Bind(new IPEndPoint(IPAddress.IPv6Any, ListenPort));
+                }
+                catch (SocketException)
+                {
+                    // IPv6-only VPS 上可能没有 IPv4 栈，回退纯 IPv6 监听。
+                    _udpClient?.Close();
+                    _udpClient = new UdpClient(AddressFamily.InterNetworkV6);
+                    _udpClient.Client.Bind(new IPEndPoint(ipa, ListenPort));
+                }
+            }
+            else
+            {
+                _udpClient = new UdpClient(new IPEndPoint(ipa, ListenPort));
+            }
 
             _ = Task.Run(ReceiveLoopAsync);
         }
