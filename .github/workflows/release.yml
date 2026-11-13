@@ -155,11 +155,60 @@ jobs:
           NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
         run: |
           set -euo pipefail
-          for nupkg in nupkgs/*.nupkg; do
-            # --skip-duplicate：重跑同一个 tag 时别把已经发上去的版本报成失败
-            dotnet nuget push "$nupkg" --api-key "$NUGET_API_KEY" \
-              --source https://api.nuget.org/v3/index.json --skip-duplicate
+          # 空 key 会一路走到 push 才炸，报错又容易被下面的 409 分支吃掉，先拦死
+          [ -n "$NUGET_API_KEY" ] \
+            || { echo "!!! NuGet/login 没换到 key：检查 Trusted Publishing 策略是否绑定了本仓库的 release.yml"; exit 1; }
+          echo "key 长度 ${#NUGET_API_KEY}"
+
+          shopt -s nullglob
+          files=(nupkgs/*.nupkg)
+          [ ${#files[@]} -gt 0 ] || { echo "!!! nupkgs 里没有产物，Pack 阶段可能没落盘"; exit 1; }
+          echo "待推送 ${#files[@]} 个：${files[*]}"
+
+          for nupkg in "${files[@]}"; do
+            echo ">>> $nupkg"
+            # 不用 --skip-duplicate 一梭子：它会把 409（版本号已被占用，比如以前发过又删掉）
+            # 也当成成功，结果 job 绿了、包其实没上去。这里显式区分两种情况。
+            if out=$(dotnet nuget push "$nupkg" --api-key "$NUGET_API_KEY" \
+                  --source https://api.nuget.org/v3/index.json 2>&1); then
+              echo "$out"
+            else
+              echo "$out"
+              if grep -qiE "409|already exists|conflict" <<<"$out"; then
+                echo "--- 该版本已存在，跳过（重跑同一 tag 的正常情况）---"
+              else
+                echo "!!! 推送失败：上面的输出是真实原因"
+                exit 1
+              fi
+            fi
           done
+
+      # 返回码靠不住，落到 nuget.org 上能下载才算发出去了
+      - name: 校验已上架
+        env:
+          NUM: ${{ needs.meta.outputs.num }}
+        run: |
+          set -euo pipefail
+          ver=$(echo "$NUM" | tr 'A-Z' 'a-z')
+          for attempt in $(seq 1 20); do
+            missing=""
+            for project in $NUGET_PROJECTS; do
+              id=$(echo "$project" | tr 'A-Z' 'a-z')
+              url="https://api.nuget.org/v3-flatcontainer/$id/$ver/$id.$ver.nupkg"
+              code=$(curl -s -o /dev/null -w '%{http_code}' -m 30 -L "$url" || true)
+              if [ "$code" = "200" ]; then
+                echo "OK   $id $ver"
+              else
+                missing="$missing $id($code)"
+              fi
+            done
+            [ -z "$missing" ] && { echo "三个包都能下载，发布确认"; exit 0; }
+            echo "第 $attempt 次未就绪:$missing，15s 后重试"
+            sleep 15
+          done
+          echo "!!! 5 分钟后仍下载不到:$missing"
+          echo "!!! push 返回 0 不代表发上去了，去 nuget.org 的 Manage Packages 确认是否卡在验证或版本号被占用"
+          exit 1
 
   # 一个平台一个 job：同一份代码发布成各平台独立可运行的程序（自带 .NET 运行时）
   platform:
@@ -318,10 +367,11 @@ jobs:
           path: dist/
           if-no-files-found: error
 
-  # 任一平台打包失败就不发版：宁可整版缺席，也别放出缺平台的 Release
+  # 任一平台打包或 nuget 推送失败就不发版：宁可整版缺席，也别放出
+  # 「类库已发布到 nuget.org」但实际上没上去的 Release
   release:
     name: github-release
-    needs: [meta, platform, portable]
+    needs: [meta, nuget, platform, portable]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
