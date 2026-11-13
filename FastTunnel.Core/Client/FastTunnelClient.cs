@@ -49,6 +49,12 @@ public class FastTunnelClient : IFastTunnelClient
 
     public SuiDaoServer Server { get; protected set; }
 
+    /// <summary>多路复用数据通道的承载方式：tcp / websocket。</summary>
+    public string MuxTransport => ClientConfig.MuxTransport;
+
+    /// <summary>登录令牌。MUX 连接同样要带上，否则服务端会拒收。</summary>
+    public string Token => ClientConfig.Token;
+
     public FastTunnelClient(
         ILogger<FastTunnelClient> logger,
         SwapHandler newCustomerHandler,

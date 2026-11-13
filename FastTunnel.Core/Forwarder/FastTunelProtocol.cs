@@ -104,8 +104,18 @@ public class FastTunelProtocol
 
     public string Method;
     public string Host = null;
+
+    /// <summary>请求行里的路径（不含 query）。</summary>
+    public string? Path { get; private set; }
+
     public Guid MessageId;
     private bool isFirstLine = true;
+
+    /// <summary>
+    /// 请求是否落在隧道自身的 <c>/mux</c> 端点上。
+    /// 这类请求属于隧道控制/数据通道，不能按 Host 匹配内网站点，否则会被当成普通 HTTP 转走。
+    /// </summary>
+    private bool isMuxEndpoint;
 
     private FastTunnelServer fastTunnelServer { get; }
 
@@ -133,6 +143,14 @@ public class FastTunelProtocol
             Method = firstSpace > 0
                 ? headerLineStr.Substring(0, firstSpace).ToUpper()
                 : headerLineStr.ToUpper();
+
+            // 请求行：METHOD {path} HTTP/1.1
+            var secondSpace = firstSpace > 0 ? headerLineStr.IndexOf(' ', firstSpace + 1) : -1;
+            Path = secondSpace > firstSpace
+                ? headerLineStr.Substring(firstSpace + 1, secondSpace - firstSpace - 1)
+                : null;
+
+            isMuxEndpoint = IsMuxEndpoint(Path);
 
             switch (Method)
             {
@@ -175,7 +193,7 @@ public class FastTunelProtocol
                         }
 
                         // 匹配Host，
-                        if (fastTunnelServer.TryGetWebProxyByHost(Host, out var web))
+                        if (!isMuxEndpoint && fastTunnelServer.TryGetWebProxyByHost(Host, out var web))
                         {
                             MatchWeb = web;
                         }
@@ -186,6 +204,21 @@ public class FastTunelProtocol
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// 是否命中隧道自身的多路复用端点。<c>/mux</c> 前缀之后必须是 '/' 或结束，
+    /// 避免 <c>/muxxxx</c> 被误判。
+    /// </summary>
+    private static bool IsMuxEndpoint(string? path)
+    {
+        if (string.IsNullOrEmpty(path)
+            || !path.StartsWith(ProtocolConst.MUX_PATH, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return path.Length == ProtocolConst.MUX_PATH.Length || path[ProtocolConst.MUX_PATH.Length] == '/';
     }
 
     /// <summary>从 <c>METHOD /{guid} HTTP/1.1</c> 中取出 guid。</summary>

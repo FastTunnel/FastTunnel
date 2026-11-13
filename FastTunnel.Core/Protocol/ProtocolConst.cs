@@ -18,4 +18,11 @@ public class ProtocolConst
     /// 握手之后该连接上的字节流全部是 <see cref="Mux.MuxFrame"/> 帧，不再有 HTTP 语义。
     /// </summary>
     public const string HTTP_METHOD_MUX = "MUX";
+
+    /// <summary>
+    /// WebSocket 承载的多路复用端点：<c>wss://{server}:{port}/mux/{muxId}</c>。
+    /// 用于只能过 HTTP(S) 的网络环境（企业防火墙、nginx 反代、CDN）。
+    /// 路径固定，方便反代按前缀转发。
+    /// </summary>
+    public const string MUX_PATH = "/mux";
 }
