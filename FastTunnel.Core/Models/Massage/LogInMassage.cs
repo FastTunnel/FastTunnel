@@ -4,6 +4,7 @@
 //     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
 // Copyright (c) 2019 Gui.H
 
+using System;
 using System.Collections.Generic;
 
 namespace FastTunnel.Core.Models.Massage;
@@ -25,4 +26,10 @@ public class LogInMassage : TunnelMassage
     /// 保证新旧客户端可以连接同一个服务端。
     /// </summary>
     public int ProtocolVersion { get; set; }
+
+    /// <summary>
+    /// 客户端为本次会话随机生成的多路复用标识。客户端随后会用 <c>MUX /{MuxId}</c> 建立
+    /// 一条长连接，服务端据此把该连接绑定到当前登录会话。为空表示客户端不支持多路复用。
+    /// </summary>
+    public Guid MuxId { get; set; }
 }

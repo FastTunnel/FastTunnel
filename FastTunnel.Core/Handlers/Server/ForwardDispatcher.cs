@@ -15,6 +15,7 @@ using FastTunnel.Core.Exceptions;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Models;
 using FastTunnel.Core.Models.Massage;
+using FastTunnel.Core.Mux;
 using FastTunnel.Core.Protocol;
 using FastTunnel.Core.Refs;
 using FastTunnel.Core.Server;
@@ -29,16 +30,17 @@ public class ForwardDispatcher
     private readonly WebSocket _client;
     private readonly ILogger logger;
     private readonly int _protocolVersion;
+    private readonly TunnelClient? _tunnelClient;
 
     public ForwardDispatcher(
-        ILogger logger, FastTunnelServer server, ForwardConfig config, WebSocket client,
-        int protocolVersion = ControlProtocol.LegacyVersion)
+        ILogger logger, FastTunnelServer server, ForwardConfig config, TunnelClient tunnelClient)
     {
         this.logger = logger;
         _server = server;
         _config = config;
-        _client = client;
-        _protocolVersion = protocolVersion;
+        _tunnelClient = tunnelClient;
+        _client = tunnelClient.webSocket;
+        _protocolVersion = tunnelClient.ProtocolVersion;
     }
 
     int SwapCount;
@@ -51,6 +53,27 @@ public class ForwardDispatcher
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
     public async Task<(Stream Stream, CancellationTokenSource TokenSource)> RequestSwapAsync(
+        string protocol, CancellationToken cancellationToken)
+    {
+        var mux = _tunnelClient?.MuxSession;
+        if (mux is { IsClosed: false })
+        {
+            var request = new SwapRequest
+            {
+                Id = Guid.NewGuid().ToString("N"),
+                Host = _config.LocalIp,
+                Port = _config.LocalPort,
+                Proto = string.Equals(protocol, "udp", StringComparison.OrdinalIgnoreCase) ? "udp" : "tcp",
+            };
+
+            var muxStream = await mux.OpenStreamAsync(request, cancellationToken);
+            return (muxStream, CancellationTokenSource.CreateLinkedTokenSource(mux.Closed));
+        }
+
+        return await RequestSwapLegacyAsync(protocol, cancellationToken);
+    }
+
+    private async Task<(Stream Stream, CancellationTokenSource TokenSource)> RequestSwapLegacyAsync(
         string protocol, CancellationToken cancellationToken)
     {
         var msgId = Guid.NewGuid();
@@ -96,6 +119,13 @@ public class ForwardDispatcher
     /// <returns></returns>
     public async Task DispatchAsync(Socket _socket)
     {
+        var mux = _tunnelClient?.MuxSession;
+        if (mux is { IsClosed: false })
+        {
+            await DispatchViaMuxAsync(_socket, mux);
+            return;
+        }
+
         var msgId = Guid.NewGuid();
 
         (Stream Stream, CancellationTokenSource TokenSource) res = default;
@@ -183,6 +213,59 @@ public class ForwardDispatcher
             res.TokenSource?.Cancel();
             logger.LogDebug($"[Forward]Swap OK {msgId} {SwapCount}");
             _server.ResponseTasks.TryRemove(msgId, out _);
+        }
+    }
+
+    /// <summary>
+    /// 多路复用版 TCP 端口转发：直接在会话上开一条流，SYN 携带内网目标地址。
+    /// 相比旧路径省掉了「通知客户端 → 客户端回连 PROXY → 服务端配对」的两次网络往返。
+    /// </summary>
+    private async Task DispatchViaMuxAsync(Socket socket, MuxSession mux)
+    {
+        Interlocked.Increment(ref SwapCount);
+        MuxStream? stream = null;
+
+        // NetworkStream 接管 socket 生命周期，异常路径也不会泄漏句柄
+        using var userStream = new NetworkStream(socket, ownsSocket: true);
+        using var cts = new CancellationTokenSource();
+
+        try
+        {
+            var request = new SwapRequest
+            {
+                Id = Guid.NewGuid().ToString("N"),
+                Host = _config.LocalIp,
+                Port = _config.LocalPort,
+                Proto = "tcp",
+            };
+
+            logger.LogDebug($"[Forward][Mux]Swap开始 {request.Id}|{_config.RemotePort}=>{_config.LocalIp}:{_config.LocalPort}");
+            stream = await mux.OpenStreamAsync(request, cts.Token);
+
+            var toLocal = PumpSocketToPipeAsync(socket, stream.Output, cts.Token);
+            var toUser = stream.Input.CopyToAsync(userStream, cts.Token);
+
+            try
+            {
+                await Task.WhenAny(toLocal, toUser);
+            }
+            finally
+            {
+                cts.Cancel();
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug($"[Forward][Mux]Swap Error：{ex.Message}");
+        }
+        finally
+        {
+            Interlocked.Decrement(ref SwapCount);
+
+            if (stream != null)
+            {
+                await stream.DisposeAsync();
+            }
         }
     }
 

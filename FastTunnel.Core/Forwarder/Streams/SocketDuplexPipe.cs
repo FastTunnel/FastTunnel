@@ -11,24 +11,50 @@ using System.Threading.Tasks;
 
 namespace FastTunnel.Core.Forwarder.Streams;
 
-internal class SocketDuplexPipe : IDuplexPipe, IAsyncDisposable
+/// <summary>
+/// 把一条客户端 Socket 包装成 <see cref="IDuplexPipe"/>，供多路复用会话读写。
+/// 读写缓冲区取 16KB（默认 4KB），与 <see cref="Mux.MuxFrame.MaxPayload"/> 同量级，
+/// 避免一帧数据被拆成多次 4KB 拷贝。
+/// </summary>
+internal sealed class SocketDuplexPipe : IDuplexPipe, IAsyncDisposable
 {
-    NetworkStream stream;
+    private readonly NetworkStream stream;
 
     public SocketDuplexPipe(Socket socket)
     {
-        stream = new NetworkStream(socket, true);
+        stream = new NetworkStream(socket, ownsSocket: true);
 
-        Input = PipeReader.Create(stream);
-        Output = PipeWriter.Create(stream);
+        Input = PipeReader.Create(stream, new StreamPipeReaderOptions(
+            bufferSize: 16 * 1024,
+            minimumReadSize: 8 * 1024));
+
+        Output = PipeWriter.Create(stream, new StreamPipeWriterOptions(
+            minimumBufferSize: 16 * 1024));
     }
 
-    public PipeReader Input { get; private set; }
+    public PipeReader Input { get; }
 
-    public PipeWriter Output { get; private set; }
+    public PipeWriter Output { get; }
 
     public async ValueTask DisposeAsync()
     {
+        try
+        {
+            await Input.CompleteAsync();
+        }
+        catch
+        {
+            // 已完成或已出错
+        }
+
+        try
+        {
+            await Output.CompleteAsync();
+        }
+        catch
+        {
+        }
+
         await stream.DisposeAsync();
     }
 }

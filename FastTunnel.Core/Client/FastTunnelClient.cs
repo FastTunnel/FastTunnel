@@ -39,6 +39,12 @@ public class FastTunnelClient : IFastTunnelClient
 
     private readonly SwapHandler swapHandler;
     private readonly LogHandler logHandler;
+    private readonly MuxClient muxClient;
+
+    /// <summary>
+    /// 本客户端的多路复用标识，登录时上报给服务端，随后用同一个 id 建立 MUX 连接。
+    /// </summary>
+    public Guid MuxId { get; } = Guid.NewGuid();
 
     public SuiDaoServer Server { get; protected set; }
 
@@ -46,6 +52,7 @@ public class FastTunnelClient : IFastTunnelClient
         ILogger<FastTunnelClient> logger,
         SwapHandler newCustomerHandler,
         LogHandler logHandler,
+        ILoggerFactory loggerFactory,
         IOptionsMonitor<DefaultClientConfig> configuration)
     {
         _logger = logger;
@@ -53,6 +60,7 @@ public class FastTunnelClient : IFastTunnelClient
         this.logHandler = logHandler;
         ClientConfig = configuration.CurrentValue;
         Server = ClientConfig.Server;
+        muxClient = new MuxClient(this, newCustomerHandler, loggerFactory.CreateLogger<MuxClient>());
     }
 
     /// <summary>
@@ -71,6 +79,12 @@ public class FastTunnelClient : IFastTunnelClient
                 using var connectionCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 var receiving = ReceiveServerAsync(connectionCts.Token);
                 var heartbeat = HeartbeatLoopAsync(connectionCts.Token);
+
+                // 多路复用连接独立重连，失败不影响控制面；控制面断开时随 connectionCts 一起停止。
+                if (ClientConfig.EnableMux)
+                {
+                    _ = muxClient.RunAsync(connectionCts.Token);
+                }
 
                 // 任一任务结束（连接断开、心跳失败、收到取消）都触发本连接收尾并重连。
                 await Task.WhenAny(receiving, heartbeat);
@@ -125,6 +139,7 @@ public class FastTunnelClient : IFastTunnelClient
             Webs = ClientConfig.Webs,
             Forwards = ClientConfig.Forwards,
             ProtocolVersion = ControlProtocol.Version,
+            MuxId = ClientConfig.EnableMux ? MuxId : Guid.Empty,
         }.ToJson();
     }
 

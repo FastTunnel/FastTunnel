@@ -17,6 +17,12 @@ public class DefaultServerConfig : IServerConfig
 
     public bool EnableForward { get; set; }
 
+    /// <summary>
+    /// 是否启用多路复用。开启后，客户端会额外建立一条长连接，所有 HTTP / TCP 转发
+    /// 都在该连接上开流，不再为每条公网连接新建一条 TCP。默认开启。
+    /// </summary>
+    public bool EnableMux { get; set; } = true;
+
     [Obsolete("由Tokens替换")]
     public string Token { get; set; }
 

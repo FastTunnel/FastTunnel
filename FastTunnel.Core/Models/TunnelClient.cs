@@ -16,6 +16,7 @@ using FastTunnel.Core.Client;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Handlers.Server;
 using FastTunnel.Core.Models.Massage;
+using FastTunnel.Core.Mux;
 using FastTunnel.Core.Protocol;
 using FastTunnel.Core.Server;
 using FastTunnel.Core.Utilitys;
@@ -43,6 +44,24 @@ public class TunnelClient
     /// 客户端声明的结构化协议版本；低于 <see cref="ControlProtocol.Version"/> 时按旧版文本下发。
     /// </summary>
     public int ProtocolVersion { get; set; } = ControlProtocol.LegacyVersion;
+
+    /// <summary>
+    /// 客户端登录时声明的多路复用会话标识。之后它会带同一个 id 建立一条 MUX 连接，
+    /// 服务端据此把这条连接与当前登录会话绑定。
+    /// </summary>
+    public Guid MuxId { get; set; }
+
+    private MuxSession? muxSession;
+
+    /// <summary>当前生效的多路复用会话，未建立或已断开时为 null（此时回退到旧的回连模式）。</summary>
+    public MuxSession? MuxSession => Volatile.Read(ref muxSession);
+
+    /// <summary>是否可以走多路复用数据面。</summary>
+    public bool MuxReady => muxSession is { IsClosed: false };
+
+    internal void AttachMux(MuxSession session) => Volatile.Write(ref muxSession, session);
+
+    internal void DetachMux(MuxSession session) => Interlocked.CompareExchange(ref muxSession, null, session);
 
     private readonly FastTunnelServer fastTunnelServer;
     private readonly ILoginHandler loginHandler;
@@ -164,6 +183,13 @@ public class TunnelClient
 
     internal void Logout()
     {
+        // 控制面断开后，多路复用连接即使还没察觉也应主动收掉，避免残留半开连接
+        var mux = Interlocked.Exchange(ref muxSession, null);
+        if (mux != null)
+        {
+            _ = DisposeMuxAsync(mux);
+        }
+
         // forward监听终止
         if (forwardInfos != null)
         {
@@ -190,6 +216,18 @@ public class TunnelClient
         }
         catch (ObjectDisposedException)
         {
+        }
+    }
+
+    private static async Task DisposeMuxAsync(MuxSession mux)
+    {
+        try
+        {
+            await mux.DisposeAsync();
+        }
+        catch
+        {
+            // 关闭失败不影响登出流程
         }
     }
 }

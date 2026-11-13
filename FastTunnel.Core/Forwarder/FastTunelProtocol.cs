@@ -25,7 +25,9 @@ public class FastTunelProtocol
         this.fastTunnelServer = fastTunnelServer;
     }
 
-    bool IsFastTunnel => Method == ProtocolConst.HTTP_METHOD_SWAP || MatchWeb != null;
+    bool IsFastTunnel => Method == ProtocolConst.HTTP_METHOD_SWAP
+        || Method == ProtocolConst.HTTP_METHOD_MUX
+        || MatchWeb != null;
 
     public WebInfo MatchWeb { get; private set; }
 
@@ -63,7 +65,9 @@ public class FastTunelProtocol
                     var readedPosition = readableBuffer.GetPosition(1, position.Value);
                     if (ProcessHeaderLine(readableBuffer.Slice(0, position.Value), out _))
                     {
-                        if (Method == ProtocolConst.HTTP_METHOD_SWAP)
+                        // PROXY / MUX 的请求头之后紧跟的就是隧道字节流（MUX 甚至直接是二进制帧），
+                        // 必须一起消费掉，否则残留的 CRLF 会污染帧解析。
+                        if (Method == ProtocolConst.HTTP_METHOD_SWAP || Method == ProtocolConst.HTTP_METHOD_MUX)
                         {
                             _input.AdvanceTo(readedPosition, readedPosition);
                         }
@@ -125,14 +129,17 @@ public class FastTunelProtocol
 
         if (isFirstLine)
         {
-            Method = headerLineStr.Substring(0, headerLineStr.IndexOf(" ")).ToUpper();
+            var firstSpace = headerLineStr.IndexOf(" ");
+            Method = firstSpace > 0
+                ? headerLineStr.Substring(0, firstSpace).ToUpper()
+                : headerLineStr.ToUpper();
 
             switch (Method)
             {
                 case ProtocolConst.HTTP_METHOD_SWAP:
-                    // 客户端发起消息互转
-                    var endIndex = headerLineStr.IndexOf(" ", 7);
-                    MessageId = Guid.Parse(headerLineStr.Substring(7, endIndex - 7));
+                case ProtocolConst.HTTP_METHOD_MUX:
+                    // PROXY /{msgId} 或 MUX /{sessionId}
+                    MessageId = ParseRequestId(headerLineStr, firstSpace);
                     break;
                 default:
                     // 常规Http请求，需要检查Host决定是否进行代理
@@ -152,6 +159,7 @@ public class FastTunelProtocol
             switch (Method)
             {
                 case ProtocolConst.HTTP_METHOD_SWAP:
+                case ProtocolConst.HTTP_METHOD_MUX:
                     // do nothing
                     break;
                 default:
@@ -178,5 +186,21 @@ public class FastTunelProtocol
         }
 
         return false;
+    }
+
+    /// <summary>从 <c>METHOD /{guid} HTTP/1.1</c> 中取出 guid。</summary>
+    private static Guid ParseRequestId(string requestLine, int firstSpace)
+    {
+        if (firstSpace <= 0)
+        {
+            throw new FormatException($"非法的请求行: {requestLine}");
+        }
+
+        var secondSpace = requestLine.IndexOf(' ', firstSpace + 1);
+        var path = secondSpace > firstSpace
+            ? requestLine.Substring(firstSpace + 1, secondSpace - firstSpace - 1)
+            : requestLine.Substring(firstSpace + 1);
+
+        return Guid.Parse(path.TrimStart('/'));
     }
 }

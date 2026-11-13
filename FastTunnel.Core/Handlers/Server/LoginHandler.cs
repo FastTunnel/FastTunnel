@@ -47,6 +47,7 @@ public class LoginHandler : ILoginHandler
                     Socket = client.webSocket,
                     WebConfig = item,
                     ProtocolVersion = client.ProtocolVersion,
+                    Client = client,
                 };
 
                 logger.LogDebug($"New Http '{hostName}'");
@@ -87,7 +88,7 @@ public class LoginHandler : ILoginHandler
                             server.ForwardList.TryRemove(item.RemotePort, out var _);
                         }
 
-                        var dispatcher = new ForwardDispatcher(logger, server, item, client.webSocket, client.ProtocolVersion);
+                        var dispatcher = new ForwardDispatcher(logger, server, item, client);
 
                         IPortListener ls;
                         if (item.Protocol == ProtocolEnum.UDP)
@@ -143,6 +144,10 @@ public class LoginHandler : ILoginHandler
         tunnelClient.ProtocolVersion = msg.ProtocolVersion >= ControlProtocol.Version
             ? msg.ProtocolVersion
             : ControlProtocol.LegacyVersion;
+
+        // 登记多路复用会话标识，客户端随后会用同一个 id 建立 MUX 连接
+        tunnelClient.MuxId = msg.MuxId;
+        fastTunnelServer.RegisterMuxClient(tunnelClient);
 
         await HandleLoginAsync(fastTunnelServer, tunnelClient, msg, cancellationToken);
         return NeedRecive;

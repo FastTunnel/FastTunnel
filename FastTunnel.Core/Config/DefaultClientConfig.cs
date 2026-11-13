@@ -18,4 +18,10 @@ public class DefaultClientConfig : IClientConfig
     public IEnumerable<WebConfig> Webs { get; set; }
 
     public IEnumerable<ForwardConfig> Forwards { get; set; }
+
+    /// <summary>
+    /// 是否启用多路复用（默认开启）。开启后只与服务端建立一条长连接，
+    /// 所有转发在该连接上开流；服务端不支持时会自动回退。
+    /// </summary>
+    public bool EnableMux { get; set; } = true;
 }

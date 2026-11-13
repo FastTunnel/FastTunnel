@@ -46,35 +46,10 @@ public class SwapHandler : IClientHandler
             var request = ControlProtocol.ParseSwapRequest(msg);
             requestId = request.Id;
 
-            var isUdp = string.Equals(request.Proto, "udp", StringComparison.OrdinalIgnoreCase);
-            var address = ControlProtocol.FormatAddress(request);
-
-            _logger.LogDebug($"========Swap Start:{requestId} ({(isUdp ? "UDP" : "TCP")})==========");
+            _logger.LogDebug($"========Swap Start:{requestId} {DescribeProto(request)}==========");
 
             using var serverStream = await createRemote(requestId, cleint, cancellationToken);
-
-            if (isUdp)
-            {
-                await BridgeUdpAsync(address, serverStream, cancellationToken);
-            }
-            else
-            {
-                using var localStream = await createLocal(requestId, address, cancellationToken);
-
-                // 使用一个与双向拷贝联动的 CTS，任一方向结束后立即取消另一方向，避免半关闭后空转。
-                using var swapCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                var taskX = serverStream.CopyToAsync(localStream, swapCts.Token);
-                var taskY = localStream.CopyToAsync(serverStream, swapCts.Token);
-
-                try
-                {
-                    await Task.WhenAny(taskX, taskY);
-                }
-                finally
-                {
-                    swapCts.Cancel();
-                }
-            }
+            await BridgeAsync(request, serverStream, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -86,6 +61,41 @@ public class SwapHandler : IClientHandler
             _logger.LogDebug($"========Swap End:{requestId} {SwapCount}==========");
         }
     }
+
+    /// <summary>
+    /// 把一条已经就绪的隧道流与内网目标对接。
+    /// 旧路径的隧道流来自 PROXY 回连，多路复用的隧道流直接是 <see cref="Mux.MuxStream"/>，
+    /// 两者都实现 <see cref="Stream"/>，因此桥接逻辑完全共用。
+    /// </summary>
+    public async Task BridgeAsync(SwapRequest request, Stream serverStream, CancellationToken cancellationToken)
+    {
+        var address = ControlProtocol.FormatAddress(request);
+
+        if (string.Equals(request.Proto, "udp", StringComparison.OrdinalIgnoreCase))
+        {
+            await BridgeUdpAsync(address, serverStream, cancellationToken);
+            return;
+        }
+
+        using var localStream = await createLocal(request.Id, address, cancellationToken);
+
+        // 使用一个与双向拷贝联动的 CTS，任一方向结束后立即取消另一方向，避免半关闭后空转。
+        using var swapCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var taskX = serverStream.CopyToAsync(localStream, swapCts.Token);
+        var taskY = localStream.CopyToAsync(serverStream, swapCts.Token);
+
+        try
+        {
+            await Task.WhenAny(taskX, taskY);
+        }
+        finally
+        {
+            swapCts.Cancel();
+        }
+    }
+
+    private static string DescribeProto(SwapRequest request)
+        => string.Equals(request.Proto, "udp", StringComparison.OrdinalIgnoreCase) ? "UDP" : "TCP";
 
     /// <summary>
     /// UDP 桥接：服务端的 swap 流 ↔ 内网 UDP 端点

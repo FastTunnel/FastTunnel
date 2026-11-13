@@ -16,6 +16,11 @@ public class WebInfo
     public WebConfig WebConfig { get; set; }
 
     /// <summary>
+    /// 所属客户端会话。多路复用已建立时优先走流，未建立时回退到 WebSocket 通知 + 回连。
+    /// </summary>
+    public TunnelClient Client { get; set; }
+
+    /// <summary>
     /// 所属客户端的控制面协议版本，决定下发 SwapMsg 时用 JSON 还是旧版竖线文本。
     /// </summary>
     public int ProtocolVersion { get; set; } = ControlProtocol.LegacyVersion;
