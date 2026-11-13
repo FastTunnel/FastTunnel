@@ -57,13 +57,19 @@ namespace FastTunnel.Core.Handlers.Client
             {
                 Interlocked.Increment(ref connectionCount);
                 _logger.LogDebug($"======Swap {requestId} Start======");
-                using (Stream serverStream = await createRemote(requestId, cleint, cancellationToken))
-                using (Stream localStream = await createLocal(requestId, address, cancellationToken))
+
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                var token = linkedCts.Token;
+
+                using (Stream serverStream = await createRemote(requestId, cleint, token))
+                using (Stream localStream = await createLocal(requestId, address, token))
                 {
-                    var taskX = serverStream.CopyToAsync(localStream, cancellationToken);
-                    var taskY = localStream.CopyToAsync(serverStream, cancellationToken);
+                    var taskX = serverStream.CopyToAsync(localStream, token);
+                    var taskY = localStream.CopyToAsync(serverStream, token);
 
                     await Task.WhenAny(taskX, taskY);
+                    // 单向结束后另一向还卡在 ReadAsync 上，会把两条流及其缓冲一起留住；取消它才会立刻退出。
+                    linkedCts.Cancel();
                 }
             }
             catch (Exception ex)

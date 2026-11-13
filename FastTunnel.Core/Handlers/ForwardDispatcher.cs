@@ -51,6 +51,10 @@ namespace FastTunnel.Core.Handlers
                 await Task.Yield();
                 logger.LogDebug($"[Forward]Swap开始 {msgId}|{_config.RemotePort}=>{_config.LocalIp}:{_config.LocalPort}");
 
+                // 从这里开始 _socket 归 userStream 管：下面任何 return / 异常都会 dispose 掉它，
+                // 不会再出现"没人负责关"的已 accept 连接。
+                using var userStream = new NetworkStream(_socket, true) { ReadTimeout = 1000 * 60 * 10 };
+
                 var tcs = new TaskCompletionSource<Stream>();
 
                 _server.ResponseTasks.TryAdd(msgId, (tcs, CancellationToken.None));
@@ -63,7 +67,6 @@ namespace FastTunnel.Core.Handlers
                 {
                     // TODO:客户端已掉线，但是没有移除对端口的监听
                     logger.LogError($"[Forward]Swap 客户端已离线 {sex.Message}");
-                    tcs.TrySetCanceled();
                     Close(_socket);
                     return;
                 }
@@ -71,15 +74,26 @@ namespace FastTunnel.Core.Handlers
                 {
                     // 网络不稳定
                     logger.LogError(ex, $"[Forward]Swap Exception");
-                    tcs.TrySetCanceled();
                     Close(_socket);
                     return;
                 }
 
-                using (var stream1 = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(10)))
-                using (var stream2 = new NetworkStream(_socket, true) { ReadTimeout = 1000 * 60 * 10 })
+                Stream tunnelStream;
+                try
                 {
-                    await Task.WhenAny(stream1.CopyToAsync(stream2), stream2.CopyToAsync(stream1));
+                    tunnelStream = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                }
+                catch (Exception ex)
+                {
+                    // 隧道没建起来（超时/客户端离线）：断开用户连接，别让他对着一个永远收不到数据的 socket 干等。
+                    logger.LogDebug($"[Forward]Swap隧道未建立 {msgId}：" + ex.Message);
+                    Close(_socket);
+                    return;
+                }
+
+                using (tunnelStream)
+                {
+                    await Task.WhenAny(tunnelStream.CopyToAsync(userStream), userStream.CopyToAsync(tunnelStream));
                 }
             }
             catch (Exception ex)
@@ -88,8 +102,13 @@ namespace FastTunnel.Core.Handlers
             }
             finally
             {
+                // 谁把条目从字典里取回来，谁才有资格判定这条隧道的生死：取回来了说明客户端还没接管，
+                // 取消它；取不来说明 SwapHandler 已经拿到隧道，关它的责任在那边。
+                if (_server.ResponseTasks.TryRemove(msgId, out var owned))
+                {
+                    owned.Item1.TrySetCanceled();
+                }
                 logger.LogDebug($"[Forward]Swap结束 {msgId}");
-                _server.ResponseTasks.TryRemove(msgId, out _);
                 listener.DecrementClients();
             }
         }

@@ -86,7 +86,8 @@ public class FastTunnelForwarderHttpClientFactory : ForwarderHttpClientFactory
         TaskCompletionSource<Stream> tcs = new();
         logger.LogDebug($"[Http]Swap开始 {msgId}|{host}=>{web.WebConfig.LocalIp}:{web.WebConfig.LocalPort}");
 
-        cancellation.Register(() =>
+        CancellationTokenRegistration cancellationRegistration = default;
+        cancellationRegistration = cancellation.Register(() =>
         {
             logger.LogDebug($"[Proxy TimeOut]:{msgId}");
             tcs.TrySetCanceled();
@@ -114,6 +115,8 @@ public class FastTunnelForwarderHttpClientFactory : ForwarderHttpClientFactory
         }
         finally
         {
+            // registration 不释放就一直挂在请求的 token 上，连带 tcs / msgId 一起留在内存里。
+            cancellationRegistration.Dispose();
             fastTunnelServer.ResponseTasks.TryRemove(msgId, out _);
         }
     }
