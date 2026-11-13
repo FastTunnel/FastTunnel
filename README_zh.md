@@ -5,7 +5,7 @@
 ## FastTunnel-内网穿透
 
 [![License](https://img.shields.io/badge/license-Apache%202-green.svg)](https://www.apache.org/licenses/LICENSE-2.0)
-[![Build status](https://github.com/anjoy8/blog.core/workflows/.NET%20Core/badge.svg)](https://github.com/SpringHgui/FastTunnel/actions)
+[![Build](https://github.com/SpringHgui/FastTunnel/actions/workflows/dotnetcore.yml/badge.svg?branch=v3)](https://github.com/SpringHgui/FastTunnel/actions/workflows/dotnetcore.yml)
 [![Nuget](https://img.shields.io/nuget/v/FastTunnel.Core)](https://www.nuget.org/packages/FastTunnel.Core/)
 [![Nuget](https://img.shields.io/nuget/dt/FastTunnel.Core)](https://www.nuget.org/packages/FastTunnel.Core/)
 

@@ -3,23 +3,81 @@ name: Build
 on:
   push:
     branches:
-    - v3
-    
+      - v3
+  # PR 只跑构建与测试，不触发发布（fork 的 PR 拿不到 secrets）
+  pull_request:
+    branches:
+      - v2
+      - v3
+
 env:
   # 设置 docker 镜像名
   IMAGE_NAME: fasttunnel
 
+# 同一分支的 PR 只保留最新一次（连续 push 时取消旧任务）；
+# push 到 v3 会走到发布，绝不能中途取消
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  # 所有发布任务的前置门禁：编译不过 / 测试挂了就不发包
+  test:
+    name: build-and-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      # NuGet 缓存省掉每次两三分钟的下载；.NET 10 的 restore 是确定性的，
+      # key 只跟项目和构建属性有关，源码改动不会让缓存失效
+      - name: Cache nuget packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('Directory.Build.props', '**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore
+        run: dotnet restore FastTunnel.sln
+
+      # 关掉打包：CI 只要编译结果，nupkg 由后面的 publish job 负责
+      - name: Build
+        run: dotnet build FastTunnel.sln -c Release --no-restore -p:GeneratePackageOnBuild=false
+
+      - name: Test
+        run: >
+          dotnet test FastTunnel.Core.Tests/FastTunnel.Core.Tests.csproj
+          -c Release --no-build --nologo
+          --logger "trx;LogFileName=test-results.trx"
+          --results-directory FastTunnel.Core.Tests/TestResults
+
+      # 失败也要留下报告，否则只能翻日志
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: FastTunnel.Core.Tests/TestResults
+          if-no-files-found: ignore
+
   publish:
     name: publish-core
+    needs: test
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup dotnet
-        uses: actions/setup-dotnet@v2
+        uses: actions/setup-dotnet@v4
         with:
-           dotnet-version: 10.0.*
-           include-prerelease: true
+          dotnet-version: 10.0.x
 
       # Publish
       - name: publish on version change
@@ -29,17 +87,19 @@ jobs:
           # Filepath of the project to be packaged, relative to root of repository
           PROJECT_FILE_PATH: FastTunnel.Core/FastTunnel.Core.csproj
           NUGET_KEY: ${{secrets.NUGET_API_KEY}}
+
   hosting:
     name: publish-hosting
+    needs: test
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Setup dotnet
-        uses: actions/setup-dotnet@v1
+        uses: actions/setup-dotnet@v4
         with:
-           dotnet-version: 10.0.*
-           include-prerelease: true
+          dotnet-version: 10.0.x
 
       # Publish
       - name: publish on version change
@@ -49,17 +109,19 @@ jobs:
           # Filepath of the project to be packaged, relative to root of repository
           PROJECT_FILE_PATH: FastTunnel.Hosting/FastTunnel.Hosting.csproj
           NUGET_KEY: ${{secrets.NUGET_API_KEY}}
+
   api:
     name: publish-api
+    needs: test
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Setup dotnet
-        uses: actions/setup-dotnet@v1
+        uses: actions/setup-dotnet@v4
         with:
-           dotnet-version: 10.0.*
-           include-prerelease: true
+          dotnet-version: 10.0.x
 
       # Publish
       - name: publish on version change
@@ -69,11 +131,14 @@ jobs:
           # Filepath of the project to be packaged, relative to root of repository
           PROJECT_FILE_PATH: FastTunnel.Api/FastTunnel.Api.csproj
           NUGET_KEY: ${{secrets.NUGET_API_KEY}}
+
   docker:
     name: publish-docker
+    needs: test
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         # 构建镜像，指定镜像名
       - name: Build image
         run: docker build . --file Dockerfile --tag $IMAGE_NAME
@@ -98,6 +163,6 @@ jobs:
           # 再上传一份覆盖latest
           echo [tag] $IMAGE_ID:$VERSION $IMAGE_ID:latest
           docker tag $IMAGE_ID:$VERSION $IMAGE_ID:latest
-          
+
           echo [push] $IMAGE_ID:latest
           docker push $IMAGE_ID:latest
