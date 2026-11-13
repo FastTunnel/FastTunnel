@@ -1,10 +1,8 @@
-<!-- Centralized build settings for the solution. Edit <TargetFramework> to change the unified .NET version. -->
+<!-- Centralized build settings for the solution. Target framework is declared per project. -->
 <Project>
   <PropertyGroup>
-    <!-- Unified target framework for all projects in the repository -->
-    <TargetFramework>net10.0</TargetFramework>
-
-    <!-- Common defaults mirrored from several projects; adjust if needed -->
+    <!-- 不要在共享位置设 TargetFramework：它非空时会顶掉项目自己的 TargetFrameworks，
+         多目标项目只剩一个框架的 dll 落盘，dotnet pack 直接 NU5026。各工程自己声明。 -->
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <InvariantGlobalization>true</InvariantGlobalization>
