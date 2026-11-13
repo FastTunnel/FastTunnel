@@ -5,7 +5,7 @@
 ## FastTunnel-内网穿透
 
 [![License](https://img.shields.io/badge/license-Apache%202-green.svg)](https://www.apache.org/licenses/LICENSE-2.0)
-[![Build](https://github.com/SpringHgui/FastTunnel/actions/workflows/ci.yml/badge.svg?branch=v3)](https://github.com/SpringHgui/FastTunnel/actions/workflows/dotnetcore.yml)
+[![Build](https://github.com/FastTunnel/FastTunnel/actions/workflows/ci.yml/badge.svg?branch=v3)](https://github.com/FastTunnel/FastTunnel/actions/workflows/ci.yml)
 [![Nuget](https://img.shields.io/nuget/v/FastTunnel.Core)](https://www.nuget.org/packages/FastTunnel.Core/)
 [![Nuget](https://img.shields.io/nuget/dt/FastTunnel.Core)](https://www.nuget.org/packages/FastTunnel.Core/)
 
@@ -31,7 +31,7 @@
 官网：https://suidao.io  
 
 ## 开源仓库地址
-[GitHub](https://github.com/SpringHgui/FastTunnel)  
+[GitHub](https://github.com/FastTunnel/FastTunnel)  
 [Gitee](https://gitee.com/Hgui/FastTunnel)
 
 **有帮助的朋友点下右上角项目的⭐Star支持一下本项目，有需求和bug请提交issue，同时欢迎各位coder进行PR**

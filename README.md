@@ -4,7 +4,7 @@
 
 ## FastTunnel
 [![License](https://img.shields.io/badge/license-Apache%202-green.svg)](https://www.apache.org/licenses/LICENSE-2.0)
-[![Build](https://github.com/SpringHgui/FastTunnel/actions/workflows/ci.yml/badge.svg?branch=v3)](https://github.com/SpringHgui/FastTunnel/actions/workflows/dotnetcore.yml)
+[![Build](https://github.com/FastTunnel/FastTunnel/actions/workflows/ci.yml/badge.svg?branch=v3)](https://github.com/FastTunnel/FastTunnel/actions/workflows/ci.yml)
 [![Nuget](https://img.shields.io/nuget/v/FastTunnel.Core)](https://www.nuget.org/packages/FastTunnel.Core/)
 [![Nuget](https://img.shields.io/nuget/dt/FastTunnel.Core)](https://www.nuget.org/packages/FastTunnel.Core/)
 
@@ -30,7 +30,7 @@ Official website : https://suidao.io
 
 ## Repositories
 
-[GitHub](https://github.com/SpringHgui/FastTunnel)  
+[GitHub](https://github.com/FastTunnel/FastTunnel)  
 [Gitee](https://gitee.com/Hgui/FastTunnel)
 
 **If helpful, click on ⭐Star to support this project, please submit an issue if you have needs and bugs, and welcome coder to PR**

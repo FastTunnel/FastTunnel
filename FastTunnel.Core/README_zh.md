@@ -5,7 +5,7 @@
 ## FastTunnel-内网穿透
 
 [![License](https://img.shields.io/badge/license-Apache%202-green.svg)](https://www.apache.org/licenses/LICENSE-2.0)
-[![Build status](https://github.com/anjoy8/blog.core/workflows/.NET%20Core/badge.svg)](https://github.com/SpringHgui/FastTunnel/actions)
+[![Build](https://github.com/FastTunnel/FastTunnel/actions/workflows/ci.yml/badge.svg?branch=v3)](https://github.com/FastTunnel/FastTunnel/actions/workflows/ci.yml)
 [![Nuget](https://img.shields.io/nuget/v/FastTunnel.Core)](https://www.nuget.org/packages/FastTunnel.Core/)
 [![Nuget](https://img.shields.io/nuget/dt/FastTunnel.Core)](https://www.nuget.org/packages/FastTunnel.Core/)
 
@@ -23,7 +23,7 @@
 - 你可以通过引用`FastTunnel.Core`的nuget包构建出自己的穿透应用，并针自己所需的业务扩展功能。
 
 ### 开源仓库地址
-GitHub : [FastTunnel](https://github.com/SpringHgui/FastTunnel)  
+GitHub : [FastTunnel](https://github.com/FastTunnel/FastTunnel)  
 Gitee: [FastTunnel](https://gitee.com/Hgui/FastTunnel)
 
 **有帮助的朋友点下右上角项目的⭐Star支持一下本项目，有需求和bug请提交issue，同时欢迎各位coder进行PR**
@@ -46,7 +46,7 @@ Gitee: [FastTunnel](https://gitee.com/Hgui/FastTunnel)
 此网站基于本框架开发的穿透平台，用于分享测试使用，如果你需要低频使用内网穿透可以直接注册使用，免去自己搭建和维护的成本；但生产项目请勿使用此服务。
 
 ## 快速搭建服务
-1. 在 [releases](https://github.com/SpringHgui/FastTunnel/releases) 页面下载对应的程序
+1. 在 [releases](https://github.com/FastTunnel/FastTunnel/releases) 页面下载对应的程序
 2. 根据自己的需求修改客户端以及服务端配置文件`appsettings.json`
 3. 服务端运行FastTunnel.Server
 4. 客户端运行FastTunnel.Cient

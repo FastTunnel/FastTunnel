@@ -4,7 +4,7 @@
 
 ## FastTunnel
 [![License](https://img.shields.io/badge/license-Apache%202-green.svg)](https://www.apache.org/licenses/LICENSE-2.0)
-[![Build status](https://github.com/anjoy8/blog.core/workflows/.NET%20Core/badge.svg)](https://github.com/SpringHgui/FastTunnel/actions)
+[![Build](https://github.com/FastTunnel/FastTunnel/actions/workflows/ci.yml/badge.svg?branch=v3)](https://github.com/FastTunnel/FastTunnel/actions/workflows/ci.yml)
 [![Nuget](https://img.shields.io/nuget/v/FastTunnel.Core)](https://www.nuget.org/packages/FastTunnel.Core/)
 [![Nuget](https://img.shields.io/nuget/dt/FastTunnel.Core)](https://www.nuget.org/packages/FastTunnel.Core/)
 
@@ -30,7 +30,7 @@ But do not use this service for important items.
 
 OpenSource：
 
-GitHub : [FastTunnel](https://github.com/SpringHgui/FastTunnel)  
+GitHub : [FastTunnel](https://github.com/FastTunnel/FastTunnel)  
 Gitee: [FastTunnel](https://gitee.com/Hgui/FastTunnel)
 
 **If helpful, click on ⭐Star to support this project, please submit an issue if you have needs and bugs, and welcome coder to PR**
@@ -50,7 +50,7 @@ Gitee: [FastTunnel](https://gitee.com/Hgui/FastTunnel)
 - [x] Support client identity verification
 
 ## Quickstart
-1. Download the corresponding program on the [releases](https://github.com/SpringHgui/FastTunnel/releases) page
+1. Download the corresponding program on the [releases](https://github.com/FastTunnel/FastTunnel/releases) page
 2. Modify the client and server configuration files according to your needs`appsettings.json`
 3. Run FastTunnel.Server
 4. Run FastTunnel.Cient

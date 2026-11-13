@@ -1,6 +1,6 @@
 <Project>
   <PropertyGroup>
-    <PackageProjectUrl>https://github.com/SpringHgui/FastTunnel</PackageProjectUrl>
+    <PackageProjectUrl>https://github.com/FastTunnel/FastTunnel</PackageProjectUrl>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <TargetFramework>net10.0</TargetFramework>
     <Version>3.3.0</Version>
@@ -11,7 +11,7 @@
     <Product>FastTunnel</Product>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <RepositoryUrl>https://github.com/SpringHgui/FastTunnel</RepositoryUrl>
+    <RepositoryUrl>https://github.com/FastTunnel/FastTunnel</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>内网穿透;Proxy;TCP;HTTP;NAT;Tunnel</PackageTags>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
