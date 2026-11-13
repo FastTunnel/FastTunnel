@@ -6,7 +6,6 @@
 
 using System;
 using System.Buffers;
-using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
@@ -16,8 +15,8 @@ using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Handlers.Client;
 using FastTunnel.Core.Models;
 using FastTunnel.Core.Models.Massage;
+using FastTunnel.Core.Protocol;
 using FastTunnel.Core.Utilitys;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -25,15 +24,21 @@ namespace FastTunnel.Core.Client;
 
 public class FastTunnelClient : IFastTunnelClient
 {
+    /// <summary>心跳间隔。服务端空闲判定为 90s，可容忍连续两个心跳丢失。</summary>
+    private static readonly TimeSpan HeartbeatInterval = TimeSpan.FromSeconds(30);
+
+    /// <summary>连续这么久没收到服务端任何消息（含 Pong），判定下行假死并重连。</summary>
+    private static readonly TimeSpan ReceiveTimeout = TimeSpan.FromSeconds(90);
+
     private ClientWebSocket socket;
+
+    private long _lastReceiveTicks;
 
     protected readonly ILogger<FastTunnelClient> _logger;
     protected DefaultClientConfig ClientConfig { get; private set; }
 
     private readonly SwapHandler swapHandler;
     private readonly LogHandler logHandler;
-
-    private static ReadOnlySpan<byte> EndSpan => new ReadOnlySpan<byte>(new byte[] { (byte)'\n' });
 
     public SuiDaoServer Server { get; protected set; }
 
@@ -43,7 +48,6 @@ public class FastTunnelClient : IFastTunnelClient
         LogHandler logHandler,
         IOptionsMonitor<DefaultClientConfig> configuration)
     {
-        ReadOnlySpan<int> span = new ReadOnlySpan<int>();
         _logger = logger;
         swapHandler = newCustomerHandler;
         this.logHandler = logHandler;
@@ -63,7 +67,20 @@ public class FastTunnelClient : IFastTunnelClient
             try
             {
                 await loginAsync(cancellationToken);
-                await ReceiveServerAsync(cancellationToken);
+
+                using var connectionCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                var receiving = ReceiveServerAsync(connectionCts.Token);
+                var heartbeat = HeartbeatLoopAsync(connectionCts.Token);
+
+                // 任一任务结束（连接断开、心跳失败、收到取消）都触发本连接收尾并重连。
+                await Task.WhenAny(receiving, heartbeat);
+
+                connectionCts.Cancel();
+                await AwaitQuietlyAsync(receiving, heartbeat);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                break;
             }
             catch (Exception ex)
             {
@@ -88,6 +105,7 @@ public class FastTunnelClient : IFastTunnelClient
         socket.Options.RemoteCertificateValidationCallback = delegate { return true; };
         socket.Options.SetRequestHeader(FastTunnelConst.FASTTUNNEL_VERSION, AssemblyUtility.GetVersion().ToString());
         socket.Options.SetRequestHeader(FastTunnelConst.FASTTUNNEL_TOKEN, ClientConfig.Token);
+        Interlocked.Exchange(ref _lastReceiveTicks, Environment.TickCount64);
 
         _logger.LogInformation($"正在连接服务端 {Server.ServerAddr}:{Server.ServerPort}");
         await socket.ConnectAsync(
@@ -106,9 +124,41 @@ public class FastTunnelClient : IFastTunnelClient
         {
             Webs = ClientConfig.Webs,
             Forwards = ClientConfig.Forwards,
+            ProtocolVersion = ControlProtocol.Version,
         }.ToJson();
     }
 
+    /// <summary>
+    /// 定时发送 Ping。发送失败或连接关闭即结束，交由 StartAsync 触发重连，
+    /// 避免 NAT 静默回收连接后客户端长时间无感知。
+    /// </summary>
+    private async Task HeartbeatLoopAsync(CancellationToken cancellationToken)
+    {
+        using var timer = new PeriodicTimer(HeartbeatInterval);
+        try
+        {
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                // 双向看门狗：能发出 Ping 不代表能收到 Pong，下行假死时靠这层发现。
+                var idleMs = Environment.TickCount64 - Interlocked.Read(ref _lastReceiveTicks);
+                if (idleMs > ReceiveTimeout.TotalMilliseconds)
+                {
+                    _logger.LogWarning("控制通道 {Idle}s 未收到服务端消息，断开重连", idleMs / 1000);
+                    socket.Abort();
+                    return;
+                }
+
+                await socket.SendMessageAsync(
+                    MessageType.Ping,
+                    new HeartbeatMessage { SentAt = Environment.TickCount64 },
+                    cancellationToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // 正常停止
+        }
+    }
 
     protected async Task ReceiveServerAsync(CancellationToken cancellationToken)
     {
@@ -118,35 +168,66 @@ public class FastTunnelClient : IFastTunnelClient
 
     private void ProcessLine(ReadOnlySequence<byte> line, CancellationToken cancellationToken)
     {
-        HandleServerRequestAsync(line, cancellationToken);
+        Interlocked.Exchange(ref _lastReceiveTicks, Environment.TickCount64);
+        _ = HandleServerRequestAsync(line, cancellationToken);
     }
 
-    private void HandleServerRequestAsync(ReadOnlySequence<byte> line, CancellationToken cancellationToken)
+    private async Task HandleServerRequestAsync(ReadOnlySequence<byte> line, CancellationToken cancellationToken)
     {
         try
         {
-            var row = line.ToArray();
-            var cmd = row[0];
-            IClientHandler handler;
+            if (line.Length == 0)
+            {
+                return;
+            }
+
+            var cmd = line.FirstSpan[0];
+            var content = Encoding.UTF8.GetString(line.Slice(1));
+
             switch ((MessageType)cmd)
             {
                 case MessageType.SwapMsg:
                 case MessageType.Forward:
-                    handler = swapHandler;
+                    await swapHandler.HandlerMsgAsync(this, content, cancellationToken);
                     break;
+
                 case MessageType.Log:
-                    handler = logHandler;
+                    await logHandler.HandlerMsgAsync(this, content, cancellationToken);
                     break;
+
+                case MessageType.Ping:
+                    await socket.SendMessageAsync(
+                        MessageType.Pong,
+                        new HeartbeatMessage { SentAt = Environment.TickCount64 },
+                        cancellationToken);
+                    break;
+
+                case MessageType.Pong:
+                    break;
+
                 default:
                     throw new Exception($"未处理的消息：cmd={cmd}");
             }
-
-            var content = Encoding.UTF8.GetString(line.Slice(1));
-            handler.HandlerMsgAsync(this, content, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // 连接关闭时的正常路径
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "[HandleServerRequest Error]");
+        }
+    }
+
+    private static async Task AwaitQuietlyAsync(params Task[] tasks)
+    {
+        try
+        {
+            await Task.WhenAll(tasks);
+        }
+        catch
+        {
+            // 断线、取消都是预期路径
         }
     }
 
@@ -157,5 +238,7 @@ public class FastTunnelClient : IFastTunnelClient
         {
             socket.Abort();
         }
+
+        await Task.CompletedTask;
     }
 }

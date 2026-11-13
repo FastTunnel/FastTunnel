@@ -6,6 +6,7 @@
 
 using System;
 using System.Linq;
+using System.Net.WebSockets;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,6 +14,7 @@ using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Listener;
 using FastTunnel.Core.Models;
 using FastTunnel.Core.Models.Massage;
+using FastTunnel.Core.Protocol;
 using FastTunnel.Core.Server;
 using Microsoft.Extensions.Logging;
 
@@ -32,8 +34,7 @@ public class LoginHandler : ILoginHandler
     {
         var hasTunnel = false;
 
-        await client.webSocket.SendCmdAsync(MessageType.Log, $"穿透协议 | 映射关系（公网=>内网）", cancellationToken);
-        Thread.Sleep(300);
+        await SendLogAsync(client.webSocket, "穿透协议 | 映射关系（公网=>内网）", cancellationToken);
 
         if (requet.Webs != null && requet.Webs.Any())
         {
@@ -41,12 +42,17 @@ public class LoginHandler : ILoginHandler
             foreach (var item in requet.Webs)
             {
                 var hostName = $"{item.SubDomain}.{server.ServerOption.CurrentValue.WebDomain}".Trim().ToLower();
-                var info = new WebInfo { Socket = client.webSocket, WebConfig = item };
+                var info = new WebInfo
+                {
+                    Socket = client.webSocket,
+                    WebConfig = item,
+                    ProtocolVersion = client.ProtocolVersion,
+                };
 
                 logger.LogDebug($"New Http '{hostName}'");
                 server.WebList.AddOrUpdate(hostName, info, (key, oldInfo) => { return info; });
 
-                await client.webSocket.SendCmdAsync(MessageType.Log, $"  HTTP   | http://{hostName}:{client.ConnectionPort} => {item.LocalIp}:{item.LocalPort}", CancellationToken.None);
+                await SendLogAsync(client.webSocket, $"  HTTP   | http://{hostName}:{client.ConnectionPort} => {item.LocalIp}:{item.LocalPort}", CancellationToken.None);
                 client.AddWeb(info);
 
                 if (item.WWW != null)
@@ -57,7 +63,7 @@ public class LoginHandler : ILoginHandler
                         hostName = www.Trim().ToLower();
                         server.WebList.AddOrUpdate(www, info, (key, oldInfo) => { return info; });
 
-                        await client.webSocket.SendCmdAsync(MessageType.Log, $"  HTTP   | http://{www}:{client.ConnectionPort} => {item.LocalIp}:{item.LocalPort}", CancellationToken.None);
+                        await SendLogAsync(client.webSocket, $"  HTTP   | http://{www}:{client.ConnectionPort} => {item.LocalIp}:{item.LocalPort}", CancellationToken.None);
                         client.AddWeb(info);
                     }
                 }
@@ -81,7 +87,7 @@ public class LoginHandler : ILoginHandler
                             server.ForwardList.TryRemove(item.RemotePort, out var _);
                         }
 
-                        var dispatcher = new ForwardDispatcher(logger, server, item, client.webSocket);
+                        var dispatcher = new ForwardDispatcher(logger, server, item, client.webSocket, client.ProtocolVersion);
 
                         IPortListener ls;
                         if (item.Protocol == ProtocolEnum.UDP)
@@ -104,31 +110,44 @@ public class LoginHandler : ILoginHandler
 
                         client.AddForward(forwardInfo);
                         var protoLabel = item.Protocol == ProtocolEnum.UDP ? "UDP" : "TCP";
-                        await client.webSocket.SendCmdAsync(MessageType.Log, $"  {protoLabel,-6} | {server.ServerOption.CurrentValue.WebDomain}:{item.RemotePort} => {item.LocalIp}:{item.LocalPort}", CancellationToken.None);
+                        await SendLogAsync(client.webSocket, $"  {protoLabel,-6} | {server.ServerOption.CurrentValue.WebDomain}:{item.RemotePort} => {item.LocalIp}:{item.LocalPort}", CancellationToken.None);
                     }
                     catch (Exception ex)
                     {
                         logger.LogError($"{item.Protocol} proxy error: {item.RemotePort} => {item.LocalIp}:{item.LocalPort}");
                         logger.LogError(ex.Message);
-                        await client.webSocket.SendCmdAsync(MessageType.Log, ex.Message, CancellationToken.None);
+                        await SendLogAsync(client.webSocket, ex.Message, CancellationToken.None);
                         continue;
                     }
                 }
             }
             else
             {
-                await client.webSocket.SendCmdAsync(MessageType.Log, TunnelResource.ForwardDisabled, CancellationToken.None);
+                await SendLogAsync(client.webSocket, TunnelResource.ForwardDisabled, CancellationToken.None);
             }
         }
 
         if (!hasTunnel)
-            await client.webSocket.SendCmdAsync(MessageType.Log, TunnelResource.NoTunnel, CancellationToken.None);
+            await SendLogAsync(client.webSocket, TunnelResource.NoTunnel, CancellationToken.None);
     }
 
     public virtual async Task<bool> HandlerMsg(FastTunnelServer fastTunnelServer, TunnelClient tunnelClient, string lineCmd, CancellationToken cancellationToken)
     {
         var msg = JsonSerializer.Deserialize<LogInMassage>(lineCmd);
+        if (msg == null)
+        {
+            throw new FormatException("LogIn 消息解析失败");
+        }
+
+        // 低于结构化版本的客户端仍按旧版竖线文本下发，避免升级服务端即断服。
+        tunnelClient.ProtocolVersion = msg.ProtocolVersion >= ControlProtocol.Version
+            ? msg.ProtocolVersion
+            : ControlProtocol.LegacyVersion;
+
         await HandleLoginAsync(fastTunnelServer, tunnelClient, msg, cancellationToken);
         return NeedRecive;
     }
+
+    private static Task SendLogAsync(WebSocket socket, string text, CancellationToken cancellationToken)
+        => socket.SendMessageAsync(MessageType.Log, new LogMessage { Text = text }, cancellationToken);
 }

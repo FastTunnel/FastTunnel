@@ -99,8 +99,23 @@ internal class ForwarderMiddleware
         {
             try
             {
-                // 发送指令给客户端，等待建立隧道
-                await web.Socket.SendCmdAsync(MessageType.SwapMsg, $"{requestId}|{web.WebConfig.LocalIp}:{web.WebConfig.LocalPort}", context.ConnectionClosed);
+                var swap = new SwapRequest
+                {
+                    Id = requestId.ToString(),
+                    Host = web.WebConfig.LocalIp,
+                    Port = web.WebConfig.LocalPort,
+                    Proto = "tcp",
+                };
+
+                // 按客户端能力选择格式，未升级的客户端继续收旧版竖线文本。
+                if (web.ProtocolVersion >= ControlProtocol.Version)
+                {
+                    await web.Socket.SendMessageAsync(MessageType.SwapMsg, swap, context.ConnectionClosed);
+                }
+                else
+                {
+                    await web.Socket.SendCmdAsync(MessageType.SwapMsg, ControlProtocol.ToLegacyPayload(swap), context.ConnectionClosed);
+                }
             }
             catch (WebSocketException)
             {

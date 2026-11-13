@@ -75,22 +75,50 @@ public class FastTunnelClientHandler
         var client = new TunnelClient(webSocket, fastTunnelServer, loginHandler, context.Connection.RemoteIpAddress, log);
         client.ConnectionPort = context.Connection.LocalPort;
 
+        var loggedIn = false;
         try
         {
             fastTunnelServer.OnClientLogin(client);
-            await client.ReviceAsync(CancellationToken.None);
+            loggedIn = true;
 
-            fastTunnelServer.OnClientLogout(client);
+            using var clientCts = new CancellationTokenSource();
+            var receiving = client.ReviceAsync(clientCts.Token);
+            var monitoring = client.MonitorAsync(clientCts.Token);
+
+            // 接收循环或心跳看门狗任一结束，都认为该客户端离线。
+            await Task.WhenAny(receiving, monitoring);
+
+            clientCts.Cancel();
+            await AwaitQuietlyAsync(receiving, monitoring);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            fastTunnelServer.OnClientLogout(client);
+            logger.LogDebug(ex, "客户端连接异常结束 {RemoteIp}", context.Connection.RemoteIpAddress);
+        }
+        finally
+        {
+            if (loggedIn)
+            {
+                fastTunnelServer.OnClientLogout(client);
+            }
+        }
+    }
+
+    private static async Task AwaitQuietlyAsync(params Task[] tasks)
+    {
+        try
+        {
+            await Task.WhenAll(tasks);
+        }
+        catch
+        {
+            // 连接断开时两条任务都会抛异常，这里统一吞掉
         }
     }
 
     private static async Task Close(WebSocket webSocket, string reason)
     {
-        await webSocket.SendCmdAsync(MessageType.Log, reason, CancellationToken.None);
+        await webSocket.SendMessageAsync(MessageType.Log, new LogMessage { Text = reason, Level = "error" }, CancellationToken.None);
         await webSocket.CloseAsync(WebSocketCloseStatus.Empty, string.Empty, CancellationToken.None);
         return;
     }

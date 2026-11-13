@@ -5,6 +5,7 @@
 // Copyright (c) 2019 Gui.H
 
 using System.Net.WebSockets;
+using FastTunnel.Core.Protocol;
 
 namespace FastTunnel.Core.Models;
 
@@ -13,6 +14,11 @@ public class WebInfo
     public WebSocket Socket { get; set; }
 
     public WebConfig WebConfig { get; set; }
+
+    /// <summary>
+    /// 所属客户端的控制面协议版本，决定下发 SwapMsg 时用 JSON 还是旧版竖线文本。
+    /// </summary>
+    public int ProtocolVersion { get; set; } = ControlProtocol.LegacyVersion;
 
     internal void LogOut()
     {

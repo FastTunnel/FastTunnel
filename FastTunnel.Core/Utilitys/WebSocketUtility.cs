@@ -55,10 +55,21 @@ public class WebSocketUtility
             try
             {
                 var bytesRead = await socket.ReceiveAsync(memory, cancellationToken);
-                if (bytesRead.Count == 0 || bytesRead.EndOfMessage || bytesRead.MessageType == WebSocketMessageType.Close)
+
+                // 结束条件只能是 Close 或底层断开。不能因为 EndOfMessage 就退出：
+                // 发送端每条消息都是独立完整帧，按 EndOfMessage 退出会导致收到第一条消息后
+                // 就停止读取后续帧。
+                if (bytesRead.MessageType == WebSocketMessageType.Close)
                 {
                     break;
                 }
+
+                // 空帧（心跳探测可能出现）直接跳过，但不退出循环。
+                if (bytesRead.Count == 0)
+                {
+                    continue;
+                }
+
                 // Tell the PipeWriter how much was read from the Socket.
                 writer.Advance(bytesRead.Count);
             }

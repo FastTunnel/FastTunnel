@@ -19,4 +19,10 @@ public class LogInMassage : TunnelMassage
     /// 端口转发隧道列表
     /// </summary>
     public IEnumerable<ForwardConfig> Forwards { get; set; }
+
+    /// <summary>
+    /// 客户端支持的控制面协议版本。服务端据此决定下发 JSON 还是旧版竖线文本，
+    /// 保证新旧客户端可以连接同一个服务端。
+    /// </summary>
+    public int ProtocolVersion { get; set; }
 }

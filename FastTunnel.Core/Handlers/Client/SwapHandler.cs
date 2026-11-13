@@ -15,6 +15,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FastTunnel.Core.Client;
+using FastTunnel.Core.Protocol;
 using FastTunnel.Core.Sockets;
 using Microsoft.Extensions.Logging;
 
@@ -40,14 +41,13 @@ public class SwapHandler : IClientHandler
         try
         {
             Interlocked.Increment(ref SwapCount);
-            var msgs = msg.Split('|');
-            requestId = msgs[0];
 
-            // 兼容两种协议：
-            //   TCP: {msgId}|{ip}:{port}
-            //   UDP: {msgId}|udp|{ip}:{port}
-            bool isUdp = msgs.Length >= 3 && string.Equals(msgs[1], "udp", StringComparison.OrdinalIgnoreCase);
-            var address = isUdp ? msgs[2] : msgs[1];
+            // 新版 JSON 与旧版竖线文本统一在这里解析，服务端降级下发时同样可用。
+            var request = ControlProtocol.ParseSwapRequest(msg);
+            requestId = request.Id;
+
+            var isUdp = string.Equals(request.Proto, "udp", StringComparison.OrdinalIgnoreCase);
+            var address = ControlProtocol.FormatAddress(request);
 
             _logger.LogDebug($"========Swap Start:{requestId} ({(isUdp ? "UDP" : "TCP")})==========");
 

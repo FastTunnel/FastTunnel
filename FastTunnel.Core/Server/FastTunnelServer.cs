@@ -38,6 +38,9 @@ public class FastTunnelServer
     /// </summary>
     public IList<TunnelClient> Clients = new List<TunnelClient>();
 
+    /// <summary>客户端上下线可能来自不同连接的任务，列表读写需要串行化。</summary>
+    private readonly object clientsLock = new();
+
     public FastTunnelServer(ILogger<FastTunnelServer> logger, IOptionsMonitor<DefaultServerConfig> serverSettings)
     {
         this.logger = logger;
@@ -52,7 +55,10 @@ public class FastTunnelServer
     {
         Interlocked.Increment(ref ConnectedClientCount);
         logger.LogInformation($"客户端连接 {client.RemoteIpAddress} 当前在线数：{ConnectedClientCount}");
-        Clients.Add(client);
+        lock (clientsLock)
+        {
+            Clients.Add(client);
+        }
     }
 
     /// <summary>
@@ -64,7 +70,11 @@ public class FastTunnelServer
     {
         Interlocked.Decrement(ref ConnectedClientCount);
         logger.LogInformation($"客户端关闭  {client.RemoteIpAddress} 当前在线数：{ConnectedClientCount}");
-        Clients.Remove(client);
+        lock (clientsLock)
+        {
+            Clients.Remove(client);
+        }
+
         client.Logout();
     }
 

@@ -7,6 +7,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using FastTunnel.Core.Client;
+using FastTunnel.Core.Protocol;
 using Microsoft.Extensions.Logging;
 
 namespace FastTunnel.Core.Handlers.Client;
@@ -22,7 +23,26 @@ public class LogHandler : IClientHandler
 
     public async Task HandlerMsgAsync(FastTunnelClient cleint, string msg, CancellationToken cancellationToken)
     {
-        _logger.LogInformation(msg.Replace("\n", string.Empty));
+        var text = msg;
+
+        // 新版为 {"text":"...","level":"..."}；旧服务端下发的是裸文本，直接透传。
+        if (ControlProtocol.IsStructured(msg))
+        {
+            try
+            {
+                var payload = System.Text.Json.JsonSerializer.Deserialize<LogMessage>(msg, ControlProtocol.JsonOptions);
+                if (payload != null && !string.IsNullOrEmpty(payload.Text))
+                {
+                    text = payload.Text;
+                }
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                // 结构异常时按原文输出，不影响主流程
+            }
+        }
+
+        _logger.LogInformation(text.Replace("\n", string.Empty));
         await Task.CompletedTask;
     }
 }

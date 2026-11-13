@@ -15,6 +15,7 @@ using FastTunnel.Core.Exceptions;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.Models;
 using FastTunnel.Core.Models.Massage;
+using FastTunnel.Core.Protocol;
 using FastTunnel.Core.Refs;
 using FastTunnel.Core.Server;
 using Microsoft.Extensions.Logging;
@@ -27,13 +28,17 @@ public class ForwardDispatcher
     private readonly ForwardConfig _config;
     private readonly WebSocket _client;
     private readonly ILogger logger;
+    private readonly int _protocolVersion;
 
-    public ForwardDispatcher(ILogger logger, FastTunnelServer server, ForwardConfig config, WebSocket client)
+    public ForwardDispatcher(
+        ILogger logger, FastTunnelServer server, ForwardConfig config, WebSocket client,
+        int protocolVersion = ControlProtocol.LegacyVersion)
     {
         this.logger = logger;
         _server = server;
         _config = config;
         _client = client;
+        _protocolVersion = protocolVersion;
     }
 
     int SwapCount;
@@ -57,11 +62,15 @@ public class ForwardDispatcher
 
         try
         {
-            var payload = string.Equals(protocol, "udp", StringComparison.OrdinalIgnoreCase)
-                ? $"{msgId}|udp|{_config.LocalIp}:{_config.LocalPort}"
-                : $"{msgId}|{_config.LocalIp}:{_config.LocalPort}";
+            var request = new SwapRequest
+            {
+                Id = msgId.ToString(),
+                Host = _config.LocalIp,
+                Port = _config.LocalPort,
+                Proto = string.Equals(protocol, "udp", StringComparison.OrdinalIgnoreCase) ? "udp" : "tcp",
+            };
 
-            await _client.SendCmdAsync(MessageType.Forward, payload, cancellationToken);
+            await SendSwapAsync(MessageType.Forward, request, cancellationToken);
         }
         catch
         {
@@ -104,7 +113,15 @@ public class ForwardDispatcher
 
             try
             {
-                await _client.SendCmdAsync(MessageType.Forward, $"{msgId}|{_config.LocalIp}:{_config.LocalPort}", CancellationToken.None);
+                var request = new SwapRequest
+                {
+                    Id = msgId.ToString(),
+                    Host = _config.LocalIp,
+                    Port = _config.LocalPort,
+                    Proto = "tcp",
+                };
+
+                await SendSwapAsync(MessageType.Forward, request, CancellationToken.None);
             }
             catch (SocketClosedException sex)
             {
@@ -228,6 +245,11 @@ public class ForwardDispatcher
         // 或者在这里根据业务逻辑决定是否调用 await writer.CompleteAsync();
         // (根据你的原代码注释，这里不主动 Complete 是对的，由调用方统一收尾)
     }
+
+    private Task SendSwapAsync(MessageType type, SwapRequest request, CancellationToken cancellationToken)
+        => _protocolVersion >= ControlProtocol.Version
+            ? _client.SendMessageAsync(type, request, cancellationToken)
+            : _client.SendCmdAsync(type, ControlProtocol.ToLegacyPayload(request), cancellationToken);
 
     private void Close(Socket socket)
     {

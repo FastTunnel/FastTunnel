@@ -13,4 +13,6 @@ public enum MessageType : byte
     SwapMsg = 2,
     Forward = 3,
     Log = 4,
+    Ping = 5,  // client -> server，保活
+    Pong = 6,  // server -> client，保活应答
 }
