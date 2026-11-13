@@ -25,6 +25,7 @@ env:
   DOTNET_NOLOGO: 'true'
   DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
   PROJECTS: 'FastTunnel.Server FastTunnel.Client'
+  NUGET_PROJECTS: 'FastTunnel.Core FastTunnel.Core.Client'
 
 jobs:
   meta:
@@ -95,6 +96,61 @@ jobs:
 
       - name: Test
         run: dotnet test FastTunnel.sln -c Release --no-build --nologo
+
+  # 类库打进 nuget.org：不再用长期 API Key，改成 GitHub OIDC 换 1 小时临时 key。
+  # 前提是 nuget.org 上已给本仓建好 Trusted Publishing 策略（见下 permissions 注释）。
+  nuget:
+    name: pkg-nuget
+    needs: [meta, test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # 没有这一行 GitHub 不会给 job 发 OIDC token，NuGet/login 只能报 401
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.meta.outputs.tag }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Pack
+        env:
+          NUM: ${{ needs.meta.outputs.num }}
+        run: |
+          set -euo pipefail
+          for project in $NUGET_PROJECTS; do
+            # 先 build 再 pack --no-build：多目标项目单独跑 dotnet pack 不会触发各框架
+            # 的内层编译，会直接 NU5026 说找不到 dll
+            dotnet build "$project/$project.csproj" -c Release -p:Version="$NUM"
+            # 用 PackageOutputPath 而不是 -o：-o 连 OutDir 一起改，
+            # 各框架产物会全落进同一个目录互相覆盖
+            dotnet pack "$project/$project.csproj" -c Release --no-build -p:Version="$NUM" \
+              -p:PackageOutputPath="$GITHUB_WORKSPACE/nupkgs"
+          done
+          ls -l nupkgs
+
+      - name: NuGet login
+        id: login
+        uses: NuGet/login@v1
+        with:
+          # nuget.org 的用户名（profile 名），不是邮箱也不是 API Key
+          user: Gui.H
+
+      - name: Push
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: |
+          set -euo pipefail
+          for nupkg in nupkgs/*.nupkg; do
+            # --skip-duplicate：重跑同一个 tag 时别把已经发上去的版本报成失败
+            dotnet nuget push "$nupkg" --api-key "$NUGET_API_KEY" \
+              --source https://api.nuget.org/v3/index.json --skip-duplicate
+          done
 
   # 一个平台一个 job：同一份代码发布成各平台独立可运行的程序（自带 .NET 运行时）
   platform:
