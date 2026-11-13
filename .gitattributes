@@ -1,0 +1,11 @@
+# Shell 脚本必须是 LF：容器里用 /bin/bash 执行，CRLF 会让每行末尾带上 \r，
+# 表现为命令参数里混进 '\r'（start.sh 里 "mv /vols/config/* /app/config" 就是这样
+# 把目标变成 '/app/config\r'，导致挂载的配置永远搬不过去）。
+*.sh text eol=lf
+
+# Windows 批处理反过来必须是 CRLF，否则 cmd 解析异常
+*.bat text eol=crlf
+
+# 工作流文件也统一 LF：Windows 上 core.autocrlf=true 每次 checkout 都会
+# 把它们转成 CRLF，git status 里反复出现无意义的改动
+*.yml text eol=lf
