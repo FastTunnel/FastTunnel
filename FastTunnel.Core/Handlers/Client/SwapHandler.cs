@@ -9,7 +9,6 @@ using System.Buffers;
 using System.Buffers.Binary;
 using System.IO;
 using System.Net;
-using System.Net.Security;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
@@ -17,6 +16,7 @@ using System.Threading.Tasks;
 using FastTunnel.Core.Client;
 using FastTunnel.Core.Protocol;
 using FastTunnel.Core.Sockets;
+using FastTunnel.Core.Tls;
 using Microsoft.Extensions.Logging;
 
 namespace FastTunnel.Core.Handlers.Client;
@@ -240,11 +240,11 @@ public class SwapHandler : IClientHandler
         var socket = await DnsSocketFactory.ConnectAsync(cleint.Server.ServerAddr, cleint.Server.ServerPort);
         Stream serverStream = new NetworkStream(socket, true) { ReadTimeout = 1000 * 60 * 10 };
 
-        if (cleint.Server.Protocol == "wss")
+        // 数据通道与服务端用同一个端口，服务端按首字节识别 TLS，因此这里透明加解密即可。
+        if (cleint.Server.UseTls)
         {
-            var sslStream = new SslStream(serverStream, false, delegate { return true; });
-            await sslStream.AuthenticateAsClientAsync(cleint.Server.ServerAddr);
-            serverStream = sslStream;
+            serverStream = await TunnelTlsClient.AuthenticateAsync(
+                serverStream, cleint.Server, _logger, cancellationToken);
         }
 
         var reverse = $"PROXY /{requestId} HTTP/1.1\r\nHost: {cleint.Server.ServerAddr}:{cleint.Server.ServerPort}\r\n\r\n";

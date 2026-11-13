@@ -16,6 +16,7 @@ using FastTunnel.Core.Handlers.Client;
 using FastTunnel.Core.Models;
 using FastTunnel.Core.Models.Massage;
 using FastTunnel.Core.Protocol;
+using FastTunnel.Core.Tls;
 using FastTunnel.Core.Utilitys;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -116,10 +117,17 @@ public class FastTunnelClient : IFastTunnelClient
 
         // 连接到的目标IP
         socket = new ClientWebSocket();
-        socket.Options.RemoteCertificateValidationCallback = delegate { return true; };
+
+        // 与数据通道共用同一套证书策略：指纹固定 > 系统 CA > 显式允许不受信（仅开发）
+        socket.Options.RemoteCertificateValidationCallback = TunnelCertificate.CreateCallback(Server, _logger);
         socket.Options.SetRequestHeader(FastTunnelConst.FASTTUNNEL_VERSION, AssemblyUtility.GetVersion().ToString());
         socket.Options.SetRequestHeader(FastTunnelConst.FASTTUNNEL_TOKEN, ClientConfig.Token);
         Interlocked.Exchange(ref _lastReceiveTicks, Environment.TickCount64);
+
+        if (!Server.UseTls)
+        {
+            _logger.LogWarning("控制通道以明文（ws）方式连接，隧道内容可被中间人读取，建议改用 wss");
+        }
 
         _logger.LogInformation($"正在连接服务端 {Server.ServerAddr}:{Server.ServerPort}");
         await socket.ConnectAsync(

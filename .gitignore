@@ -14,3 +14,8 @@ publish
 /build
 /FastTunnel.Server/.config
 /FastTunnel.Server/logs
+
+# 自动生成的 TLS 证书（含私钥），每个部署环境应各自生成，绝不入库
+*.pfx
+*.p12
+/FastTunnel.Server/config/ft-server.pfx

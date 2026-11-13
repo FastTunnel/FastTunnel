@@ -5,24 +5,24 @@
 // Copyright (c) 2019 Gui.H
 
 using System;
+using System.IO;
 using System.IO.Pipelines;
-using System.Net.Sockets;
 using System.Threading.Tasks;
 
 namespace FastTunnel.Core.Forwarder.Streams;
 
 /// <summary>
-/// 把一条客户端 Socket 包装成 <see cref="IDuplexPipe"/>，供多路复用会话读写。
-/// 读写缓冲区取 16KB（默认 4KB），与 <see cref="Mux.MuxFrame.MaxPayload"/> 同量级，
+/// 把一条客户端连接（明文 NetworkStream 或 TLS 后的 SslStream）包装成 <see cref="IDuplexPipe"/>，
+/// 供多路复用会话读写。读写缓冲区取 16KB（默认 4KB），与 <see cref="Mux.MuxFrame.MaxPayload"/> 同量级，
 /// 避免一帧数据被拆成多次 4KB 拷贝。
 /// </summary>
 internal sealed class SocketDuplexPipe : IDuplexPipe, IAsyncDisposable
 {
-    private readonly NetworkStream stream;
+    private readonly Stream stream;
 
-    public SocketDuplexPipe(Socket socket)
+    public SocketDuplexPipe(Stream stream)
     {
-        stream = new NetworkStream(socket, ownsSocket: true);
+        this.stream = stream;
 
         Input = PipeReader.Create(stream, new StreamPipeReaderOptions(
             bufferSize: 16 * 1024,

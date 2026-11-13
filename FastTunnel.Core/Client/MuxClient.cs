@@ -5,6 +5,7 @@
 // Copyright (c) 2019 Gui.H
 
 using System;
+using System.IO;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
@@ -14,6 +15,7 @@ using FastTunnel.Core.Handlers.Client;
 using FastTunnel.Core.Models.Massage;
 using FastTunnel.Core.Mux;
 using FastTunnel.Core.Protocol;
+using FastTunnel.Core.Tls;
 using Microsoft.Extensions.Logging;
 
 namespace FastTunnel.Core.Client;
@@ -140,7 +142,15 @@ public sealed class MuxClient
             await socket.ConnectAsync(server.ServerAddr, server.ServerPort, cancellationToken);
             _logger.LogInformation("建立多路复用连接 {Addr}:{Port}", server.ServerAddr, server.ServerPort);
 
-            var duplex = new SocketDuplexPipe(socket);
+            Stream stream = new NetworkStream(socket, ownsSocket: true);
+
+            // 多路复用承载全部转发流量，必须与控制通道同等级加密
+            if (server.UseTls)
+            {
+                stream = await TunnelTlsClient.AuthenticateAsync(stream, server, _logger, cancellationToken);
+            }
+
+            var duplex = new SocketDuplexPipe(stream);
 
             // 握手沿用与 PROXY 一致的形式，服务端在连接层按首行方法名分派
             var handshake = $"MUX /{_client.MuxId} HTTP/1.1\r\nHost: {server.ServerAddr}:{server.ServerPort}\r\n\r\n";
