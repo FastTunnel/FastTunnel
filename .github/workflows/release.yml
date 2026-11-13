@@ -74,10 +74,32 @@ jobs:
           echo "pre=$pre" >> "$GITHUB_OUTPUT"
           echo "发布 tag=$tag 版本号=$num 预发布=$pre"
 
+  # 回归测试不过就不打包：宁可整版缺席，也别把已知泄漏的构建发出去
+  test:
+    name: test
+    needs: meta
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.meta.outputs.tag }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build
+        run: dotnet build FastTunnel.sln -c Release --nologo
+
+      - name: Test
+        run: dotnet test FastTunnel.sln -c Release --no-build --nologo
+
   # 一个平台一个 job：同一份代码发布成各平台独立可运行的程序（自带 .NET 运行时）
   platform:
     name: pkg-${{ matrix.rid }}
-    needs: meta
+    needs: [meta, test]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -170,7 +192,7 @@ jobs:
   # 保留原有发布习惯：不带平台后缀的框架依赖包，体积小，目标机自己装 .NET 10 运行时
   portable:
     name: pkg-portable
-    needs: meta
+    needs: [meta, test]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

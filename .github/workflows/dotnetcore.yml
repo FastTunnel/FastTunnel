@@ -21,7 +21,11 @@ jobs:
        dotnet-version: 10.0.*
        include-prerelease: true
    - name: Build with dotnet
-     run: chmod +x ./publish.sh
+     run: |
+       chmod +x ./publish.sh
+       dotnet build FastTunnel.sln -c Release --nologo
+   - name: Test
+     run: dotnet test FastTunnel.sln -c Release --no-build --nologo
       
   publish:
     name: publish-core
