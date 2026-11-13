@@ -1,0 +1,416 @@
+name: Release
+
+# 打 tag（如 v3.2.0）即自动发布：把 Core / Hosting / Api 推到 nuget.org，
+# 把 Server / Client 发布成各平台自带运行时的可执行程序，挂到 GitHub Release。
+# 某次发布失败时用 workflow_dispatch 填同一个 tag 重跑即可，不用删 tag 重打。
+#
+# 注意两个不能随便改的地方：
+# 1. 文件名必须保持 release.yml —— nuget.org 的 Trusted Publishing 策略绑定了
+#    这个 workflow 文件名，改名后 OIDC 换不到临时 key，NuGet/login 直接 401。
+# 2. tag 只认 v3.*，避免和 v2 分支的 v2.x 发布撞车（tag 落在哪个分支的 commit 上，
+#    就只用那个分支的 workflow 文件）。
+
+on:
+  push:
+    tags:
+      - 'v3.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '要发布/重发的 tag（如 v3.2.0）；留空则取当前 commit 上的 tag'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref }}
+
+env:
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+  # 要打成各平台可执行程序的项目
+  PROJECTS: 'FastTunnel.Server FastTunnel.Client'
+  # 要推到 nuget.org 的类库（v3 没有 Core.Client，换成了 Hosting 和 Api）
+  NUGET_PROJECTS: 'FastTunnel.Core FastTunnel.Hosting FastTunnel.Api'
+
+jobs:
+  meta:
+    name: meta
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+      num: ${{ steps.resolve.outputs.num }}
+      pre: ${{ steps.resolve.outputs.pre }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - name: 解析 tag 与版本号
+        id: resolve
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [ -n "$INPUT_TAG" ]; then
+            tag="$INPUT_TAG"
+          elif [ "$GITHUB_REF_TYPE" = tag ]; then
+            tag="$GITHUB_REF_NAME"
+          else
+            tag=$(git describe --tags --exact-match "$GITHUB_SHA" 2>/dev/null || true)
+          fi
+          [ -n "$tag" ] || { echo "!!! 没拿到 tag：手动触发请把 tag 填进输入框"; exit 1; }
+          # tag 会被拼进后续命令行，只放行版本号该有的字符
+          case "$tag" in
+            *[!A-Za-z0-9._-]*) echo "!!! tag 格式不合法: $tag"; exit 1 ;;
+          esac
+          git rev-parse -q --verify "refs/tags/$tag" >/dev/null \
+            || { echo "!!! 仓库里没有 tag: $tag"; exit 1; }
+          case "$tag" in
+            v[0-9]*) num="${tag#v}" ;;
+            *)       num="$tag" ;;
+          esac
+          pre=false
+          case "$tag" in
+            *-*|*alpha*|*beta*|*rc*) pre=true ;;
+          esac
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "num=$num" >> "$GITHUB_OUTPUT"
+          echo "pre=$pre" >> "$GITHUB_OUTPUT"
+          echo "发布 tag=$tag 版本号=$num 预发布=$pre"
+
+  # 回归测试不过就不打包：宁可整版缺席，也别把已知泄漏的构建发出去
+  test:
+    name: test
+    needs: meta
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.meta.outputs.tag }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build
+        run: dotnet build FastTunnel.sln -c Release --nologo -p:GeneratePackageOnBuild=false
+
+      - name: Test
+        run: dotnet test FastTunnel.sln -c Release --no-build --nologo
+
+  # 类库打进 nuget.org：不再用长期 API Key，改成 GitHub OIDC 换 1 小时临时 key。
+  # 前提是 nuget.org 上已给本仓建好 Trusted Publishing 策略。
+  nuget:
+    name: pkg-nuget
+    needs: [meta, test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # 没有这一行 GitHub 不会给 job 发 OIDC token，NuGet/login 只能报 401
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.meta.outputs.tag }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Pack
+        env:
+          NUM: ${{ needs.meta.outputs.num }}
+        run: |
+          set -euo pipefail
+          for project in $NUGET_PROJECTS; do
+            # 先 build 再 pack --no-build：单独跑 pack 不保证内层编译已就绪，
+            # 会直接 NU5026 说找不到 dll
+            dotnet build "$project/$project.csproj" -c Release -p:Version="$NUM"
+            # 用 PackageOutputPath 而不是 -o：-o 连 OutDir 一起改，
+            # 产物会全落进同一个目录互相覆盖
+            dotnet pack "$project/$project.csproj" -c Release --no-build -p:Version="$NUM" \
+              -p:PackageOutputPath="$GITHUB_WORKSPACE/nupkgs"
+          done
+          ls -l nupkgs
+
+      - name: NuGet login
+        id: login
+        uses: NuGet/login@v1
+        with:
+          # nuget.org 的用户名（profile 名），不是邮箱也不是 API Key
+          user: Gui.H
+
+      - name: Push
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: |
+          set -euo pipefail
+          for nupkg in nupkgs/*.nupkg; do
+            # --skip-duplicate：重跑同一个 tag 时别把已经发上去的版本报成失败
+            dotnet nuget push "$nupkg" --api-key "$NUGET_API_KEY" \
+              --source https://api.nuget.org/v3/index.json --skip-duplicate
+          done
+
+  # 一个平台一个 job：同一份代码发布成各平台独立可运行的程序（自带 .NET 运行时）
+  platform:
+    name: pkg-${{ matrix.rid }}
+    needs: [meta, test]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: win-x64
+            archiver: zip
+          - rid: win-x86
+            archiver: zip
+          - rid: win-arm64
+            archiver: zip
+          - rid: linux-x64
+            archiver: tar
+          - rid: linux-arm
+            archiver: tar
+          - rid: linux-arm64
+            archiver: tar
+          - rid: linux-musl-x64
+            archiver: tar
+          - rid: linux-musl-arm64
+            archiver: tar
+          - rid: osx-x64
+            archiver: tar
+          - rid: osx-arm64
+            archiver: tar
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.meta.outputs.tag }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish
+        env:
+          RID: ${{ matrix.rid }}
+          NUM: ${{ needs.meta.outputs.num }}
+        run: |
+          set -euo pipefail
+          for project in $PROJECTS; do
+            dotnet publish "$project/$project.csproj" \
+              -c Release \
+              -r "$RID" \
+              --self-contained \
+              -p:Version="$NUM" \
+              -p:GeneratePackageOnBuild=false \
+              -o "out/$project"
+          done
+
+      - name: Package
+        env:
+          RID: ${{ matrix.rid }}
+          NUM: ${{ needs.meta.outputs.num }}
+          ARCHIVER: ${{ matrix.archiver }}
+        run: |
+          set -euo pipefail
+          mkdir -p stage dist
+          for project in $PROJECTS; do
+            folder="$project-$NUM-$RID"
+            rm -rf "stage/$folder"
+            mkdir -p "stage/$folder"
+            cp -a "out/$project/." "stage/$folder/"
+            if [ "$ARCHIVER" = zip ]; then
+              (cd stage && zip -qr "../dist/$folder.zip" "$folder")
+              archive="dist/$folder.zip"
+              listing=$(unzip -Z1 "$archive")
+            else
+              # tar.gz 会把权限位一起带走，入口少了 +x 用户解压完直接跑会报 Permission denied
+              if [ -f "stage/$folder/$project" ]; then chmod +x "stage/$folder/$project"; fi
+              tar -czf "dist/$folder.tar.gz" -C stage "$folder"
+              archive="dist/$folder.tar.gz"
+              listing=$(tar -tzf "$archive")
+            fi
+            # 解压出来没有可执行入口等于白发，当场失败别等用户下载完才发现
+            # 用 <<< 而不是管道：grep -q 提前退出会让 tar/printf 收到 SIGPIPE，pipefail 下把成功的一轮判成失败
+            grep -qE "^$folder/$project(\.exe)?$" <<<"$listing" \
+              || { echo "!!! $archive 里找不到入口程序 $project"; exit 1; }
+            # 配置文件是运行时硬依赖（Server 的 config/appsettings.json 是 optional:false），
+            # 少了它解压出来也起不来
+            case "$project" in
+              FastTunnel.Server)
+                grep -qE "^$folder/config/appsettings\.json$" <<<"$listing" \
+                  || { echo "!!! $archive 里缺少 config/appsettings.json"; exit 1; }
+                ;;
+              FastTunnel.Client)
+                grep -qE "^$folder/appsettings\.json$" <<<"$listing" \
+                  || { echo "!!! $archive 里缺少 appsettings.json"; exit 1; }
+                ;;
+            esac
+          done
+          ls -lh dist
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: pkg-${{ matrix.rid }}
+          path: dist/
+          if-no-files-found: error
+
+  # 保留原有发布习惯：不带平台后缀的框架依赖包，体积小，目标机自己装 .NET 10 运行时
+  portable:
+    name: pkg-portable
+    needs: [meta, test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.meta.outputs.tag }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish
+        env:
+          NUM: ${{ needs.meta.outputs.num }}
+        run: |
+          set -euo pipefail
+          for project in $PROJECTS; do
+            dotnet publish "$project/$project.csproj" \
+              -c Release \
+              -p:Version="$NUM" \
+              -p:GeneratePackageOnBuild=false \
+              -o "out/$project"
+          done
+
+      - name: Package
+        run: |
+          set -euo pipefail
+          mkdir -p stage dist
+          for project in $PROJECTS; do
+            rm -rf "stage/$project"
+            mkdir -p "stage/$project"
+            cp -a "out/$project/." "stage/$project/"
+            if [ -f "stage/$project/$project" ]; then chmod +x "stage/$project/$project"; fi
+            tar -czf "dist/$project.tar.gz" -C stage "$project"
+            grep -q "^$project/$project.dll$" <<<"$(tar -tzf "dist/$project.tar.gz")" \
+              || { echo "!!! $project.tar.gz 内容不对"; exit 1; }
+          done
+          ls -lh dist
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: pkg-portable
+          path: dist/
+          if-no-files-found: error
+
+  # 任一平台打包失败就不发版：宁可整版缺席，也别放出缺平台的 Release
+  release:
+    name: github-release
+    needs: [meta, platform, portable]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.meta.outputs.tag }}
+          fetch-depth: 0
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: pkg-*
+          merge-multiple: true
+          path: dist
+
+      - name: Checksums
+        run: |
+          set -euo pipefail
+          test -n "$(ls -A dist)" || { echo '!!! 一个产物都没有'; exit 1; }
+          cd dist
+          # 分开写两个通配符：某个平台 job 挂了也不会让 sha256sum 因为匹配不到文件而中断
+          for f in *.zip *.tar.gz; do
+            if [ -f "$f" ]; then sha256sum "$f"; fi
+          done > sha256sums.txt
+          test -s sha256sums.txt || { echo '!!! 没有任何压缩包可校验'; exit 1; }
+          echo "共 $(ls -1 | wc -l) 个文件，合计 $(du -sh . | cut -f1)"
+          ls -lh
+
+      - name: Release notes
+        env:
+          TAG: ${{ needs.meta.outputs.tag }}
+        run: |
+          set -euo pipefail
+          prev=$(git describe --tags --abbrev=0 "$TAG^" 2>/dev/null || true)
+          if [ -n "$prev" ]; then
+            echo "上一个 tag: $prev"
+            log=$(git log --no-merges --pretty='- %s (%h)' "$prev..$TAG")
+          else
+            log=$(git log --no-merges -50 --pretty='- %s (%h)' "$TAG")
+          fi
+          [ -n "$log" ] || log='- 相对上一个 tag 没有新增提交'
+
+          cat > guide.md <<MD
+          ## 各平台包怎么选
+
+          包名格式 \`FastTunnel.Server-<版本>-<平台>\` / \`FastTunnel.Client-<版本>-<平台>\`，自带 .NET 运行时，解压即可运行，目标机不需要装 .NET。
+
+          | 平台后缀 | 适用系统 | 入口程序 |
+          | --- | --- | --- |
+          | \`win-x64\` / \`win-x86\` / \`win-arm64\` | Windows 64 位 / 32 位 / ARM64 | \`FastTunnel.Server.exe\`、\`FastTunnel.Client.exe\` |
+          | \`linux-x64\` / \`linux-arm\` / \`linux-arm64\` | Ubuntu、Debian、CentOS 等 glibc 发行版 | \`FastTunnel.Server\`、\`FastTunnel.Client\` |
+          | \`linux-musl-x64\` / \`linux-musl-arm64\` | Alpine 等 musl 发行版 | 同上 |
+          | \`osx-x64\` / \`osx-arm64\` | macOS Intel / Apple Silicon | 同上 |
+
+          Windows 包是 zip，其余是 tar.gz；Linux/macOS 包里的入口程序已带执行权限，解压后可直接运行。
+
+          服务端配置在 \`config/appsettings.json\`，客户端配置在同目录的 \`appsettings.json\`，首次运行前先改好域名、端口和 Token。
+
+          不带平台后缀的 \`FastTunnel.Server.tar.gz\` / \`FastTunnel.Client.tar.gz\` 是框架依赖包，体积小，需要目标机自行安装 .NET 10 运行时；它是单一平台构建产物，跨平台通用性不如上面的分平台包，Windows 用户建议直接用 \`win-x64\` 包。
+
+          类库 \`FastTunnel.Core\` / \`FastTunnel.Hosting\` / \`FastTunnel.Api\` 同版本已发布到 nuget.org。
+
+          校验值见 \`sha256sums.txt\`。
+          MD
+
+          {
+            echo "## 本次更新"
+            echo
+            echo "$log"
+            echo
+            cat guide.md
+          } > notes.md
+          cat notes.md
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.meta.outputs.tag }}
+          PRE: ${{ needs.meta.outputs.pre }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG 已存在，覆盖更新正文和资产（不动 tag）"
+            gh release edit "$TAG" --title "$TAG" --notes-file notes.md --prerelease="$PRE"
+            gh release upload "$TAG" dist/* --clobber
+          else
+            gh release create "$TAG" --title "$TAG" --notes-file notes.md --prerelease="$PRE" dist/*
+          fi
+          # 收尾不再回读 Release 做汇总打印：gh 的 create/edit/upload 任一步失败都会非零退出并被 set -e 拦住，
+          # 而多一个回读命令就多一个能把“发布已成功”报成“流水线失败”的点
+          echo "已发布 https://github.com/${GITHUB_REPOSITORY}/releases/tag/$TAG"
+          echo "本次上传 $(ls -1 dist | wc -l) 个文件（含 sha256sums.txt）"
