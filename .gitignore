@@ -19,3 +19,6 @@ publish
 *.pfx
 *.p12
 /FastTunnel.Server/config/ft-server.pfx
+
+# 单元测试产物
+/FastTunnel.Core.Tests/TestResults/
