@@ -10,6 +10,7 @@ using System.Security.Authentication;
 using System.Threading;
 using System.Threading.Tasks;
 using FastTunnel.Core.Config;
+using FastTunnel.Core.Sockets;
 using Microsoft.Extensions.Logging;
 
 namespace FastTunnel.Core.Tls;
@@ -32,7 +33,9 @@ public static class TunnelTlsClient
         {
             await ssl.AuthenticateAsClientAsync(new SslClientAuthenticationOptions
             {
-                TargetHost = server.ServerAddr,
+                // 传 IP 字面量（含 IPv6）时 SslStream 不会发送 SNI，证书校验走 SAN 的 IP 项；
+                // 这里统一去掉方括号，避免 "[::1]" 被当成主机名去匹配 DNS 名。
+                TargetHost = NetUtil.StripBrackets(server.ServerAddr),
                 EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
             }, cancellationToken);
 

@@ -13,6 +13,7 @@ using FastTunnel.Core.Forwarder.Kestrel.Features;
 using FastTunnel.Core.Models;
 using FastTunnel.Core.Protocol;
 using FastTunnel.Core.Server;
+using FastTunnel.Core.Sockets;
 using Microsoft.AspNetCore.Connections;
 
 namespace FastTunnel.Core.Forwarder;
@@ -182,15 +183,14 @@ public class FastTunelProtocol
                     break;
                 default:
                     // 检查Host决定是否进行代理
-                    // Host: test.test.cc:1270
+                    // Host: test.test.cc:1270 / Host: [::1]:1270
                     var lower = headerLineStr.Trim(CharR).ToLower();
                     if (lower.StartsWith("host:", StringComparison.OrdinalIgnoreCase))
                     {
-                        Host = lower.Split(" ")[1];
-                        if (Host.Contains(":"))
-                        {
-                            Host = Host.Split(":")[0];
-                        }
+                        var hostAndPort = lower.Split(" ")[1];
+
+                        // 不能简单按 ':' 切：IPv6 字面量是 [::1]:1270，切出来会变成 "["
+                        Host = NetUtil.HostOnly(hostAndPort);
 
                         // 匹配Host，
                         if (!isMuxEndpoint && fastTunnelServer.TryGetWebProxyByHost(Host, out var web))

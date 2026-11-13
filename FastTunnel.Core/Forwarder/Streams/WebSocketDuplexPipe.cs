@@ -5,6 +5,7 @@
 // Copyright (c) 2019 Gui.H
 
 using System;
+using System.IO;
 using System.IO.Pipelines;
 using System.Net.WebSockets;
 using System.Threading;
@@ -99,7 +100,9 @@ public sealed class WebSocketDuplexPipe : IDuplexPipe, IAsyncDisposable
         }
         catch (WebSocketException ex)
         {
-            error = ex;
+            // 对端被强杀 / 网络中断时收不到 Close 帧，这是隧道的正常下线路径。
+            // 包成 IOException，与 TCP 承载的下线走同一条日志分支，避免正常的断开打成告警堆栈。
+            error = new IOException("WebSocket 连接已断开", ex);
         }
         catch (Exception ex)
         {

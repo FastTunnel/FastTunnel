@@ -14,6 +14,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using FastTunnel.Core.Handlers.Server;
+using FastTunnel.Core.Sockets;
 using Microsoft.Extensions.Logging;
 
 namespace FastTunnel.Core.Listener;
@@ -50,11 +51,15 @@ public class UdpProxyListener : IPortListener
     {
         _logger = logger;
         _dispatcher = dispatcher;
-        ListenIp = ip;
         ListenPort = port;
 
-        var localEp = new IPEndPoint(IPAddress.Parse(ListenIp), ListenPort);
-        _udpServer = new UdpClient(localEp);
+        // 与 TCP 端口转发一致：通配地址用双栈，一个 socket 同时收 v4/v6 数据报。
+        // 双栈 socket 上 IPv4 来源会表现为 ::ffff:x.x.x.x，作为会话 key 回发同样有效，
+        // 因此只在日志里还原成正常写法，不改变实际端点。
+        _udpServer = NetUtil.BindUdp(NetUtil.ParseListenAddress(ip), port);
+        ListenIp = _udpServer.Client.AddressFamily == AddressFamily.InterNetworkV6
+            ? (_udpServer.Client.DualMode ? "::" : "[::]")
+            : "0.0.0.0";
     }
 
     public void Start()
@@ -96,7 +101,7 @@ public class UdpProxyListener : IPortListener
             }
             catch (Exception ex)
             {
-                _logger.LogDebug(ex, $"[UdpForward]Dispatch error from {remoteEp}");
+                _logger.LogDebug(ex, $"[UdpForward]Dispatch error from {NetUtil.Display(remoteEp)}");
                 if (_sessions.TryRemove(remoteEp, out var dead))
                 {
                     dead.Dispose();
@@ -174,7 +179,7 @@ public class UdpProxyListener : IPortListener
                 _streamCts = CancellationTokenSource.CreateLinkedTokenSource(parentToken, swap.TokenSource.Token);
                 _idleCts = CancellationTokenSource.CreateLinkedTokenSource(_streamCts.Token);
 
-                _logger.LogDebug($"[UdpForward]Session opened for {_remoteEp}");
+                _logger.LogDebug($"[UdpForward]Session opened for {NetUtil.Display(_remoteEp)}");
                 _ready.TrySetResult(true);
 
                 _ = Task.Run(() => ReadFromTunnelAsync(_idleCts.Token));
@@ -182,7 +187,7 @@ public class UdpProxyListener : IPortListener
             }
             catch (Exception ex)
             {
-                _logger.LogDebug(ex, $"[UdpForward]Session open failed for {_remoteEp}");
+                _logger.LogDebug(ex, $"[UdpForward]Session open failed for {NetUtil.Display(_remoteEp)}");
                 _ready.TrySetException(ex);
                 Dispose();
             }
@@ -251,14 +256,14 @@ public class UdpProxyListener : IPortListener
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogDebug(ex, $"[UdpForward]SendBack error to {_remoteEp}");
+                        _logger.LogDebug(ex, $"[UdpForward]SendBack error to {NetUtil.Display(_remoteEp)}");
                     }
                 }
             }
             catch (OperationCanceledException) { }
             catch (Exception ex)
             {
-                _logger.LogDebug(ex, $"[UdpForward]ReadFromTunnel error for {_remoteEp}");
+                _logger.LogDebug(ex, $"[UdpForward]ReadFromTunnel error for {NetUtil.Display(_remoteEp)}");
             }
             finally
             {
@@ -276,7 +281,7 @@ public class UdpProxyListener : IPortListener
                     await Task.Delay(TimeSpan.FromSeconds(15), token);
                     if (DateTime.UtcNow - _lastActive > SessionIdleTimeout)
                     {
-                        _logger.LogDebug($"[UdpForward]Session idle timeout {_remoteEp}");
+                        _logger.LogDebug($"[UdpForward]Session idle timeout {NetUtil.Display(_remoteEp)}");
                         Dispose();
                         return;
                     }

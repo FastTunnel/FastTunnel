@@ -5,6 +5,7 @@
 // Copyright (c) 2019 Gui.H
 
 using System;
+using System.Net;
 using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,6 +16,7 @@ using FastTunnel.Core.Models.Massage;
 using FastTunnel.Core.Mux;
 using FastTunnel.Core.Protocol;
 using FastTunnel.Core.Server;
+using FastTunnel.Core.Sockets;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -143,7 +145,10 @@ public class FastTunnelClientHandler
 
         var loggerFactory = context.RequestServices.GetRequiredService<ILoggerFactory>();
         var log = loggerFactory.CreateLogger<TunnelClient>();
-        var client = new TunnelClient(webSocket, fastTunnelServer, loginHandler, context.Connection.RemoteIpAddress, log);
+
+        // 双栈监听下 IPv4 客户端显示为 ::ffff:x.x.x.x，还原成正常写法便于排查
+        var remoteIp = NetUtil.Unmap(context.Connection.RemoteIpAddress) ?? IPAddress.None;
+        var client = new TunnelClient(webSocket, fastTunnelServer, loginHandler, remoteIp, log);
         client.ConnectionPort = context.Connection.LocalPort;
 
         var loggedIn = false;

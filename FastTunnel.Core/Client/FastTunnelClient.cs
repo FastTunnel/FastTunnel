@@ -16,6 +16,7 @@ using FastTunnel.Core.Handlers.Client;
 using FastTunnel.Core.Models;
 using FastTunnel.Core.Models.Massage;
 using FastTunnel.Core.Protocol;
+using FastTunnel.Core.Sockets;
 using FastTunnel.Core.Tls;
 using FastTunnel.Core.Utilitys;
 using Microsoft.Extensions.Logging;
@@ -136,8 +137,11 @@ public class FastTunnelClient : IFastTunnelClient
         }
 
         _logger.LogInformation($"正在连接服务端 {Server.ServerAddr}:{Server.ServerPort}");
+
+        // IPv6 字面量需要方括号：[::1]，否则 "wss://::1:1270" 无法解析
+        var host = NetUtil.FormatHost(Server.ServerAddr);
         await socket.ConnectAsync(
-            new Uri($"{Server.Protocol}://{Server.ServerAddr}:{Server.ServerPort}"), cancellationToken);
+            new Uri($"{Server.Protocol}://{host}:{Server.ServerPort}"), cancellationToken);
 
         _logger.LogDebug("连接服务端成功");
 

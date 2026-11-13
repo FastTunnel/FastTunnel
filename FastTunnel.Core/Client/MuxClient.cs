@@ -18,6 +18,7 @@ using FastTunnel.Core.Handlers.Client;
 using FastTunnel.Core.Models.Massage;
 using FastTunnel.Core.Mux;
 using FastTunnel.Core.Protocol;
+using FastTunnel.Core.Sockets;
 using FastTunnel.Core.Tls;
 using FastTunnel.Core.Utilitys;
 using Microsoft.Extensions.Logging;
@@ -161,12 +162,11 @@ public sealed class MuxClient
     {
         var server = _client.Server;
 
-        // 不指定 AddressFamily，让运行时按平台选择（通常是 IPv6 双栈，v4 地址也能连）
-        var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+        // 双栈解析交给 NetUtil：域名 / IPv4 / IPv6 字面量都能连，且带 NoDelay
+        var socket = await NetUtil.ConnectTcpAsync(server.ServerAddr, server.ServerPort, cancellationToken);
 
         try
         {
-            await socket.ConnectAsync(server.ServerAddr, server.ServerPort, cancellationToken);
             _logger.LogInformation("建立多路复用连接 {Addr}:{Port}", server.ServerAddr, server.ServerPort);
 
             Stream stream = new NetworkStream(socket, ownsSocket: true);
@@ -180,7 +180,8 @@ public sealed class MuxClient
             var duplex = new SocketDuplexPipe(stream);
 
             // 握手沿用与 PROXY 一致的形式，服务端在连接层按首行方法名分派
-            var handshake = $"MUX /{_client.MuxId} HTTP/1.1\r\nHost: {server.ServerAddr}:{server.ServerPort}\r\n\r\n";
+            var host = NetUtil.FormatHost(server.ServerAddr);
+            var handshake = $"MUX /{_client.MuxId} HTTP/1.1\r\nHost: {host}:{server.ServerPort}\r\n\r\n";
             await duplex.Output.WriteAsync(Encoding.ASCII.GetBytes(handshake), cancellationToken);
             await duplex.Output.FlushAsync(cancellationToken);
 
@@ -201,7 +202,10 @@ public sealed class MuxClient
     {
         var server = _client.Server;
         var scheme = server.UseTls ? "wss" : "ws";
-        var uri = new Uri($"{scheme}://{server.ServerAddr}:{server.ServerPort}{ProtocolConst.MUX_PATH}/{_client.MuxId:N}");
+
+        // IPv6 字面量必须写成 [::1]，否则 Uri 解析失败
+        var host = NetUtil.FormatHost(server.ServerAddr);
+        var uri = new Uri($"{scheme}://{host}:{server.ServerPort}{ProtocolConst.MUX_PATH}/{_client.MuxId:N}");
 
         var socket = new ClientWebSocket();
 

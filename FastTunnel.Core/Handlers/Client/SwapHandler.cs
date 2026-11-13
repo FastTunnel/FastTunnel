@@ -8,6 +8,7 @@ using System;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -69,15 +70,13 @@ public class SwapHandler : IClientHandler
     /// </summary>
     public async Task BridgeAsync(SwapRequest request, Stream serverStream, CancellationToken cancellationToken)
     {
-        var address = ControlProtocol.FormatAddress(request);
-
         if (string.Equals(request.Proto, "udp", StringComparison.OrdinalIgnoreCase))
         {
-            await BridgeUdpAsync(address, serverStream, cancellationToken);
+            await BridgeUdpAsync(request.Host, request.Port, serverStream, cancellationToken);
             return;
         }
 
-        using var localStream = await createLocal(request.Id, address, cancellationToken);
+        using var localStream = await createLocal(request.Id, request.Host, request.Port, cancellationToken);
 
         // 使用一个与双向拷贝联动的 CTS，任一方向结束后立即取消另一方向，避免半关闭后空转。
         using var swapCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -101,21 +100,21 @@ public class SwapHandler : IClientHandler
     /// UDP 桥接：服务端的 swap 流 ↔ 内网 UDP 端点
     /// 数据帧格式：[2 字节大端长度][数据]
     /// </summary>
-    private async Task BridgeUdpAsync(string address, Stream serverStream, CancellationToken cancellationToken)
+    private async Task BridgeUdpAsync(string host, int port, Stream serverStream, CancellationToken cancellationToken)
     {
-        var parts = address.Split(":");
-        var host = parts[0];
-        var port = int.Parse(parts[1]);
-
-        IPAddress ip;
-        if (!IPAddress.TryParse(host, out ip))
+        // 目标可能是域名、IPv4 或 IPv6 字面量，统一走双栈解析
+        var addresses = await NetUtil.ResolveAsync(host, cancellationToken);
+        if (addresses.Length == 0)
         {
-            var entries = await Dns.GetHostAddressesAsync(host, cancellationToken);
-            ip = entries.Length > 0 ? entries[0] : throw new Exception($"无法解析 {host}");
+            throw new Exception($"无法解析 {host}");
         }
 
+        var ip = NetUtil.OrderByPreference(addresses).First();
         var localTarget = new IPEndPoint(ip, port);
-        using var udp = new UdpClient(new IPEndPoint(IPAddress.Any, 0));
+
+        // UDP socket 的 family 必须与目标一致，否则发不出去（v6 目标不能用 v4 socket）
+        var bindAddress = ip.AddressFamily == AddressFamily.InterNetworkV6 ? IPAddress.IPv6Any : IPAddress.Any;
+        using var udp = new UdpClient(new IPEndPoint(bindAddress, 0));
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var lastActive = DateTime.UtcNow;
@@ -229,15 +228,16 @@ public class SwapHandler : IClientHandler
         return true;
     }
 
-    private async Task<Stream> createLocal(string requestId, string localhost, CancellationToken cancellationToken)
+    private async Task<Stream> createLocal(string requestId, string host, int port, CancellationToken cancellationToken)
     {
-        var socket = await DnsSocketFactory.ConnectAsync(localhost.Split(":")[0], int.Parse(localhost.Split(":")[1]));
+        var socket = await DnsSocketFactory.ConnectAsync(host, port, cancellationToken);
         return new NetworkStream(socket, true) { ReadTimeout = 1000 * 60 * 10 };
     }
 
     private async Task<Stream> createRemote(string requestId, FastTunnelClient cleint, CancellationToken cancellationToken)
     {
-        var socket = await DnsSocketFactory.ConnectAsync(cleint.Server.ServerAddr, cleint.Server.ServerPort);
+        var socket = await DnsSocketFactory.ConnectAsync(
+            cleint.Server.ServerAddr, cleint.Server.ServerPort, cancellationToken);
         Stream serverStream = new NetworkStream(socket, true) { ReadTimeout = 1000 * 60 * 10 };
 
         // 数据通道与服务端用同一个端口，服务端按首字节识别 TLS，因此这里透明加解密即可。
@@ -247,7 +247,9 @@ public class SwapHandler : IClientHandler
                 serverStream, cleint.Server, _logger, cancellationToken);
         }
 
-        var reverse = $"PROXY /{requestId} HTTP/1.1\r\nHost: {cleint.Server.ServerAddr}:{cleint.Server.ServerPort}\r\n\r\n";
+        // IPv6 服务端要写成 [::1]:1270，裸拼会得到非法的 Host 头
+        var host = NetUtil.FormatHost(cleint.Server.ServerAddr);
+        var reverse = $"PROXY /{requestId} HTTP/1.1\r\nHost: {host}:{cleint.Server.ServerPort}\r\n\r\n";
 
         var requestMsg = Encoding.UTF8.GetBytes(reverse);
         await serverStream.WriteAsync(requestMsg, cancellationToken);

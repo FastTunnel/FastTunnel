@@ -4,19 +4,20 @@
 //     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
 // Copyright (c) 2019 Gui.H
 
-using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace FastTunnel.Core.Sockets;
 
+/// <summary>
+/// 客户端连接内网目标 / 服务端的入口。双栈解析与回退逻辑见 <see cref="NetUtil.ConnectTcpAsync"/>。
+/// </summary>
 public class DnsSocketFactory
 {
-    public static async Task<Socket> ConnectAsync(string host, int port)
-    {
-        var Socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-        var dnsEndPoint = new DnsEndPoint(host, port);
-        await Socket.ConnectAsync(dnsEndPoint);
-        return Socket;
-    }
+    public static Task<Socket> ConnectAsync(string host, int port)
+        => ConnectAsync(host, port, CancellationToken.None);
+
+    public static Task<Socket> ConnectAsync(string host, int port, CancellationToken cancellationToken)
+        => NetUtil.ConnectTcpAsync(host, port, cancellationToken);
 }

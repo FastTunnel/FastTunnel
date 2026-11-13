@@ -9,6 +9,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using FastTunnel.Core.Handlers.Server;
+using FastTunnel.Core.Sockets;
 using Microsoft.Extensions.Logging;
 
 namespace FastTunnel.Core.Listener;
@@ -33,14 +34,16 @@ public class PortProxyListener : IPortListener
     {
         _logerr = logerr;
         _requestDispatcher = requestDispatcher;
-        this.ListenIp = ip;
         this.ListenPort = port;
 
-        var ipa = IPAddress.Parse(ListenIp);
-        var localEndPoint = new IPEndPoint(ipa, ListenPort);
+        // 通配地址走双栈：一个 socket 同时接 IPv6 与 IPv4 公网连接，
+        // IPv4 对端在内核里表现为 ::ffff:x.x.x.x，数据面无需区分。
+        listenSocket = NetUtil.BindTcp(NetUtil.ParseListenAddress(ip), port);
 
-        listenSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-        listenSocket.Bind(localEndPoint);
+        // 日志里展示实际生效的family，避免「配置 0.0.0.0、实际在收 IPv6」的困惑
+        this.ListenIp = listenSocket.AddressFamily == AddressFamily.InterNetworkV6
+            ? (listenSocket.DualMode ? "::" : "[::]")
+            : "0.0.0.0";
     }
 
     public void Start()

@@ -177,7 +177,12 @@ public sealed class ServerCertificateProvider
 
     private static System.Collections.Generic.IEnumerable<IPAddress> GetLocalAddresses()
     {
-        var result = new System.Collections.Generic.List<IPAddress>();
+        var result = new System.Collections.Generic.List<IPAddress>
+        {
+            // 回环地址显式加进去：客户端配 127.0.0.1 / ::1 直连时，系统 CA 校验路径也能过
+            IPAddress.Loopback,
+            IPAddress.IPv6Loopback,
+        };
 
         try
         {
@@ -191,9 +196,21 @@ public sealed class ServerCertificateProvider
 
                 foreach (var info in ni.GetIPProperties().UnicastAddresses)
                 {
-                    if (info.Address.AddressFamily == AddressFamily.InterNetwork)
+                    var address = info.Address;
+
+                    if (address.AddressFamily == AddressFamily.InterNetwork)
                     {
-                        result.Add(info.Address);
+                        result.Add(address);
+                        continue;
+                    }
+
+                    // IPv6：链路本地/站点本地带 scope id，写进 SAN 没有意义，也会让校验方困惑
+                    if (address.AddressFamily == AddressFamily.InterNetworkV6
+                        && !address.IsIPv6LinkLocal
+                        && !address.IsIPv6SiteLocal
+                        && !address.IsIPv6Multicast)
+                    {
+                        result.Add(address);
                     }
                 }
             }
