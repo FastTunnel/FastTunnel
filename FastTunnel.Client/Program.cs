@@ -5,6 +5,7 @@
 // Copyright (c) 2019 Gui.H
 
 using System;
+using FastTunnel.Core.Configuration;
 using FastTunnel.Core.Extensions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Hosting;
@@ -46,6 +47,18 @@ class Program
     public static IHostBuilder CreateHostBuilder(string[] args) =>
         Host.CreateDefaultBuilder(args)
             .UseWindowsService()
+            .ConfigureAppConfiguration((hostContext, config) =>
+            {
+                // 多格式配置：appsettings.json 由默认 builder 加载，这里补齐
+                // .ini 变体（含环境变体），后加载覆盖先加载。
+                var loaded = config.AddFastTunnelConfigFiles(
+                    configDirectory: ".", environmentName: hostContext.HostingEnvironment.EnvironmentName,
+                    includeJson: false);
+                if (loaded.Count > 0)
+                {
+                    Log.Information("已加载扩展格式配置文件：{Files}", string.Join(", ", loaded));
+                }
+            })
             .UseSerilog((context, services, configuration) => configuration
                     .ReadFrom.Configuration(context.Configuration)
                     .WriteTo.Console())

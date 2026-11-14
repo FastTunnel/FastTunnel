@@ -4,6 +4,7 @@
 //     https://github.com/FastTunnel/FastTunnel/edit/v2/LICENSE
 // Copyright (c) 2019 Gui.H
 
+using FastTunnel.Core.Configuration;
 using Serilog;
 
 namespace FastTunnel.Server;
@@ -54,9 +55,14 @@ public class Program
 
                 webHostBuilder.ConfigureAppConfiguration((hostingContext, config) =>
                 {
+                    // 多格式配置：config/ 下 appsettings.json / appsettings.ini 全部按序加载，
+                    // 后加载覆盖先加载，环境变体最后追加；所有文件支持热重载。
                     var env = hostingContext.HostingEnvironment;
-                    config.AddJsonFile("config/appsettings.json", optional: false, reloadOnChange: true)
-                          .AddJsonFile($"config/appsettings.{env.EnvironmentName}.json", optional: true, reloadOnChange: true);
+                    var loaded = config.AddFastTunnelConfigFiles("config", env.EnvironmentName);
+                    if (loaded.Count > 0)
+                    {
+                        Log.Information("已加载配置文件：{Files}", string.Join(", ", loaded));
+                    }
                 });
 
                 webHostBuilder.UseStartup<Startup>();
