@@ -420,3 +420,20 @@ every T:
 | 测试 | `PortPolicyTests`（6 例：无配置不限、端口合法性、单值、区间、并集、非法条目）+ `ForwardAdmissionTests`（5 例：白名单外拒绝不启动监听、白名单内登记/退出释放、超上限拒绝、同端口顶替不计数、端口计数去重与排除） |
 
 **边界**：白名单只作用于 TCP/UDP 转发登记，不影响 HTTP 子域名映射（那侧走域名黑名单与 `AllowedHosts`）；`MaxPortsPerClient` 对会话重登不算新增，但跨会话不共享配额（同一主体多会话时各算各的）。
+
+## 附录 C.7 · 代理组负载均衡（2026-11-14）
+
+> 对标 frp 的 `loadBalancer.group`。frp 差距清单第 2 项的地基改造：路由表从
+> 「域名 → 单映射（后来者覆盖）」升级为「域名 → 组容器」，同组同口令同域名的
+> 注册自动聚合，按请求随机分发。frp 差距清单据此可划掉"负载均衡"与"同域名单实例"两项。
+
+| 项 | 落地内容 |
+| --- | --- |
+| 组容器 | `FastTunnel.Core/Server/WebHostGroup.cs`：host → 组；成员增删、随机选路（健康池优先，全不健康兜底随机）、被动摘除（连续失败出池、到期自动回池、成功清零） |
+| 聚合规则 | 与 frp 一致——组名 + 组口令 + 域名完全一致才成组；口令不一致 / 组名不一致 / 有组 vs 无组一律拒绝入组，防止不相干客户端混入组劫持流量。无组注册保持旧版语义：同域名他人在线占用即拒绝 |
+| 路由表 | `FastTunnelServer.WebList` 值类型改为 `WebHostGroup`；`TryRegisterWeb` 返回 reason；`RemoveWeb` 摘成员、组空时摘路由条目；`SnapshotWebs` 跨组拍平供封禁与运维 API 使用 |
+| 选路 | `FastTunelProtocol` 解析 Host 时组内 `PickMember()`（每连接一次）；`WebInfo.GroupRef` 回引供转发链路上报成败 |
+| 被动摘除 | `FastTunnel:LoadBalancer:FailureThreshold`（默认 3）/ `RecoverySeconds`（默认 30）。失败信号：回连路径客户端离线、mux 建流异常；成功信号：隧道建立。阈值 0 关闭 |
+| 运维 API | `SystemController.GetAllWebList` 输出组名与组内成员数 |
+
+**边界**：分发策略固定为随机（frp 文档同样只承诺随机，未暴露策略配置）；健康检查是服务端被动观测，不探测内网服务本身（frp 的主动探测跑在客户端侧，FastTunnel 客户端尚未实现）；多成员组的按 token 封禁只精确摘除肇事者的成员，host 级黑名单照常作用于整个域名。

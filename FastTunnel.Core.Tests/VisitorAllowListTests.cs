@@ -49,11 +49,11 @@ public class VisitorAllowListTests
                 new TestOptionsMonitor<DefaultServerConfig>(config),
                 Bans);
 
-            Server.WebList["test.test.cc"] = new WebInfo
+            Server.WebList["test.test.cc"] = WebHostGroup.ForSingle(new WebInfo
             {
                 Host = "test.test.cc",
                 WebConfig = new WebConfig { LocalIp = "127.0.0.1", LocalPort = 80 },
-            };
+            });
 
             var pair = TestPipes.CreatePair();
             Peer = pair.B;

@@ -45,6 +45,10 @@
 - [x] 通过子域名或自定义域名访问内网 Web 服务（常用于微信开发、对外预览）
 - [x] 端口转发 / 端口映射，访问内网任意 TCP / UDP 服务（MySQL、Redis、RDP 等）
 - [x] 一个客户端可绑定多个域名访问内网服务
+- [x] 代理组负载均衡：多个客户端用相同组名 + 组口令 + 相同域名注册后自动成组，
+      服务端按请求随机分发给组内存活成员（`WebConfig.Group` / `GroupKey`，
+      对齐 frp `loadBalancer.group` 语义）；配合被动摘除
+      （`FastTunnel:LoadBalancer:FailureThreshold` / `RecoverySeconds`）实现故障转移
 - [x] 自定义域名校验：拒绝非法域名、平台子域抢注和覆盖他人映射
 - [x] 服务端自定义域名黑名单（`FastTunnel:WebDomainBlacklist`）
 - [x] TCP/UDP 端口白名单（`FastTunnel:AllowPorts`，单端口或区间）与每客户端端口数上限

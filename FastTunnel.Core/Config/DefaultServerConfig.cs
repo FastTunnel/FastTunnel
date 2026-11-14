@@ -105,6 +105,9 @@ public class DefaultServerConfig : IServerConfig
     /// <summary>运维端点（/healthz、/metrics）行为。</summary>
     public OpsOptions Ops { get; set; } = new();
 
+    /// <summary>负载均衡组：被动摘除阈值与恢复窗口。</summary>
+    public LoadBalancerOptions LoadBalancer { get; set; } = new();
+
     /// <summary>违规管控：封禁状态持久化与审计留痕。</summary>
     public AbuseOptions Abuse { get; set; } = new();
 

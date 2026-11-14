@@ -80,7 +80,7 @@ public sealed class BanService
         //    摘掉 WebList 后 Host 不再有 MatchWeb，只能靠这些记录继续返回 451。
         var clients = FindAffectedClients(command.SubjectType, normalized).ToArray();
         var hosts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var webSnapshot = server.WebList.Values.ToArray();
+        var webSnapshot = server.SnapshotWebs();
         foreach (var client in clients)
         {
             foreach (var web in webSnapshot)
@@ -227,7 +227,7 @@ public sealed class BanService
 
         if (type == BanSubjectType.Host)
         {
-            return server.WebList.Values
+            return server.SnapshotWebs()
                 .Where(x => string.Equals(
                     BanRegistry.NormalizeSubject(BanSubjectType.Host, x.Host),
                     normalized, StringComparison.Ordinal))

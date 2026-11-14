@@ -59,10 +59,18 @@ namespace FastTunnel.Api.Controllers
         [HttpGet]
         public ApiResponse GetAllWebList()
         {
+            var webs = fastTunnelServer.SnapshotWebs();
             ApiResponse.data = new
             {
-                Count = fastTunnelServer.WebList.Count,
-                Rows = fastTunnelServer.WebList.Select(x => new { x.Key, x.Value.WebConfig.LocalIp, x.Value.WebConfig.LocalPort })
+                Count = webs.Length,
+                Rows = webs.Select(x => new
+                {
+                    x.Host,
+                    x.WebConfig.LocalIp,
+                    x.WebConfig.LocalPort,
+                    x.WebConfig.Group,
+                    GroupMembers = x.GroupRef?.MemberCount ?? 1,
+                })
             };
 
             return ApiResponse;

@@ -52,7 +52,7 @@ public class RequestMetadataTests
         public WebInfo AddWeb(string host)
         {
             var web = new WebInfo { Host = host, WebConfig = new WebConfig { SubDomain = host } };
-            Server.WebList[host] = web;
+            Server.WebList[host] = WebHostGroup.ForSingle(web);
             return web;
         }
 

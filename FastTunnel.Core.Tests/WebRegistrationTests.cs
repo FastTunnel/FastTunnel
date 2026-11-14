@@ -48,8 +48,8 @@ public class WebRegistrationTests
         var client = CreateClient(server);
         var web = CreateWeb(client, "www.example.com");
 
-        Assert.True(server.TryRegisterWeb(web.Host, web));
-        Assert.Same(web, server.WebList[web.Host]);
+        Assert.True(server.TryRegisterWeb(web.Host, web, out _));
+        Assert.Same(web, server.WebList[web.Host].PickMember());
     }
 
     [Fact]
@@ -60,9 +60,9 @@ public class WebRegistrationTests
         var attacker = CreateClient(server);
         var original = CreateWeb(owner, "www.example.com");
 
-        Assert.True(server.TryRegisterWeb(original.Host, original));
-        Assert.False(server.TryRegisterWeb(original.Host, CreateWeb(attacker, original.Host)));
-        Assert.Same(original, server.WebList[original.Host]);
+        Assert.True(server.TryRegisterWeb(original.Host, original, out _));
+        Assert.False(server.TryRegisterWeb(original.Host, CreateWeb(attacker, original.Host), out _));
+        Assert.Same(original, server.WebList[original.Host].PickMember());
     }
 
     [Fact]
@@ -73,9 +73,9 @@ public class WebRegistrationTests
         var first = CreateWeb(client, "www.example.com");
         var second = CreateWeb(client, "www.example.com");
 
-        Assert.True(server.TryRegisterWeb(first.Host, first));
-        Assert.True(server.TryRegisterWeb(second.Host, second));
-        Assert.Same(second, server.WebList[first.Host]);
+        Assert.True(server.TryRegisterWeb(first.Host, first, out _));
+        Assert.True(server.TryRegisterWeb(second.Host, second, out _));
+        Assert.Same(second, server.WebList[first.Host].PickMember());
     }
 
     [Fact]
@@ -86,15 +86,19 @@ public class WebRegistrationTests
         var newClient = CreateClient(server);
         var stale = CreateWeb(oldClient, "www.example.com");
 
-        Assert.True(server.TryRegisterWeb(stale.Host, stale));
+        Assert.True(server.TryRegisterWeb(stale.Host, stale, out _));
 
-        // 模拟「旧会话已标记离线但清理与新登录并发」的窗口
+        // 模拟「旧会话已标记离线但清理与新登录并发」的窗口：旧映射短暂残留
         oldClient.Logout();
-        server.WebList[stale.Host] = stale;
+        server.WebList[stale.Host] = WebHostGroup.ForSingle(stale);
 
         var fresh = CreateWeb(newClient, stale.Host);
-        Assert.True(server.TryRegisterWeb(fresh.Host, fresh));
-        Assert.Same(fresh, server.WebList[stale.Host]);
+        Assert.True(server.TryRegisterWeb(fresh.Host, fresh, out _));
+
+        // 并发窗口收敛：Logout 的清理随后摘除旧实例，路由只命中新成员
+        server.RemoveWeb(stale);
+        Assert.True(server.TryGetWebProxyByHost(stale.Host, out var picked));
+        Assert.Same(fresh, picked);
     }
 
     [Fact]
@@ -102,9 +106,10 @@ public class WebRegistrationTests
     {
         var server = CreateServer();
         var client = CreateClient(server);
-        server.WebList["orphan.example.com"] = new WebInfo();
+        server.WebList["orphan.example.com"] = WebHostGroup.ForSingle(new WebInfo { Host = "orphan.example.com" });
 
-        Assert.False(server.TryRegisterWeb("orphan.example.com", CreateWeb(client, "orphan.example.com")));
+        Assert.False(server.TryRegisterWeb("orphan.example.com", CreateWeb(client, "orphan.example.com"), out var reason));
+        Assert.Contains("无主", reason);
     }
 
     [Fact]
@@ -116,11 +121,11 @@ public class WebRegistrationTests
         var stale = CreateWeb(oldClient, "www.example.com");
         var fresh = CreateWeb(newClient, "www.example.com");
 
-        server.WebList[stale.Host] = fresh;
+        server.WebList[stale.Host] = WebHostGroup.ForSingle(fresh);
 
         server.RemoveWeb(stale);
 
-        Assert.Same(fresh, server.WebList[stale.Host]);
+        Assert.Same(fresh, server.WebList[stale.Host].PickMember());
     }
 
     [Fact]
@@ -136,7 +141,7 @@ public class WebRegistrationTests
 
         foreach (var web in new[] { subDomain, custom1, custom2, others })
         {
-            Assert.True(server.TryRegisterWeb(web.Host, web));
+            Assert.True(server.TryRegisterWeb(web.Host, web, out _));
         }
 
         client.AddWeb(subDomain);
@@ -150,6 +155,6 @@ public class WebRegistrationTests
         Assert.False(server.WebList.ContainsKey(subDomain.Host));
         Assert.False(server.WebList.ContainsKey(custom1.Host));
         Assert.False(server.WebList.ContainsKey(custom2.Host));
-        Assert.Same(others, server.WebList[others.Host]);
+        Assert.Same(others, server.WebList[others.Host].PickMember());
     }
 }

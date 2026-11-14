@@ -27,6 +27,12 @@ public class WebInfo
     public TunnelClient Client { get; set; }
 
     /// <summary>
+    /// 所在转发成员组（host → 组容器的回引）。转发链路据此上报成员成败，
+    /// 驱动被动摘除；旧版单映射语义下同样非 null（单成员组）。
+    /// </summary>
+    public Server.WebHostGroup? GroupRef { get; set; }
+
+    /// <summary>
     /// 所属客户端的控制面协议版本，决定下发 SwapMsg 时用 JSON 还是旧版竖线文本。
     /// </summary>
     public int ProtocolVersion { get; set; } = ControlProtocol.LegacyVersion;

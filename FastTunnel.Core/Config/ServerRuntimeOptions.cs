@@ -30,6 +30,19 @@ public sealed class BandwidthOptions
     public Dictionary<string, long> PerClient { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
+/// <summary>负载均衡组行为。组的聚合只看客户端声明，这里只调被动摘除的灵敏度。</summary>
+public sealed class LoadBalancerOptions
+{
+    /// <summary>
+    /// 成员连续转发失败（连接内网服务被拒/超时、客户端离线）多少次后暂时摘出
+    /// 轮询池。0 表示不做被动摘除。默认 3。
+    /// </summary>
+    public int FailureThreshold { get; set; } = 3;
+
+    /// <summary>摘出池多少秒后自动回到候选（给后端恢复窗口）。默认 30。</summary>
+    public int RecoverySeconds { get; set; } = 30;
+}
+
 /// <summary>运维端点行为。</summary>
 public sealed class OpsOptions
 {

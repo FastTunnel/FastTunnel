@@ -68,7 +68,7 @@ public class BanServiceTests
                     WebConfig = new WebConfig { LocalIp = "127.0.0.1", LocalPort = 80 },
                     Client = Client,
                 };
-                Assert.True(Server.TryRegisterWeb(host, web));
+                Assert.True(Server.TryRegisterWeb(host, web, out _));
                 Client.AddWeb(web);
             }
         }

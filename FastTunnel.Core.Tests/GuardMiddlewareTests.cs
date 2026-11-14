@@ -49,11 +49,12 @@ public class GuardMiddlewareTests
 
             if (registerWeb)
             {
-                Server.WebList["test.test.cc"] = new WebInfo
+                var web = new WebInfo
                 {
                     Host = "test.test.cc",
                     WebConfig = new WebConfig { LocalIp = "127.0.0.1", LocalPort = 80 },
                 };
+                Server.WebList["test.test.cc"] = WebHostGroup.ForSingle(web);
             }
 
             var pair = TestPipes.CreatePair();

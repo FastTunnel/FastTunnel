@@ -157,10 +157,19 @@ internal class ForwarderMiddleware
                 // 控制平面 WebSocket 已关闭，同样识别为客户端离线
                 throw new ClienOffLineException("客户端离线");
             }
+            catch (ClienOffLineException)
+            {
+                // 隧道建立失败 → 被动摘除计数 +1，连续失败达到阈值暂时出池
+                ReportMemberFailure(web);
+                throw;
+            }
 
             // 关键 Bug 修复：给 await 加上取消令牌，避免客户端不回包时永久挂起，
             // 造成 ResponseTasks 与连接资源泄漏。
             res = await tcs.Task.WaitAsync(context.ConnectionClosed);
+
+            // 隧道建立成功 → 成员健康计数清零（被动摘除的成功信号）
+            web.GroupRef?.ReportSuccess(web);
 
             using var tokenSource = CancellationTokenSource.CreateLinkedTokenSource(
                 res.TokenSource.Token, context.ConnectionClosed);
@@ -282,6 +291,19 @@ internal class ForwarderMiddleware
         }
     }
 
+    /// <summary>
+    /// 成员建连失败计入被动摘除：连续失败达到 LoadBalancer:FailureThreshold 后
+    /// 暂时移出轮询池，RecoverySeconds 后自动回到候选。阈值 0 表示关闭被动摘除。
+    /// </summary>
+    private void ReportMemberFailure(WebInfo web)
+    {
+        var lb = fastTunnelServer.ServerOption.CurrentValue.LoadBalancer;
+        if (lb is { FailureThreshold: > 0 })
+        {
+            web.GroupRef?.ReportFailure(web, lb.FailureThreshold, lb.RecoverySeconds);
+        }
+    }
+
     /// <summary>关闭连接且不抛出，避免 Kestrel 把正常拒绝记成未处理异常。</summary>
     private static async Task CloseQuietlyAsync(ConnectionContext context)
     {
@@ -319,6 +341,9 @@ internal class ForwarderMiddleware
 
             stream = await mux.OpenStreamAsync(request, context.ConnectionClosed);
 
+            // 流建立成功 → 成员健康计数清零（被动摘除的成功信号）
+            web.GroupRef?.ReportSuccess(web);
+
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(context.ConnectionClosed, mux.Closed);
 
             // 两侧都是 Pipe，直接用 PipeReader.CopyToAsync(PipeWriter)，不经过 Stream 的中转缓冲。
@@ -347,7 +372,9 @@ internal class ForwarderMiddleware
         }
         catch (Exception ex)
         {
+            // 建流失败（客户端会话关闭/异常）→ 被动摘除计数 +1
             logger.LogDebug(ex, "[Mux]HTTP 转发异常");
+            ReportMemberFailure(web);
         }
         finally
         {

@@ -37,7 +37,11 @@ public class FastTunnelServer
     /// </summary>
     public ConcurrentDictionary<Guid, TaskCompletionSource<(Stream Stream, CancellationTokenSource Token)>> ResponseTasks { get; } = new();
 
-    public ConcurrentDictionary<string, WebInfo> WebList { get; private set; } = new();
+    /// <summary>
+    /// 域名路由表：host → 转发成员组。同组同口令的成员聚合进同一容器实现负载均衡，
+    /// 无组配置的注册是单成员组，行为与旧版一致。
+    /// </summary>
+    public ConcurrentDictionary<string, WebHostGroup> WebList { get; private set; } = new();
 
     public ConcurrentDictionary<int, ForwardInfo<ForwardHandlerArg>> ForwardList { get; private set; }
         = new ConcurrentDictionary<int, ForwardInfo<ForwardHandlerArg>>();
@@ -205,45 +209,63 @@ public class FastTunnelServer
         }
     }
 
+    /// <summary>全部在线映射的成员快照。封禁按 client 反查域名用。</summary>
+    public WebInfo[] SnapshotWebs()
+    {
+        return WebList.Values.SelectMany(g => g.SnapshotMembers()).ToArray();
+    }
+
     internal bool TryGetWebProxyByHost(string host, out WebInfo web)
     {
-        return WebList.TryGetValue(host, out web);
+        web = null!;
+        return WebList.TryGetValue(host, out var group)
+            && (web = group.PickMember()!) != null;
     }
 
     /// <summary>
-    /// 登记一条域名映射。已被其它在线客户端占用时拒绝，杜绝通过 WWW 声明覆盖他人域名。
-    /// 同一会话重复 LogIn 允许刷新；旧会话已下线则允许接管（应对重连与清理竞态）。
+    /// 登记一条域名映射。三种情况：
+    /// <list type="bullet">
+    /// <item>同组同口令且入口一致 → 并入组做负载均衡（frp loadBalancer.group 语义）；</item>
+    /// <item>同客户端重复注册（重连刷新）→ 原地替换成员；</item>
+    /// <item>其余冲突（组名/口令不一致、旧版无组的他人在线占用）→ 拒绝，
+    /// 杜绝通过 WWW 声明覆盖他人域名或混入别人的组。</item>
+    /// </list>
     /// </summary>
-    internal bool TryRegisterWeb(string host, WebInfo info)
+    internal bool TryRegisterWeb(string host, WebInfo info, out string reason)
     {
         while (true)
         {
-            if (!WebList.TryGetValue(host, out var existing))
+            if (!WebList.TryGetValue(host, out var group))
             {
-                return WebList.TryAdd(host, info);
+                var incoming = info.WebConfig?.Group;
+                var created = new WebHostGroup(host, incoming, info.WebConfig?.GroupKey);
+                if (WebList.TryAdd(host, created))
+                {
+                    created.Add(info);
+                    info.GroupRef = created;
+                    reason = string.Empty;
+                    return true;
+                }
+
+                // 并发下别的线程先建了组，重走合并逻辑
+                continue;
             }
 
-            var owner = existing.Client;
-            if (owner == null)
+            if (!group.CanJoin(info, out reason))
             {
-                // 无主映射来源不明，一律不让覆盖
                 return false;
             }
 
-            if (!ReferenceEquals(owner, info.Client) && !owner.IsOffline)
-            {
-                return false;
-            }
-
-            if (WebList.TryUpdate(host, info, existing))
-            {
-                return true;
-            }
+            group.Add(info);
+            info.GroupRef = group;
+            reason = string.Empty;
+            return true;
         }
     }
 
     /// <summary>
-    /// 摘除指定映射。按 (host, 实例) 一起比较，避免旧客户端下线时误删同名域名的新归属。
+    /// 摘除指定成员。按 (host, 实例) 一起比较，避免旧客户端下线时误删同名域名的新归属；
+    /// 组内最后一个成员退出时路由条目一并摘除。
     /// 封禁服务也可复用该方法立即撤销路由。
     /// </summary>
     internal void RemoveWeb(WebInfo info)
@@ -253,7 +275,15 @@ public class FastTunnelServer
             return;
         }
 
-        WebList.TryRemove(new KeyValuePair<string, WebInfo>(info.Host, info));
+        if (!WebList.TryGetValue(info.Host, out var group))
+        {
+            return;
+        }
+
+        if (group.Remove(info))
+        {
+            WebList.TryRemove(new KeyValuePair<string, WebHostGroup>(info.Host, group));
+        }
     }
 
     /// <summary>会话下线时一并摘除端口转发记录；监听已由 <see cref="TunnelClient"/> 停止。</summary>

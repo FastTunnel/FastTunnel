@@ -45,6 +45,9 @@ Gitee: [FastTunnel](https://gitee.com/Hgui/FastTunnel)
 - [x] Expose intranet web services via subdomains or custom domains (WeChat development, public previews)
 - [x] TCP / UDP port forwarding for any intranet service (MySQL, Redis, RDP, ...)
 - [x] Bind multiple domains to one client
+- [x] Proxy-group load balancing: registrations sharing the same group name, group key and domain
+      are aggregated automatically; requests are dispatched randomly and repeatedly failing members
+      are passively removed then auto-recovered
 - [x] Custom domain validation: rejects malformed hosts, platform-subdomain squatting and hijacking another client's mapping
 - [x] Server-side custom domain blacklist (`FastTunnel:WebDomainBlacklist`)
 - [x] TCP/UDP port allowlist (`FastTunnel:AllowPorts`, single port or range) and per-client port

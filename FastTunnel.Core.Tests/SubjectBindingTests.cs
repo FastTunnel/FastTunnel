@@ -150,7 +150,7 @@ public class SubjectBindingTests
             WebConfig = new WebConfig { LocalIp = "127.0.0.1", LocalPort = 80 }, Client = alice,
         };
         alice.AddWeb(web);
-        Assert.True(server.TryRegisterWeb(web.Host, web));
+        Assert.True(server.TryRegisterWeb(web.Host, web, out _));
 
         var bob = Client(server);
         bob.Credential = Named("bob");

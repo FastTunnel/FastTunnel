@@ -45,6 +45,10 @@ Official website : https://suidao.io
 - [x] Expose intranet web services via subdomains or custom domains (WeChat development, public previews)
 - [x] TCP / UDP port forwarding for any intranet service (MySQL, Redis, RDP, ...)
 - [x] Bind multiple domains to one client
+- [x] Proxy-group load balancing: clients registering the same group name + group key + same
+      domain are aggregated automatically and requests are randomly dispatched to a surviving
+      member (`WebConfig.Group` / `GroupKey`, mirroring frp's `loadBalancer.group`); passive
+      member removal (`FastTunnel:LoadBalancer:FailureThreshold` / `RecoverySeconds`) provides failover
 - [x] Custom domain validation: rejects malformed hosts, platform-subdomain squatting and hijacking another client's mapping
 - [x] Server-side custom domain blacklist (`FastTunnel:WebDomainBlacklist`)
 - [x] TCP/UDP port allowlist (`FastTunnel:AllowPorts`, single port or range) and per-client port

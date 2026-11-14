@@ -55,7 +55,7 @@ public class FastTunelProtocolTests
         public WebInfo AddWeb(string host)
         {
             var web = new WebInfo { WebConfig = new WebConfig { SubDomain = host } };
-            Server.WebList[host] = web;
+            Server.WebList[host] = WebHostGroup.ForSingle(web);
             return web;
         }
 

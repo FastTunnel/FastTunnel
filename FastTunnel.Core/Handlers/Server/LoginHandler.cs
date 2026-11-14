@@ -282,9 +282,9 @@ public class LoginHandler : ILoginHandler
             Client = client,
         };
 
-        if (!server.TryRegisterWeb(host, info))
+        if (!server.TryRegisterWeb(host, info, out var registerReason))
         {
-            reason = "已被其它客户端占用";
+            reason = registerReason;
             return false;
         }
 
