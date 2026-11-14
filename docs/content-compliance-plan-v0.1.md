@@ -405,3 +405,18 @@ every T:
 | 示例 | `FastTunnel.Server/config/appsettings.sample.ini`、`FastTunnel.Client/appsettings.sample.ini`（`.sample` 命名避开自动加载）；4 份 README 已同步 |
 
 **边界**：INI 不支持原生数组，复杂嵌套/列表结构建议留在 JSON、INI 只做少量覆盖；键重复时 INI Provider 会报错（JSON 允许覆盖）。
+
+## 附录 C.6 · TCP/UDP 端口准入（2026-11-14）
+
+> 对标 frp 的 `allowPorts` 与 `maxPortsPerClient`。与域名黑名单配对：HTTP 靠域名收口，
+> TCP/UDP 靠端口收口——防客户端把恶意服务挂在 22/25/445 等知名端口，或抢占服务端自有监听。
+
+| 项 | 落地内容 |
+| --- | --- |
+| 配置 | `FastTunnel:AllowPorts[]`（`{ Single }` 单端口 / `{ Start, End }` 闭区间，多条件取并集；空 = 不限制）与 `FastTunnel:MaxPortsPerClient`（去重端口数上限，0 = 不限制） |
+| 校验 | `PortPolicy.IsPortAllowed`：先判 1–65535 合法性，再判白名单；条目非法（Start > End / 全 0 / null）被跳过，全部非法时拒绝并提示配置问题。白名单外拒绝的 reason 会通过控制通道日志回给客户端 |
+| 上限判定 | `TunnelClient.CountForwardPorts(excludingPort)`：按会话内去重端口数计；同端口重新登记（顶替旧监听）通过 `excludingPort` 排除，不算新增 |
+| 接线 | `LoginHandler.HandleLoginAsync` 转发循环：两项校验在启动监听之前完成，拒绝只跳过该条目并回日志，不影响同会话其它隧道；每次登录现读 `ServerOption.CurrentValue`，跟随配置热加载 |
+| 测试 | `PortPolicyTests`（6 例：无配置不限、端口合法性、单值、区间、并集、非法条目）+ `ForwardAdmissionTests`（5 例：白名单外拒绝不启动监听、白名单内登记/退出释放、超上限拒绝、同端口顶替不计数、端口计数去重与排除） |
+
+**边界**：白名单只作用于 TCP/UDP 转发登记，不影响 HTTP 子域名映射（那侧走域名黑名单与 `AllowedHosts`）；`MaxPortsPerClient` 对会话重登不算新增，但跨会话不共享配额（同一主体多会话时各算各的）。

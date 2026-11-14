@@ -50,11 +50,32 @@ public class LoginHandler : ILoginHandler
             if (server.ServerOption.CurrentValue.EnableForward)
             {
                 hasTunnel = true;
+                var options = server.ServerOption.CurrentValue;
 
                 foreach (var item in requet.Forwards)
                 {
                     try
                     {
+                        // 端口准入：白名单 + 每客户端端口数上限，拒绝只跳过该条并回日志
+                        if (!PortPolicy.IsPortAllowed(options.AllowPorts, item.RemotePort, out var portReason))
+                        {
+                            logger.LogWarning("拒绝端口转发 {Protocol} {RemotePort}：{Reason}（客户端 {RemoteIp}）",
+                                item.Protocol, item.RemotePort, portReason, client.RemoteIpAddress);
+                            await SendLogAsync(client.webSocket,
+                                $"  {item.Protocol,-6} | 端口 {item.RemotePort} 未登记：{portReason}", CancellationToken.None);
+                            continue;
+                        }
+
+                        var maxPorts = options.MaxPortsPerClient;
+                        if (maxPorts > 0 && client.CountForwardPorts(item.RemotePort) >= maxPorts)
+                        {
+                            logger.LogWarning("主体 {Subject} 转发端口数达到上限 {MaxPorts}，拒绝 {RemotePort}",
+                                client.Subject, maxPorts, item.RemotePort);
+                            await SendLogAsync(client.webSocket,
+                                $"  {item.Protocol,-6} | 端口 {item.RemotePort} 未登记：转发端口数已达上限 {maxPorts}", CancellationToken.None);
+                            continue;
+                        }
+
                         if (server.ForwardList.TryGetValue(item.RemotePort, out var old))
                         {
                             logger.LogDebug($"Remove Listener {old.Listener.ListenIp}:{old.Listener.ListenPort}");

@@ -129,6 +129,29 @@ public class TunnelClient
     }
 
     /// <summary>
+    /// 本会话当前占用的去重转发端口数，供 MaxPortsPerClient 判定。
+    /// 同一端口重新登记（顶替旧监听）时传入 <paramref name="excludingPort"/>，
+    /// 避免把要替换的旧条目重复计入。
+    /// </summary>
+    public int CountForwardPorts(int? excludingPort = null)
+    {
+        lock (mappingsLock)
+        {
+            var ports = new HashSet<int>();
+            foreach (var item in forwardInfos)
+            {
+                var port = item.SSHConfig.RemotePort;
+                if (port != excludingPort)
+                {
+                    ports.Add(port);
+                }
+            }
+
+            return ports.Count;
+        }
+    }
+
+    /// <summary>
     /// 接收客户端的消息
     /// </summary>
     public async Task ReviceAsync(CancellationToken cancellationToken)

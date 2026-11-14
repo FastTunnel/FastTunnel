@@ -36,6 +36,19 @@ public class DefaultServerConfig : IServerConfig
     public bool EnableForward { get; set; }
 
     /// <summary>
+    /// TCP/UDP 转发的服务端端口白名单。条目 <c>{ Single }</c> 放行单端口，
+    /// <c>{ Start, End }</c> 放行闭区间。为空表示不限制；配置了条目时，
+    /// 白名单外的端口一律拒绝登记。与域名黑名单配对使用：HTTP 靠域名收口，TCP/UDP 靠端口收口。
+    /// </summary>
+    public List<AllowPortOptions> AllowPorts { get; set; } = new();
+
+    /// <summary>
+    /// 单个客户端最多可占用的转发端口数（按去重后的 RemotePort 计）。0 表示不限制。
+    /// 超出后新增的端口登记会被拒绝，不影响已建立的转发。
+    /// </summary>
+    public int MaxPortsPerClient { get; set; }
+
+    /// <summary>
     /// 是否启用多路复用。开启后，客户端会额外建立一条长连接，所有 HTTP / TCP 转发
     /// 都在该连接上开流，不再为每条公网连接新建一条 TCP。默认开启。
     /// </summary>

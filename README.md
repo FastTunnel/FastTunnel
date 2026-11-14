@@ -47,6 +47,8 @@ Official website : https://suidao.io
 - [x] Bind multiple domains to one client
 - [x] Custom domain validation: rejects malformed hosts, platform-subdomain squatting and hijacking another client's mapping
 - [x] Server-side custom domain blacklist (`FastTunnel:WebDomainBlacklist`)
+- [x] TCP/UDP port allowlist (`FastTunnel:AllowPorts`, single port or range) and per-client port
+      cap (`FastTunnel:MaxPortsPerClient`); ports outside the allowlist are rejected at registration
 - [x] Single-port multiplexing (MUX): all forwards share one long-lived connection instead of reconnecting per request
 - [x] TLS for the client channel (on by default) with SHA-256 certificate fingerprint pinning
 - [x] Control-channel heartbeat / stale-connection detection; structured protocol stays compatible with older clients

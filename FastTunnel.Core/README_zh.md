@@ -38,6 +38,8 @@ Gitee: [FastTunnel](https://gitee.com/Hgui/FastTunnel)
 - [x] 一个客户端可绑定多个域名访问内网服务
 - [x] 自定义域名校验：拒绝非法域名、平台子域抢注和覆盖他人映射
 - [x] 服务端自定义域名黑名单（`FastTunnel:WebDomainBlacklist`）
+- [x] TCP/UDP 端口白名单（`FastTunnel:AllowPorts`，单端口或区间）与每客户端端口数上限
+      （`FastTunnel:MaxPortsPerClient`）；白名单外端口拒绝登记
 - [x] 单端口多路复用（MUX）：转发复用一条长连接，不再逐条回连
 - [x] 客户端通道 TLS 加密（默认开启），支持证书 SHA-256 指纹校验
 - [x] 控制通道心跳与假死检测；结构化控制协议兼容旧版客户端

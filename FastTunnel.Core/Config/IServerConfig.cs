@@ -20,6 +20,10 @@ public interface IServerConfig
 
     bool EnableForward { get; set; }
 
+    List<AllowPortOptions> AllowPorts { get; set; }
+
+    int MaxPortsPerClient { get; set; }
+
     List<ClientCredentialOptions> Clients { get; set; }
 
     bool EnforceSingleSession { get; set; }
