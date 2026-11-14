@@ -8,10 +8,13 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FastTunnel.Core.Config;
+using FastTunnel.Core.Metrics;
 using FastTunnel.Core.Models;
+using FastTunnel.Core.Security;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -22,6 +25,12 @@ public class FastTunnelServer
     public int ConnectedClientCount;
     public readonly IOptionsMonitor<DefaultServerConfig> ServerOption;
     private readonly ILogger<FastTunnelServer> logger;
+
+    /// <summary>封禁黑名单。协议解析要用它判断「映射已摘除但 Host 仍被封」的请求。</summary>
+    public BanRegistry? Bans { get; }
+
+    /// <summary>按代理的流量计量与限速。端口转发调度器也通过它挂装饰器。</summary>
+    public TrafficMeter? Traffic { get; }
 
     /// <summary>
     /// 待转发列表
@@ -47,24 +56,94 @@ public class FastTunnelServer
     /// <summary>客户端上下线可能来自不同连接的任务，列表读写需要串行化。</summary>
     private readonly object clientsLock = new();
 
-    public FastTunnelServer(ILogger<FastTunnelServer> logger, IOptionsMonitor<DefaultServerConfig> serverSettings)
+    public FastTunnelServer(
+        ILogger<FastTunnelServer> logger, IOptionsMonitor<DefaultServerConfig> serverSettings,
+        BanRegistry? bans = null, TrafficMeter? traffic = null)
     {
         this.logger = logger;
         ServerOption = serverSettings;
+        Bans = bans;
+        Traffic = traffic;
     }
 
     /// <summary>
-    /// 客户端登录
+    /// Host 是否已被封禁。熔断会摘掉 WebList 映射，此时 FastTunelProtocol 靠这个方法
+    /// 仍然生成 Feature，GuardMiddleware 才能返回 451 而不是退化成 404。
     /// </summary>
-    /// <param name="client"></param>
-    internal void OnClientLogin(TunnelClient client)
+    public bool IsHostBanned(string? host) => Bans?.IsHostBanned(host) ?? false;
+
+    /// <summary>在线会话快照。封禁按 token / host 反查主体时用，避免直接读写非线程安全的列表。</summary>
+    public IReadOnlyList<TunnelClient> SnapshotClients()
     {
-        Interlocked.Increment(ref ConnectedClientCount);
-        logger.LogInformation($"客户端连接 {client.RemoteIpAddress} 当前在线数：{ConnectedClientCount}");
         lock (clientsLock)
         {
+            return Clients.ToArray();
+        }
+    }
+
+    /// <summary>
+    /// 强制断开一个客户端：摘掉 MuxClients 绑定，Logout 清理 WebList / ForwardList /
+    /// 监听与 mux 会话，最后 Abort 控制面。活动转发连接会随 CTS 一并取消。
+    /// </summary>
+    /// <param name="client">要断开的会话。</param>
+    /// <param name="reason">写进日志的断链原因（违规熔断 / 同主体重复登录）。</param>
+    public void TerminateClient(TunnelClient client, string reason = "违规熔断")
+    {
+        if (client.MuxId != Guid.Empty)
+        {
+            MuxClients.TryRemove(new KeyValuePair<Guid, TunnelClient>(client.MuxId, client));
+        }
+
+        try
+        {
+            client.Logout();
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "熔断清理客户端会话时异常 {RemoteIp}", client.RemoteIpAddress);
+        }
+
+        try
+        {
+            client.webSocket.Abort();
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "熔断断开控制面时异常 {RemoteIp}", client.RemoteIpAddress);
+        }
+
+        logger.LogWarning("已强制断开客户端 {RemoteIp}（{Reason}）", client.RemoteIpAddress, reason);
+    }
+
+    /// <summary>
+    /// 登记一条在线会话。
+    /// <para>
+    /// 一户一 token 下发 <paramref name="enforceSingleSession"/> 时，在 clientsLock 内原子地
+    /// 找出同主体的旧会话并返回给调用方去断开——两个并发登录不可能同时都认为自己是唯一会话。
+    /// 断链放在锁外执行，避免 Abort 触发的回调重入这把锁。
+    /// </para>
+    /// </summary>
+    /// <returns>被顶掉的旧会话；没有则为 null。</returns>
+    internal TunnelClient? OnClientLogin(TunnelClient client, bool enforceSingleSession = false)
+    {
+        TunnelClient? displaced = null;
+        lock (clientsLock)
+        {
+            if (enforceSingleSession && client.HasNamedCredential)
+            {
+                displaced = Clients.FirstOrDefault(x =>
+                    !x.IsOffline
+                    && !ReferenceEquals(x, client)
+                    && string.Equals(x.Subject, client.Subject, StringComparison.OrdinalIgnoreCase));
+            }
+
             Clients.Add(client);
         }
+
+        Interlocked.Increment(ref ConnectedClientCount);
+        logger.LogInformation("客户端连接 {RemoteIp}（主体 {Subject}）当前在线数：{Count}",
+            client.RemoteIpAddress, client.Subject, ConnectedClientCount);
+        return displaced;
     }
 
     /// <summary>
@@ -129,5 +208,63 @@ public class FastTunnelServer
     internal bool TryGetWebProxyByHost(string host, out WebInfo web)
     {
         return WebList.TryGetValue(host, out web);
+    }
+
+    /// <summary>
+    /// 登记一条域名映射。已被其它在线客户端占用时拒绝，杜绝通过 WWW 声明覆盖他人域名。
+    /// 同一会话重复 LogIn 允许刷新；旧会话已下线则允许接管（应对重连与清理竞态）。
+    /// </summary>
+    internal bool TryRegisterWeb(string host, WebInfo info)
+    {
+        while (true)
+        {
+            if (!WebList.TryGetValue(host, out var existing))
+            {
+                return WebList.TryAdd(host, info);
+            }
+
+            var owner = existing.Client;
+            if (owner == null)
+            {
+                // 无主映射来源不明，一律不让覆盖
+                return false;
+            }
+
+            if (!ReferenceEquals(owner, info.Client) && !owner.IsOffline)
+            {
+                return false;
+            }
+
+            if (WebList.TryUpdate(host, info, existing))
+            {
+                return true;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 摘除指定映射。按 (host, 实例) 一起比较，避免旧客户端下线时误删同名域名的新归属。
+    /// 封禁服务也可复用该方法立即撤销路由。
+    /// </summary>
+    internal void RemoveWeb(WebInfo info)
+    {
+        if (string.IsNullOrEmpty(info.Host))
+        {
+            return;
+        }
+
+        WebList.TryRemove(new KeyValuePair<string, WebInfo>(info.Host, info));
+    }
+
+    /// <summary>会话下线时一并摘除端口转发记录；监听已由 <see cref="TunnelClient"/> 停止。</summary>
+    internal void RemoveForward(ForwardInfo<ForwardHandlerArg> info)
+    {
+        var port = info.SSHConfig?.RemotePort ?? 0;
+        if (port <= 0)
+        {
+            return;
+        }
+
+        ForwardList.TryRemove(new KeyValuePair<int, ForwardInfo<ForwardHandlerArg>>(port, info));
     }
 }
