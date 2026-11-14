@@ -32,13 +32,57 @@ Gitee: [FastTunnel](https://gitee.com/Hgui/FastTunnel)
 ![img1](images/gvp.png)
 
 ## FastTunnel有哪些特性
-- [x] 在任何地方远程内网计算机(公司或家里的计算机) Windows/Linux/Mac
-- [x] 通过自定义域名访问内网web服务（常用于微信开发或对外开放web服务）
-- [x] 端口转发/端口映射，访问内网任意端口提供的服务 mysql、redis、ftp等等
-- [ ] p2p穿透
-- [x] 支持绑定多个域名访问内网服务
-- [x] 支持域名白名单限制
-- [x] 支持客户端身份校验
+- [x] 在任何地方远程内网计算机（Windows / Linux / macOS）
+- [x] 通过子域名或自定义域名访问内网 Web 服务（常用于微信开发、对外预览）
+- [x] 端口转发 / 端口映射，访问内网任意 TCP / UDP 服务（MySQL、Redis、RDP 等）
+- [x] 一个客户端可绑定多个域名访问内网服务
+- [x] 自定义域名校验：拒绝非法域名、平台子域抢注和覆盖他人映射
+- [x] 服务端自定义域名黑名单（`FastTunnel:WebDomainBlacklist`）
+- [x] 单端口多路复用（MUX）：转发复用一条长连接，不再逐条回连
+- [x] 客户端通道 TLS 加密（默认开启），支持证书 SHA-256 指纹校验
+- [x] 控制通道心跳与假死检测；结构化控制协议兼容旧版客户端
+- [x] MUX 数据面支持 TCP / WebSocket 承载，可穿过只放行 HTTP(S) 的防火墙
+- [x] IPv4 / IPv6 双栈：服务监听、端口转发、内网目标地址
+- [x] 客户端身份校验（Token）；命中的凭据绑定到会话，便于审计与封禁定位主体
+- [x] 访问来源 IP 白名单（`FastTunnel:WebAllowAccessIps`，支持 IP / CIDR）
+- [x] 真实访客 IP 还原：仅可信代理（`FastTunnel:TrustedProxyIps`）的转发头才被采信
+- [x] 违规熔断：命中黑名单立即返回 451、撤销映射、断开会话并保存审计记录
+- [x] 处置接口（`api/Abuse/*`）：封禁 / 解封 / 人工复核 / 匿名举报；自动系统不能直接永封
+- [x] 一户一 token（`FastTunnel:Clients`）：独立主体、域名授权、单会话强制；按 account 熔断不误伤他人
+- [x] 运维最小集：`/healthz`、`/metrics`（Prometheus 文本）、`api/Ops/Traffic` 按代理流量明细
+- [x] 按代理带宽统计与令牌桶限速（`FastTunnel:Bandwidth`），覆盖四条数据面
+- [x] 多格式配置文件：服务端支持 `config/` 下的 `appsettings.json` / `appsettings.ini`，
+      客户端支持程序目录下的同名变体；后加载覆盖先加载，全部支持热重载
+- [ ] 内容检测（旁路送审、主动巡检）：需先完成用户协议授权，尚未实施
+- [ ] P2P 穿透（STCP / XTCP）
+- [ ] Dashboard / Admin UI（指标已有 `/metrics`、健康检查已有 `/healthz`）
+
+> 两个「白名单」别混淆：旧文档打勾的「域名白名单限制」从未实现，那个
+> `WebAllowAccessIps` 没有任何读取点，v3.3.0 曾删除；**现已重新接线**，成为真正生效的
+> 访问来源 IP 白名单。`WebDomainBlacklist` 则是拒绝登记某些自定义域名，作用完全不同。
+>
+> 使用反向代理时务必同步配置 `TrustedProxyIps`，只填自己的代理回源 IP / CIDR：不配则
+> 转发头一律不采信（按 TCP 对端 IP 判定），配成 `0.0.0.0/0` 等于把白名单交给访客自己填。
+
+> **一户一 token**：在服务端 `FastTunnel:Clients` 为每个用户配一条 `{ Id, Token }`，
+> 客户端 `FastTunnel:Token` 填自己那条。可选 `SubDomain` / `AllowedHosts` 限定可登记的域名，
+> `EnforceSingleSession`（默认 true）让同一主体新登录顶掉旧会话。旧版共享 `Tokens` 仍可用，
+> 但会被标成 `legacy:*`，按 token 封禁会误伤所有共用者，也不参与单会话强制。
+> 配置了 `Clients` 段就强制校验 token，即使条目全被 `Enabled: false` 停用也不会退回无鉴权。
+>
+> **运维端点**（用服务端自身地址 + `BinPort` 访问，别用已映射的业务域名）：
+> `GET /healthz` 返回 JSON 概览与配置告警；`GET /metrics` 返回 Prometheus 文本；
+> `GET /api/Ops/Traffic` 需 JWT，返回按代理的字节数 / 连接数 / 限速等待。
+> `FastTunnel:Bandwidth` 配速率上限（字节/秒），优先级为
+> `PerProxy` > `PerClient` > `Clients[].BandwidthLimit` > `DefaultBytesPerSecond`，0 表示不限速。
+> 生产环境建议网关层限制 `/healthz`、`/metrics` 的来源 IP，或设 `Ops:PublicEndpoints: false`。
+
+> **多格式配置文件**：服务端按 `json → ini` 的顺序加载 `config/` 下所有实际存在的
+> `appsettings.{ext}`（后加载覆盖先加载），随后追加环境变体
+> `appsettings.{Environment}.{ext}`；客户端同规则，JSON 由默认管线加载、其余格式自动补齐。
+> 全部支持热重载。INI 没有原生数组，需要列表时用节名下标（`[FastTunnel:Clients:0]`），
+> 复杂结构建议留在 JSON、INI 只做少量覆盖。示例见
+> `FastTunnel.Server/config/appsettings.sample.ini` 与 `FastTunnel.Client/appsettings.sample.ini`。
 
 ## 立即体验内网穿透
 官网：https://suidao.io  
@@ -56,13 +100,17 @@ Gitee: [FastTunnel](https://gitee.com/Hgui/FastTunnel)
 
 ```
 docker run --detach \
-  --publish 1270:1270 --publish 1271:1271 \
+  --publish 1270:1270 \
   --name FastTunnel \
   --restart always \
   --volume /var/FastTunnel/config:/app/config \
   --volume /var/FastTunnel/Logs:/app/Logs \
   springhgui/fasttunnel:latest
 ```
+
+> 服务端只监听 `FastTunnel:BinPort`（默认 1270）。`EnableForward` 默认 `false`：裸 TCP/UDP
+> 转发不经过 HTTP 解析层，既拿不到真实访客来源、也无法做内容审计，是不可审计出口。确需使用时
+> 显式改为 `true`，并为每个 `RemotePort` 加 `--publish <port>:<port>`；旧文档里的 1271 已不再使用。
 
 ## 如何在 Linux/Mac系统运行？
 #### Windows
@@ -106,30 +154,43 @@ http {
 - 如果服务端配置的域名为`ft.suidao.io`, 则通过子域名`test.ft.suidao.io:1270`访问在本地的站点，IIS配置如下：
 ![img1](images/iis-web.png)
 
-### 2. 远程内网计算机 Windows/Linux/Mac
+### 2. 客户端配置（v3）
 
-客户端配置如下，内网有两台主机，ip如下:
+v3 的配置根节点是 `FastTunnel`；v2 的 `ClientSettings` / `SSH` 结构已废弃。以「远程内网 Linux + 远程桌面 Windows」为例：
 appsettings.json
 ```
- "ClientSettings": {
-    "Common": {
-      "ServerAddr": "xxx.xxx.xxx.xxx",
-      "ServerPort": 1271
-    },
-    "SSH": [
+{
+  "FastTunnel": {
+    "Server": { "ServerAddr": "x.x.x.x", "ServerPort": 1270, "Protocol": "wss" },
+    "Token": "TOKEN_FOR_CLIENT_AUTHENTICATION",
+    "EnableMux": true,
+    "MuxTransport": "tcp",
+    "Webs": [
       {
-        "LocalIp": "192.168.0.100", // linux主机
-        "LocalPort": 22,            // ssh远程默认端口号
-        "RemotePort": 12701
-      },
-      {
-        "LocalIp": "192.168.0.101", // windows主机
-        "LocalPort": 3389,          // windows远程桌面默认端口号
-        "RemotePort": 12702
+        "LocalIp": "127.0.0.1",
+        "LocalPort": 8090,
+        "SubDomain": "test",
+        "WWW": [ "www.abc.com" ]
       }
+    ],
+    "Forwards": [
+      { "LocalIp": "192.168.0.100", "LocalPort": 22, "RemotePort": 12701, "Protocol": "TCP" },
+      { "LocalIp": "192.168.0.101", "LocalPort": 3389, "RemotePort": 12702, "Protocol": "TCP" }
     ]
   }
+}
 ```
+> `WWW` 自定义域名需先解析到服务端，且不能是服务端 `WebDomain` 的子域；服务端会校验域名格式，
+> 并拒绝覆盖其它客户端已登记的映射。DNS 所有权验证（TXT 挑战）与 ICP 备案校验尚未实现，
+> 需自行在接入流程中确认。端口转发默认关闭，需服务端显式设 `EnableForward: true`，
+> 并为每个 `RemotePort` 放行防火墙 / 容器端口映射。
+>
+> 服务端 `appsettings.json` 另有两个访问控制项：`WebAllowAccessIps`（访客来源 IP / CIDR 白名单，
+> 为空不限制）与 `TrustedProxyIps`（可信反代回源 IP / CIDR）。判定用的是还原后的真实访客 IP，
+> 不是访客可伪造的 `X-Forwarded-For`。外挂 nginx 做 TLS 终止时，nginx 需透传 `Host` 与
+> `X-Forwarded-For`，并把回源地址填进 `TrustedProxyIps`；配置示例见
+> `docs/content-compliance-plan-v0.1.md` 附录 A。
+
 #### ssh远程内网linux主机 (ip:192.168.0.100)
 
 假设内网主机的用户名为 root，服务器ip为x.x.x.x，访问内网的两个主机分别如下
@@ -142,16 +203,16 @@ ssh -oPort=12701 root@x.x.x.x
 - 打开cmd输入指令 `sysdm.cpl` 在弹出的对话框中选中允许远程连接此计算机  
 ![img1](images/setallow.png)
 #### 控制端设置
-- 打开cmd输入指令 `mstsc`，打开远程对话框，在对话框的计算机输入框，输入 `x.x.x.x:12701` 然后指定用户名密码即可远程内网的windows主机  
+- 打开cmd输入指令 `mstsc`，打开远程对话框，在对话框的计算机输入框，输入 `x.x.x.x:12702` 然后指定用户名密码即可远程内网的windows主机  
 ![img1](images/remote.png)
   
 ## 开发/PR
-- 安装 `vs2019` 最新版本
-- 安装 `.Net5` 或以上版本 `https://dotnet.microsoft.com/download/dotnet/5.0`
-- host文件中添加 `test.test.cc 127.0.0.1`等
-- 启动 fasttunnel.server
-- 启动 fasttunnel.client
-- 
+- 安装 .NET 10 SDK 与 Visual Studio 2022 / VS Code（v2 文档里的 .NET 5 / VS2019 已不适用）
+- hosts 文件添加 `test.test.cc 127.0.0.1`（服务端默认 `WebDomain=test.cc`）
+- `dotnet run --project FastTunnel.Server` 启动服务端
+- `dotnet run --project FastTunnel.Client` 启动客户端
+- `dotnet test FastTunnel.Core.Tests` 跑单元测试
+
 ## 感谢以下贡献者
 <a href = "https://github.com/FastTunnel/FastTunnel/graphs/contributors">
   <img src = "https://contrib.rocks/image?repo=FastTunnel/FastTunnel"/>
