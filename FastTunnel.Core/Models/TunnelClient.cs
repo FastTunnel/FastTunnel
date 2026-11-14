@@ -18,6 +18,7 @@ using FastTunnel.Core.Handlers.Server;
 using FastTunnel.Core.Models.Massage;
 using FastTunnel.Core.Mux;
 using FastTunnel.Core.Protocol;
+using FastTunnel.Core.Security;
 using FastTunnel.Core.Server;
 using FastTunnel.Core.Utilitys;
 using Microsoft.Extensions.Logging;
@@ -69,8 +70,35 @@ public class TunnelClient
 
     public IPAddress RemoteIpAddress { get; private set; }
 
-    private readonly IList<WebInfo> webInfos = new List<WebInfo>();
-    private readonly IList<ForwardInfo<ForwardHandlerArg>> forwardInfos = new List<ForwardInfo<ForwardHandlerArg>>();
+    /// <summary>
+    /// 登录时校验通过的 token（未启用 token 校验时为 null）。
+    /// 封禁与审计据此把一次访问定位到具体主体；日志里不要直接打印完整值。
+    /// </summary>
+    public string? Token { get; internal set; }
+
+    /// <summary>
+    /// 校验通过后的主体凭据。一户一 token 下指向 <c>Clients[]</c> 里的那一条；
+    /// 旧版共享 Tokens 会得到一个 legacy 凭据；未启用 token 校验时为 null。
+    /// </summary>
+    public ClientCredential? Credential { get; internal set; }
+
+    /// <summary>
+    /// 归属主体 Id（<see cref="Credential"/>.Id，未认证时为 "anonymous"）。
+    /// 封禁 / 审计 / 带宽统计统一按这个值聚合，不再依赖可共享的 token 明文。
+    /// </summary>
+    public string Subject => Credential?.Id ?? "anonymous";
+
+    /// <summary>是否为可强制单会话的具名主体（旧版共享凭据不算）。</summary>
+    public bool HasNamedCredential => Credential is { IsLegacy: false };
+
+    /// <summary>控制面已登出。域名重连时据此判断旧映射是否可被接管。</summary>
+    private volatile bool isOffline;
+
+    public bool IsOffline => isOffline;
+
+    private readonly object mappingsLock = new();
+    private readonly List<WebInfo> webInfos = new();
+    private readonly List<ForwardInfo<ForwardHandlerArg>> forwardInfos = new();
 
     public TunnelClient(
         WebSocket webSocket, FastTunnelServer fastTunnelServer,
@@ -86,12 +114,18 @@ public class TunnelClient
 
     internal void AddWeb(WebInfo info)
     {
-        webInfos.Add(info);
+        lock (mappingsLock)
+        {
+            webInfos.Add(info);
+        }
     }
 
     internal void AddForward(ForwardInfo<ForwardHandlerArg> forwardInfo)
     {
-        forwardInfos.Add(forwardInfo);
+        lock (mappingsLock)
+        {
+            forwardInfos.Add(forwardInfo);
+        }
     }
 
     /// <summary>
@@ -183,6 +217,24 @@ public class TunnelClient
 
     internal void Logout()
     {
+        // 先标记离线：退出流程与新会话登录可能并发，旧映射不能继续挡住同名域名
+        isOffline = true;
+
+        WebInfo[] webs;
+        ForwardInfo<ForwardHandlerArg>[] forwards;
+        lock (mappingsLock)
+        {
+            webs = webInfos.ToArray();
+            forwards = forwardInfos.ToArray();
+        }
+
+        // 必须在这里按 (host, 实例) 精确摘除路由表，否则重连会被判成「域名已被占用」。
+        // 旧的 WebInfo.LogOut() 是空实现，已删除；会话级清理只此一处。
+        foreach (var web in webs)
+        {
+            fastTunnelServer.RemoveWeb(web);
+        }
+
         // 控制面断开后，多路复用连接即使还没察觉也应主动收掉，避免残留半开连接
         var mux = Interlocked.Exchange(ref muxSession, null);
         if (mux != null)
@@ -190,17 +242,16 @@ public class TunnelClient
             _ = DisposeMuxAsync(mux);
         }
 
-        // forward监听终止
-        if (forwardInfos != null)
+        // forward监听终止，并摘除路由表里的转发记录
+        foreach (var item in forwards)
         {
-            foreach (var item in forwardInfos)
+            try
             {
-                try
-                {
-                    item.Listener.Stop();
-                }
-                catch { }
+                item.Listener.Stop();
             }
+            catch { }
+
+            fastTunnelServer.RemoveForward(item);
         }
 
         try
@@ -216,6 +267,10 @@ public class TunnelClient
         }
         catch (ObjectDisposedException)
         {
+        }
+        catch (InvalidOperationException)
+        {
+            // 尚未建立连接的 WebSocket（含测试替身）调用 CloseAsync 会抛此异常，不影响清理
         }
     }
 

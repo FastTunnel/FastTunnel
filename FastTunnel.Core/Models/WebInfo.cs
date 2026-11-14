@@ -11,6 +11,12 @@ namespace FastTunnel.Core.Models;
 
 public class WebInfo
 {
+    /// <summary>
+    /// 路由表里的完整主机名（小写、不含端口）。会话下线/封禁时据此精确摘除映射，
+    /// 一个客户端声明多个 WWW 域名时每个域名对应一个独立的 WebInfo 实例。
+    /// </summary>
+    public string Host { get; set; }
+
     public WebSocket Socket { get; set; }
 
     public WebConfig WebConfig { get; set; }
@@ -24,9 +30,4 @@ public class WebInfo
     /// 所属客户端的控制面协议版本，决定下发 SwapMsg 时用 JSON 还是旧版竖线文本。
     /// </summary>
     public int ProtocolVersion { get; set; } = ControlProtocol.LegacyVersion;
-
-    internal void LogOut()
-    {
-        // TODO:退出登录
-    }
 }

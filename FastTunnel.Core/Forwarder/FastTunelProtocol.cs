@@ -6,9 +6,12 @@
 
 using System;
 using System.Buffers;
+using System.Collections.Generic;
 using System.IO.Pipelines;
+using System.Net;
 using System.Text;
 using System.Threading.Tasks;
+using FastTunnel.Core.Forwarder.Kestrel;
 using FastTunnel.Core.Forwarder.Kestrel.Features;
 using FastTunnel.Core.Models;
 using FastTunnel.Core.Protocol;
@@ -28,7 +31,14 @@ public class FastTunelProtocol
 
     bool IsFastTunnel => Method == ProtocolConst.HTTP_METHOD_SWAP
         || Method == ProtocolConst.HTTP_METHOD_MUX
-        || MatchWeb != null;
+        || MatchWeb != null
+        || hostBanned;
+
+    /// <summary>
+    /// Host 命中封禁黑名单。熔断已摘掉 WebList 映射，但请求仍必须生成 Feature，
+    /// 交给 GuardMiddleware 回 451；否则会落到 Kestrel 变成 404，等于「停止传输」没有可观测的响应。
+    /// </summary>
+    private bool hostBanned;
 
     public WebInfo MatchWeb { get; private set; }
 
@@ -38,10 +48,22 @@ public class FastTunelProtocol
 
     const char CharR = '\r';
 
-    private const byte ByteCR = (byte)'\r';
     private const byte ByteLF = (byte)'\n';
-    private const byte ByteColon = (byte)':';
-    private const byte ByteSpace = (byte)' ';
+
+    /// <summary>
+    /// 只保留审计 / 真实 IP 还原需要的请求头。Cookie、Authorization、Proxy-Authorization
+    /// 等凭据头一律不入库，避免用户凭据被带进审计日志与后续的旁路送审。
+    /// </summary>
+    private static readonly HashSet<string> AuditedHeaders = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "host", "x-forwarded-for", "x-real-ip", "forwarded",
+        "user-agent", "content-type", "content-length", "referer",
+    };
+
+    private const int MaxHeaders = 16;
+    private const int MaxHeaderValueLength = 8192;
+
+    private readonly Dictionary<string, string> headers = new(StringComparer.OrdinalIgnoreCase);
 
     internal async Task TryAnalysisPipeAsync()
     {
@@ -77,6 +99,12 @@ public class FastTunelProtocol
                             _input.AdvanceTo(start, start);
                         }
 
+                        // 真实访客 IP：只有来自可信代理时才采信转发类请求头
+                        ClientIp = ClientIpResolver.Resolve(
+                            (context.RemoteEndPoint as IPEndPoint)?.Address,
+                            headers,
+                            fastTunnelServer.ServerOption.CurrentValue.TrustedProxyIps);
+
                         if (IsFastTunnel)
                         {
                             context.Features.Set<IFastTunnelFeature>(new FastTunnelFeature()
@@ -84,6 +112,9 @@ public class FastTunelProtocol
                                 MatchWeb = MatchWeb,
                                 Method = Method,
                                 Host = Host,
+                                Path = Path,
+                                Headers = new Dictionary<string, string>(headers, StringComparer.OrdinalIgnoreCase),
+                                ClientIp = ClientIp,
                                 MessageId = MessageId,
                             });
                         }
@@ -106,8 +137,14 @@ public class FastTunelProtocol
     public string Method;
     public string Host = null;
 
-    /// <summary>请求行里的路径（不含 query）。</summary>
+    /// <summary>请求行的路径部分（按原样保留，可能含 query）。</summary>
     public string? Path { get; private set; }
+
+    /// <summary>保留下来的审计请求头，键统一小写，不含任何凭据头。</summary>
+    public IReadOnlyDictionary<string, string> Headers => headers;
+
+    /// <summary>还原后的真实访客 IP；不可信来源下即 TCP 对端 IP。</summary>
+    public IPAddress? ClientIp { get; private set; }
 
     public Guid MessageId;
     private bool isFirstLine = true;
@@ -182,21 +219,41 @@ public class FastTunelProtocol
                     // do nothing
                     break;
                 default:
-                    // 检查Host决定是否进行代理
-                    // Host: test.test.cc:1270 / Host: [::1]:1270
-                    var lower = headerLineStr.Trim(CharR).ToLower();
-                    if (lower.StartsWith("host:", StringComparison.OrdinalIgnoreCase))
+                    // 常规 Http 请求，检查 Host 决定是否进行代理。
+                    // 写法可能是 "Host: test.test.cc:1270"、"Host:test.cc" 或 "Host: [::1]:1270"，
+                    // 冒号后不一定有空格，所以按第一个冒号切，不能用 Split(" ")[1]（会越界）。
+                    var line = headerLineStr.TrimEnd(CharR);
+                    var colon = line.IndexOf(':');
+                    if (colon <= 0)
                     {
-                        var hostAndPort = lower.Split(" ")[1];
+                        break;
+                    }
 
+                    var name = line.Substring(0, colon).Trim();
+                    var value = line.Substring(colon + 1).Trim();
+
+                    if (name.Equals("Host", StringComparison.OrdinalIgnoreCase))
+                    {
                         // 不能简单按 ':' 切：IPv6 字面量是 [::1]:1270，切出来会变成 "["
-                        Host = NetUtil.HostOnly(hostAndPort);
+                        Host = NetUtil.HostOnly(value.ToLowerInvariant());
 
-                        // 匹配Host，
+                        // 匹配 Host
                         if (!isMuxEndpoint && fastTunnelServer.TryGetWebProxyByHost(Host, out var web))
                         {
                             MatchWeb = web;
                         }
+                        else if (!isMuxEndpoint && fastTunnelServer.IsHostBanned(Host))
+                        {
+                            hostBanned = true;
+                        }
+                    }
+
+                    // 只留审计白名单内的头，超限或超长直接丢弃，避免畸形头把内存撑爆
+                    if (AuditedHeaders.Contains(name)
+                        && headers.Count < MaxHeaders
+                        && value.Length <= MaxHeaderValueLength)
+                    {
+                        headers[name.ToLowerInvariant()] = value;
                     }
 
                     break;

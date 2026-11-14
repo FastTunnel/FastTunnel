@@ -15,6 +15,7 @@ using FastTunnel.Core.Models;
 using FastTunnel.Core.Models.Massage;
 using FastTunnel.Core.Mux;
 using FastTunnel.Core.Protocol;
+using FastTunnel.Core.Security;
 using FastTunnel.Core.Server;
 using FastTunnel.Core.Sockets;
 using Microsoft.AspNetCore.Http;
@@ -29,13 +30,18 @@ public class FastTunnelClientHandler
     private readonly FastTunnelServer fastTunnelServer;
     private readonly Version serverVersion;
     private readonly ILoginHandler loginHandler;
+    private readonly BanRegistry? bans;
+    private readonly ClientTokenDirectory? directory;
 
     public FastTunnelClientHandler(
-        ILogger<FastTunnelClientHandler> logger, FastTunnelServer fastTunnelServer, ILoginHandler loginHandler)
+        ILogger<FastTunnelClientHandler> logger, FastTunnelServer fastTunnelServer,
+        ILoginHandler loginHandler, BanRegistry? bans = null, ClientTokenDirectory? directory = null)
     {
         this.logger = logger;
         this.fastTunnelServer = fastTunnelServer;
         this.loginHandler = loginHandler;
+        this.bans = bans;
+        this.directory = directory;
 
         serverVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
     }
@@ -83,7 +89,7 @@ public class FastTunnelClientHandler
             return;
         }
 
-        if (!checkToken(context))
+        if (!checkToken(context, out _, out _))
         {
             logger.LogWarning("WebSocket 多路复用连接 Token 校验失败 {RemoteIp}", context.Connection.RemoteIpAddress);
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
@@ -137,7 +143,7 @@ public class FastTunnelClientHandler
             return;
         }
 
-        if (!checkToken(context))
+        if (!checkToken(context, out var token, out var credential))
         {
             await Close(webSocket, "Token验证失败");
             return;
@@ -151,11 +157,24 @@ public class FastTunnelClientHandler
         var client = new TunnelClient(webSocket, fastTunnelServer, loginHandler, remoteIp, log);
         client.ConnectionPort = context.Connection.LocalPort;
 
+        // 把命中的凭据与主体挂到会话上：封禁 / 审计 / 带宽统计都按 Subject 归属，
+        // 而不是靠可被多人共用的 token 明文反查。
+        client.Token = token;
+        client.Credential = credential;
+
         var loggedIn = false;
         try
         {
-            fastTunnelServer.OnClientLogin(client);
+            var enforce = fastTunnelServer.ServerOption.CurrentValue.EnforceSingleSession;
+            var displaced = fastTunnelServer.OnClientLogin(client, enforce);
             loggedIn = true;
+
+            if (displaced != null)
+            {
+                logger.LogWarning("主体 {Subject} 重复登录：断开旧会话 {OldIp}，保留新会话 {NewIp}",
+                    client.Subject, displaced.RemoteIpAddress, client.RemoteIpAddress);
+                fastTunnelServer.TerminateClient(displaced, "同主体重复登录");
+            }
 
             using var clientCts = new CancellationTokenSource();
             var receiving = client.ReviceAsync(clientCts.Token);
@@ -199,24 +218,39 @@ public class FastTunnelClientHandler
         return;
     }
 
-    private bool checkToken(HttpContext context)
+    /// <summary>
+    /// 控制面 token 校验。优先走一户一 token 的主体目录；未注入目录时（例如直接构造的测试替身）
+    /// 回退到旧版共享 Tokens 校验。封禁判定在两处承载上共用。
+    /// </summary>
+    private bool checkToken(HttpContext context, out string? matched, out ClientCredential? credential)
     {
-        var checkToken = false;
-        if (fastTunnelServer.ServerOption.CurrentValue.Tokens != null && fastTunnelServer.ServerOption.CurrentValue.Tokens.Count != 0)
+        matched = null;
+        credential = null;
+
+        if (directory != null)
         {
-            checkToken = true;
+            if (!directory.TryResolve(context, out credential))
+            {
+                return false;
+            }
+
+            matched = credential?.Token;
+        }
+        else if (!ClientTokenValidator.TryValidate(
+                     context, fastTunnelServer.ServerOption.CurrentValue.Tokens, out matched))
+        {
+            return false;
         }
 
-        if (!checkToken)
-            return true;
-
-        // 客户端未携带token，登录失败
-        if (!context.Request.Headers.TryGetValue(ProtocolConst.FASTTUNNEL_TOKEN, out var token))
+        // 封禁的凭据不能重新接入：控制面与 WebSocket MUX 承载共用这一处校验
+        if (matched != null && bans?.IsTokenBanned(matched) == true)
+        {
+            logger.LogWarning("已被封禁的凭据尝试接入 {RemoteIp}", context.Connection.RemoteIpAddress);
+            matched = null;
+            credential = null;
             return false;
+        }
 
-        if (fastTunnelServer.ServerOption.CurrentValue.Tokens?.Contains(token) ?? false)
-            return true;
-
-        return false;
+        return true;
     }
 }

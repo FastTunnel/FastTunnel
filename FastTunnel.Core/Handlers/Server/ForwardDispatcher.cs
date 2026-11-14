@@ -13,6 +13,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastTunnel.Core.Exceptions;
 using FastTunnel.Core.Extensions;
+using FastTunnel.Core.Metrics;
 using FastTunnel.Core.Models;
 using FastTunnel.Core.Models.Massage;
 using FastTunnel.Core.Mux;
@@ -31,6 +32,8 @@ public class ForwardDispatcher
     private readonly ILogger logger;
     private readonly int _protocolVersion;
     private readonly TunnelClient? _tunnelClient;
+    private readonly TrafficMeter? _meter;
+    private readonly TrafficScope _scope;
 
     public ForwardDispatcher(
         ILogger logger, FastTunnelServer server, ForwardConfig config, TunnelClient tunnelClient)
@@ -41,6 +44,8 @@ public class ForwardDispatcher
         _tunnelClient = tunnelClient;
         _client = tunnelClient.webSocket;
         _protocolVersion = tunnelClient.ProtocolVersion;
+        _meter = server.Traffic;
+        _scope = TrafficScope.ForPort(config.RemotePort, tunnelClient);
     }
 
     int SwapCount;
@@ -67,11 +72,22 @@ public class ForwardDispatcher
             };
 
             var muxStream = await mux.OpenStreamAsync(request, cancellationToken);
-            return (muxStream, CancellationTokenSource.CreateLinkedTokenSource(mux.Closed));
+            return (Metered(muxStream), CancellationTokenSource.CreateLinkedTokenSource(mux.Closed));
         }
 
-        return await RequestSwapLegacyAsync(protocol, cancellationToken);
+        var (legacyStream, tokenSource) = await RequestSwapLegacyAsync(protocol, cancellationToken);
+        return (Metered(legacyStream), tokenSource);
     }
+
+    /// <summary>
+    /// UDP 转发直接持有这条双向流：写入内网算上行、读回响应算下行。
+    /// leaveOpen=false 让装饰器接管释放，调用方只 dispose 包装后的流。
+    /// </summary>
+    private Stream Metered(Stream stream)
+        => _meter == null
+            ? stream
+            : _meter.WrapBidirectional(stream, _scope,
+                TrafficDirection.In, TrafficDirection.Out, leaveOpen: false);
 
     private async Task<(Stream Stream, CancellationTokenSource TokenSource)> RequestSwapLegacyAsync(
         string protocol, CancellationToken cancellationToken)
@@ -131,6 +147,7 @@ public class ForwardDispatcher
         (Stream Stream, CancellationTokenSource TokenSource) res = default;
 
         Interlocked.Increment(ref SwapCount);
+        _meter?.ConnectionOpened(_scope);
 
         try
         {
@@ -155,7 +172,8 @@ public class ForwardDispatcher
             }
             catch (SocketClosedException sex)
             {
-                // TODO:客户端已掉线，但是没有移除对端口的监听
+                // 控制面断开时 TunnelClient.Logout() 会 Stop 全部监听并摘除 ForwardList，
+                // 这里只需终止本次等待并关闭这条回连 socket。
                 logger.LogError($"[Forward]Swap 客户端已离线 {sex.Message}");
                 tcs.TrySetCanceled();
                 Close(_socket);
@@ -183,15 +201,27 @@ public class ForwardDispatcher
             {
                 // swap pipe -> socket: PipeReader.CopyToAsync(Stream) 使用 Pipe 池化段，
                 // 直接通过 NetworkStream.WriteAsync(ReadOnlyMemory<byte>) 写出，无中转拷贝。
-                t1 = dps.Input.CopyToAsync(stream2, swapToken);
+                var outStream = _meter == null
+                    ? (Stream)stream2
+                    : _meter.Wrap(stream2, _scope, TrafficDirection.Out);
                 // socket -> swap pipe: 手动从 Socket 读到 PipeWriter.GetMemory()，
-                // 避免再分配独立 byte[] 缓冲区。
-                t2 = PumpSocketToPipeAsync(_socket, dps.Output, swapToken);
+                // 避免再分配独立 byte[] 缓冲区；装饰器在 FlushAsync 时结算 Advance 的字节。
+                var inWriter = _meter == null
+                    ? dps.Output
+                    : _meter.Wrap(dps.Output, _scope, TrafficDirection.In);
+                t1 = dps.Input.CopyToAsync(outStream, swapToken);
+                t2 = PumpSocketToPipeAsync(_socket, inWriter, swapToken);
             }
             else
             {
-                t1 = res.Stream.CopyToAsync(stream2, swapToken);
-                t2 = stream2.CopyToAsync(res.Stream, swapToken);
+                var outStream = _meter == null
+                    ? (Stream)stream2
+                    : _meter.Wrap(stream2, _scope, TrafficDirection.Out);
+                var inStream = _meter == null
+                    ? res.Stream
+                    : _meter.Wrap(res.Stream, _scope, TrafficDirection.In);
+                t1 = res.Stream.CopyToAsync(outStream, swapToken);
+                t2 = stream2.CopyToAsync(inStream, swapToken);
             }
 
             try
@@ -210,6 +240,7 @@ public class ForwardDispatcher
         finally
         {
             Interlocked.Decrement(ref SwapCount);
+            _meter?.ConnectionClosed(_scope);
             res.TokenSource?.Cancel();
             logger.LogDebug($"[Forward]Swap OK {msgId} {SwapCount}");
             _server.ResponseTasks.TryRemove(msgId, out _);
@@ -223,6 +254,7 @@ public class ForwardDispatcher
     private async Task DispatchViaMuxAsync(Socket socket, MuxSession mux)
     {
         Interlocked.Increment(ref SwapCount);
+        _meter?.ConnectionOpened(_scope);
         MuxStream? stream = null;
 
         // NetworkStream 接管 socket 生命周期，异常路径也不会泄漏句柄
@@ -242,8 +274,15 @@ public class ForwardDispatcher
             logger.LogDebug($"[Forward][Mux]Swap开始 {request.Id}|{_config.RemotePort}=>{_config.LocalIp}:{_config.LocalPort}");
             stream = await mux.OpenStreamAsync(request, cts.Token);
 
-            var toLocal = PumpSocketToPipeAsync(socket, stream.Output, cts.Token);
-            var toUser = stream.Input.CopyToAsync(userStream, cts.Token);
+            var inWriter = _meter == null
+                ? stream.Output
+                : _meter.Wrap(stream.Output, _scope, TrafficDirection.In);
+            var outStream = _meter == null
+                ? (Stream)userStream
+                : _meter.Wrap(userStream, _scope, TrafficDirection.Out);
+
+            var toLocal = PumpSocketToPipeAsync(socket, inWriter, cts.Token);
+            var toUser = stream.Input.CopyToAsync(outStream, cts.Token);
 
             try
             {
@@ -261,6 +300,7 @@ public class ForwardDispatcher
         finally
         {
             Interlocked.Decrement(ref SwapCount);
+            _meter?.ConnectionClosed(_scope);
 
             if (stream != null)
             {

@@ -6,6 +6,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Net;
 using FastTunnel.Core.Models;
 
 namespace FastTunnel.Core.Forwarder.Kestrel.Features;
@@ -14,11 +15,15 @@ public struct FastTunnelFeature : IFastTunnelFeature
 {
     public WebInfo MatchWeb { get; set; }
 
-    public IList<string> HasReadLInes { get; set; }
-
     public string Method { get; set; }
 
     public string Host { get; set; }
 
+    public string? Path { get; set; }
+
     public Guid MessageId { get; set; }
+
+    public IReadOnlyDictionary<string, string> Headers { get; set; }
+
+    public IPAddress? ClientIp { get; set; }
 }

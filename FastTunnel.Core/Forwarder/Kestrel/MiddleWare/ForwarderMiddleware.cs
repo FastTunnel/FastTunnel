@@ -6,13 +6,16 @@
 
 using System;
 using System.IO;
+using System.IO.Pipelines;
 using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
 using FastTunnel.Core.Exceptions;
 using FastTunnel.Core.Extensions;
+using FastTunnel.Core.Forwarder.Kestrel;
 using FastTunnel.Core.Forwarder.Kestrel.Features;
 using FastTunnel.Core.Forwarder.Streams;
+using FastTunnel.Core.Metrics;
 using FastTunnel.Core.Models;
 using FastTunnel.Core.Models.Massage;
 using FastTunnel.Core.Mux;
@@ -32,12 +35,16 @@ internal class ForwarderMiddleware
     private readonly ConnectionDelegate next;
     private readonly ILogger<ForwarderMiddleware> logger;
     private readonly FastTunnelServer fastTunnelServer;
+    private readonly TrafficMeter? meter;
 
-    public ForwarderMiddleware(ConnectionDelegate next, ILogger<ForwarderMiddleware> logger, FastTunnelServer fastTunnelServer)
+    public ForwarderMiddleware(
+        ConnectionDelegate next, ILogger<ForwarderMiddleware> logger,
+        FastTunnelServer fastTunnelServer, TrafficMeter? meter = null)
     {
         this.next = next;
         this.logger = logger;
         this.fastTunnelServer = fastTunnelServer;
+        this.meter = meter;
     }
 
     internal async Task OnConnectionAsync(ConnectionContext context)
@@ -61,11 +68,16 @@ internal class ForwarderMiddleware
             }
             else if (feat.MatchWeb != null)
             {
+                // 451 熔断与 403 白名单由前置的 GuardMiddleware 统一判定。它挂在
+                // Initializer 之后、本中间件之前，拦在 waitSwap 分叉之前，
+                // mux 与回连两条数据面天然同时覆盖，不会重演「只封一条路径」的漏洞。
                 await waitSwap(context);
             }
             else
             {
-                throw new NotSupportedException();
+                // Host 命中封禁但映射已被摘除时 GuardMiddleware 应已回 451；
+                // 走到这里说明没有可用隧道映射，交回 Kestrel，不要抛未处理异常。
+                await next(context);
             }
         }
     }
@@ -82,6 +94,7 @@ internal class ForwarderMiddleware
     {
         var feat = context.Features.Get<IFastTunnelFeature>();
         var web = feat.MatchWeb;
+        var scope = TrafficScope.ForWeb(web);
 
         // 多路复用优先：一条公网连接 = 一条流，省掉「通知客户端回连」的整套往返。
         var mux = web.Client?.MuxSession;
@@ -94,6 +107,7 @@ internal class ForwarderMiddleware
         var requestId = Guid.NewGuid();
 
         Interlocked.Increment(ref UserCount);
+        meter?.ConnectionOpened(scope);
 
         logger.LogDebug($"=========USER START {requestId}===========");
 
@@ -134,13 +148,13 @@ internal class ForwarderMiddleware
             }
             catch (WebSocketException)
             {
-                web.LogOut();
+                // 会话下线由 FastTunnelServer.OnClientLogout → TunnelClient.Logout() 统一清理，
+                // 这里只把本条请求判定为客户端离线（原 WebInfo.LogOut() 是空实现，已删除）
                 throw new ClienOffLineException("客户端离线");
             }
             catch (SocketClosedException)
             {
                 // 控制平面 WebSocket 已关闭，同样识别为客户端离线
-                web.LogOut();
                 throw new ClienOffLineException("客户端离线");
             }
 
@@ -153,19 +167,33 @@ internal class ForwarderMiddleware
 
             // 零拷贝快路径：swap 侧与 user 侧都是 Pipe，直接使用 PipeReader.CopyToAsync(PipeWriter)，
             // 避免 Stream.CopyToAsync 默认 81920 字节中转缓冲区与额外的 Span 拷贝。
+            // 计量只在「写入目标」外包一层装饰器，搬运逻辑本身不变。
             Task t1, t2;
             if (res.Stream is DuplexPipeStream dps)
             {
-                t1 = dps.Input.CopyToAsync(context.Transport.Output, tokenSource.Token);
-                t2 = context.Transport.Input.CopyToAsync(dps.Output, tokenSource.Token);
+                var outWriter = meter == null
+                    ? context.Transport.Output
+                    : meter.Wrap(context.Transport.Output, scope, TrafficDirection.Out);
+                var inWriter = meter == null
+                    ? dps.Output
+                    : meter.Wrap(dps.Output, scope, TrafficDirection.In);
+
+                t1 = dps.Input.CopyToAsync(outWriter, tokenSource.Token);
+                t2 = context.Transport.Input.CopyToAsync(inWriter, tokenSource.Token);
             }
             else
             {
                 // 兼容路径：若对端不是 DuplexPipeStream。
                 using var reverseConnection = new DuplexPipeStream(
                     context.Transport.Input, context.Transport.Output, true);
-                t1 = res.Stream.CopyToAsync(reverseConnection, tokenSource.Token);
-                t2 = reverseConnection.CopyToAsync(res.Stream, tokenSource.Token);
+                var outStream = meter == null
+                    ? (Stream)reverseConnection
+                    : meter.Wrap(reverseConnection, scope, TrafficDirection.Out);
+                var inStream = meter == null
+                    ? res.Stream
+                    : meter.Wrap(res.Stream, scope, TrafficDirection.In);
+                t1 = res.Stream.CopyToAsync(outStream, tokenSource.Token);
+                t2 = reverseConnection.CopyToAsync(inStream, tokenSource.Token);
                 try
                 {
                     await Task.WhenAny(t1, t2);
@@ -198,6 +226,7 @@ internal class ForwarderMiddleware
         finally
         {
             Interlocked.Decrement(ref UserCount);
+            meter?.ConnectionClosed(scope);
             logger.LogDebug($"=========USER END {requestId} {UserCount}===========");
             fastTunnelServer.ResponseTasks.TryRemove(requestId, out _);
 
@@ -273,7 +302,9 @@ internal class ForwarderMiddleware
     /// </summary>
     private async Task waitSwapViaMux(ConnectionContext context, MuxSession mux, WebInfo web)
     {
+        var scope = TrafficScope.ForWeb(web);
         Interlocked.Increment(ref UserCount);
+        meter?.ConnectionOpened(scope);
 
         MuxStream? stream = null;
         try
@@ -291,8 +322,15 @@ internal class ForwarderMiddleware
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(context.ConnectionClosed, mux.Closed);
 
             // 两侧都是 Pipe，直接用 PipeReader.CopyToAsync(PipeWriter)，不经过 Stream 的中转缓冲。
-            var response = stream.Input.CopyToAsync(context.Transport.Output, cts.Token);
-            var request2 = context.Transport.Input.CopyToAsync(stream.Output, cts.Token);
+            // 与回连路径共用同一对计量装饰器，避免两条数据面统计口径不一致。
+            var outWriter = meter == null
+                ? context.Transport.Output
+                : meter.Wrap(context.Transport.Output, scope, TrafficDirection.Out);
+            var inWriter = meter == null
+                ? stream.Output
+                : meter.Wrap(stream.Output, scope, TrafficDirection.In);
+            var response = stream.Input.CopyToAsync(outWriter, cts.Token);
+            var request2 = context.Transport.Input.CopyToAsync(inWriter, cts.Token);
 
             try
             {
@@ -314,6 +352,7 @@ internal class ForwarderMiddleware
         finally
         {
             Interlocked.Decrement(ref UserCount);
+            meter?.ConnectionClosed(scope);
 
             // 优雅关闭：等已排队的数据发完再回收，否则响应体会被截断
             if (stream != null)

@@ -22,6 +22,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\FastTunnel.Core\FastTunnel.Core.csproj" />
+    <!-- /healthz 与 /metrics 端点测试需要直接构造 OpsController -->
+    <ProjectReference Include="..\FastTunnel.Api\FastTunnel.Api.csproj" />
   </ItemGroup>
 
 </Project>
