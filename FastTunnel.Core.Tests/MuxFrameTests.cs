@@ -87,10 +87,15 @@ public class MuxFrameTests
     public void 窗口常量之间必须自洽()
     {
         // 单流内存上限 = 初始窗口；会话上限 = 窗口 × 并发流数
-        Assert.Equal(256 * 1024, MuxFrame.InitialWindow);
+        Assert.Equal(1024 * 1024, MuxFrame.InitialWindow);
+        Assert.Equal(256 * 1024, MuxFrame.LegacyWindow);
         Assert.Equal(16 * 1024, MuxFrame.MaxPayload);
 
         // 单帧不能超过窗口，否则「发满一个窗口」这件事就没法用整帧表达
         Assert.True(MuxFrame.InitialWindow > MuxFrame.MaxPayload);
+
+        // 兼容性约束：回补阈值必须明显小于旧对端认识的初始信用（256KB），
+        // 否则旧客户端发满自己的信用后永远等不到窗口更新，整条流死锁。
+        Assert.True(MuxStream.WindowUpdateThreshold * 2 <= MuxFrame.LegacyWindow);
     }
 }

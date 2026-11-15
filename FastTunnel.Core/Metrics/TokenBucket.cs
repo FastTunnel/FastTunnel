@@ -37,24 +37,22 @@ internal sealed class TokenBucket
     {
         lock (gate)
         {
-            if (Math.Abs(rate - newRate) < 0.0001 && Math.Abs(capacity - newCapacity) < 0.0001)
-            {
-                return;
-            }
-
-            Refill();
-            rate = newRate;
-            capacity = newCapacity;
-            tokens = Math.Min(tokens, capacity);
+            Reconfigure(newRate, newCapacity);
         }
     }
 
-    /// <summary>预占 bytes 个字节，返回需要等待的时间；余额充足时返回 <see cref="TimeSpan.Zero"/>。</summary>
-    public TimeSpan Reserve(int bytes)
+    /// <summary>
+    /// 预占 bytes 个字节，返回需要等待的时间；余额充足时返回 <see cref="TimeSpan.Zero"/>。
+    ///
+    /// 速率与容量一起传进来：数据面每次写入都会调这个方法，热加载的检查必须和预占
+    /// 在同一把锁里一次做完，而不是先 Configure 再 Reserve 拿两次锁。
+    /// </summary>
+    public TimeSpan Reserve(double newRate, double newCapacity, int bytes)
     {
         lock (gate)
         {
-            Refill();
+            Reconfigure(newRate, newCapacity);
+
             tokens -= bytes;
             if (tokens >= 0 || rate <= 0)
             {
@@ -63,6 +61,22 @@ internal sealed class TokenBucket
 
             return TimeSpan.FromSeconds(-tokens / rate);
         }
+    }
+
+    /// <summary>预占 bytes 个字节（速率沿用当前配置）。</summary>
+    public TimeSpan Reserve(int bytes) => Reserve(rate, capacity, bytes);
+
+    private void Reconfigure(double newRate, double newCapacity)
+    {
+        if (Math.Abs(rate - newRate) < 0.0001 && Math.Abs(capacity - newCapacity) < 0.0001)
+        {
+            return;
+        }
+
+        Refill();
+        rate = newRate;
+        capacity = newCapacity;
+        tokens = Math.Min(tokens, capacity);
     }
 
     private void Refill()

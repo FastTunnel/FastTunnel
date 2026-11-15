@@ -15,6 +15,8 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FastTunnel.Core.Client;
+using FastTunnel.Core.Forwarder.Streams;
+using FastTunnel.Core.Mux;
 using FastTunnel.Core.Protocol;
 using FastTunnel.Core.Sockets;
 using FastTunnel.Core.Tls;
@@ -80,6 +82,26 @@ public class SwapHandler : IClientHandler
 
         // 使用一个与双向拷贝联动的 CTS，任一方向结束后立即取消另一方向，避免半关闭后空转。
         using var swapCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+        // MuxStream 同时是 IDuplexPipe：直接拿管道做搬运，绕开 Stream.CopyToAsync 的
+        // 81920 字节中转缓冲与随之而来的二次拷贝（这条路径在大文件下载时是纯浪费）。
+        if (serverStream is MuxStream mux)
+        {
+            var downstream = mux.Input.CopyToAsync(localStream, swapCts.Token);
+            var upstream = PipePumps.StreamToPipeAsync(localStream, mux.Output, swapCts.Token);
+
+            try
+            {
+                await Task.WhenAny(downstream, upstream);
+            }
+            finally
+            {
+                swapCts.Cancel();
+            }
+
+            return;
+        }
+
         var taskX = serverStream.CopyToAsync(localStream, swapCts.Token);
         var taskY = localStream.CopyToAsync(serverStream, swapCts.Token);
 

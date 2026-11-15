@@ -51,14 +51,30 @@ public static class MuxFrame
     /// <summary>
     /// 单帧最大 payload。帧越小，多流交织越公平、队头阻塞越短；越大，头部开销占比越低。
     /// 16KB 与 Pipe 默认段大小同量级，一次拷贝即可装满。
+    ///
+    /// 注意：这个值同时是「接收方愿意接受的最大帧长」，与小版本无关但对端必须遵守。
+    /// 旧对端只发 16KB，新对端发 16KB 也给旧对端接受，因此保持不变是最安全的兼容选择；
+    /// 吞吐靠「多帧一次 flush」而不是「放大单帧」来提升（见 <see cref="MuxSession.MaxWriteBatch"/>）。
     /// </summary>
     public const int MaxPayload = 16 * 1024;
 
     /// <summary>
+    /// 旧实现给每条流的初始信用。保留这个常量是为了约束窗口回补阈值：
+    /// 回补阈值一旦超过它，旧客户端（只认 <see cref="InitialWindow"/> 常量）会在发满
+    /// 自己的初始信用后永远等不到窗口更新而死锁。
+    /// </summary>
+    public const int LegacyWindow = 256 * 1024;
+
+    /// <summary>
     /// 每条流的初始接收窗口。发送方未收到窗口更新前最多只能发这么多字节，
     /// 因此单流的内存占用上限就是这个值——流控本质上是内存保护。
+    ///
+    /// 这个值直接决定单条流在「长肥管道」上的吞吐上限：窗口 / RTT。
+    /// 256KB 在 50ms RTT 下只能跑到约 5MB/s，会明显压住跨境 / 跨地区的大文件传输；
+    /// 1MB 把同样的链路抬到约 20MB/s，而代价只是「一条流最多缓存 1MB」——
+    /// 只有真正在传数据的流才会占满，空闲的 keep-alive 连接不会预分配。
     /// </summary>
-    public const int InitialWindow = 256 * 1024;
+    public const int InitialWindow = 1024 * 1024;
 
     /// <summary>
     /// 单会话最大并发流数。用于兜底内存：<see cref="InitialWindow"/> × 该值 是理论峰值。

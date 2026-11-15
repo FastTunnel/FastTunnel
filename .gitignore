@@ -22,3 +22,6 @@ publish
 
 # 单元测试产物
 /FastTunnel.Core.Tests/TestResults/
+
+# 吞吐基准的发布产物与运行目录
+/bench/out/

@@ -18,18 +18,31 @@ namespace FastTunnel.Core.Mux;
 /// 多路复用上的一条逻辑流，对外就是一个 <see cref="IDuplexPipe"/>：
 /// <list type="bullet">
 /// <item><see cref="Input"/> 是接收侧，对端发来的字节从这里读；</item>
-/// <item><see cref="Output"/> 是发送侧，写进去的字节会被后台任务切成 Data 帧发出。</item>
+/// <item><see cref="Output"/> 是发送侧，写进去的字节立刻按帧发往对端。</item>
 /// </list>
 /// 两个方向各自独立，这样才能复用上层已有的 <c>PipeReader.CopyToAsync</c> 零拷贝搬运逻辑。
+///
+/// 发送侧没有中间管道：写入直接变成会话传输管道里的帧（一次拷贝），
+/// 而不是「先拷进每流的发送管道 → 后台任务再拷进传输管道」（两次拷贝 + 一次异步跳转）。
+/// 反压由窗口额度提供：窗口用尽时写者就地等待，不做无界缓冲。
 /// </summary>
 public sealed class MuxStream : Stream, IDuplexPipe
 {
+    /// <summary>
+    /// 接收侧消费到这么多字节就回补一次窗口。
+    ///
+    /// 取固定值而不是「窗口的一半」，是为了兼容旧对端：旧客户端的初始信用只有
+    /// <see cref="MuxFrame.LegacyWindow"/>，回补阈值一旦超过它，旧对端会在发满初始信用后
+    /// 永远等不到窗口更新而死锁。
+    /// </summary>
+    internal const int WindowUpdateThreshold = 128 * 1024;
+
     private readonly MuxSession _session;
     private readonly ILogger _logger;
 
     private readonly Pipe _receive;
-    private readonly Pipe _send;
     private readonly MuxPipeReader _input;
+    private readonly MuxStreamWriter _output;
 
     private readonly object _gate = new();
 
@@ -39,9 +52,11 @@ public sealed class MuxStream : Stream, IDuplexPipe
     /// <summary>已消费但还没回补给对端的字节数。</summary>
     private int _consumedSinceUpdate;
 
+    /// <summary>是否已经有一个在途的窗口回补任务（同一时刻最多一个，避免拥塞时无限堆积）。</summary>
+    private int _windowUpdateScheduled;
+
     private TaskCompletionSource? _windowSignal;
 
-    private Task? _sendLoopTask;
     private int _disposed;
     private int _aborted;
     private int _finSent;
@@ -54,22 +69,25 @@ public sealed class MuxStream : Stream, IDuplexPipe
         _logger = logger;
         Id = id;
 
-        // 接收管道的暂停阈值必须 >= 窗口 + 单帧上限：
-        // 发送方受窗口约束不会超发，因此 ReadLoop 里的 FlushAsync 永远不会被暂停，
+        // 接收管道的暂停阈值 = 窗口 + 单帧上限：发送方受窗口约束不会超发，
+        // 因此会话读取循环里的 WriteAsync/FlushAsync 永远不会被暂停，
         // 也就不会出现「一条慢流卡住整个会话读取」的队头阻塞。
+        //
+        // 段大小取 64KB：一个段能装下 4 个 16KB 帧，下游消费者（CopyToAsync）拿到的
+        // 是 64KB 连续内存，写用户 socket 时一次内核写就能写完，而不是每帧写一次。
         _receive = new Pipe(new PipeOptions(
             pauseWriterThreshold: MuxFrame.InitialWindow + MuxFrame.MaxPayload,
             resumeWriterThreshold: MuxFrame.InitialWindow,
-            minimumSegmentSize: 4096,
+            minimumSegmentSize: 64 * 1024,
             useSynchronizationContext: false));
 
-        _send = new Pipe(new PipeOptions(useSynchronizationContext: false));
         _input = new MuxPipeReader(_receive.Reader, OnReceiveConsumed);
+        _output = new MuxStreamWriter(this);
     }
 
     public PipeReader Input => _input;
 
-    public PipeWriter Output => _send.Writer;
+    public PipeWriter Output => _output;
 
     // ---------------- Stream 适配 ----------------
     // 一条流等价于一个双向字节管道，因此也实现 Stream：
@@ -96,7 +114,7 @@ public sealed class MuxStream : Stream, IDuplexPipe
     public override void Flush() => FlushAsync(CancellationToken.None).GetAwaiter().GetResult();
 
     public override Task FlushAsync(CancellationToken cancellationToken)
-        => _send.Writer.FlushAsync(cancellationToken).AsTask();
+        => _output.FlushAsync(cancellationToken).AsTask();
 
     public override int Read(byte[] buffer, int offset, int count)
         => ReadAsync(buffer, offset, count, CancellationToken.None).GetAwaiter().GetResult();
@@ -142,85 +160,43 @@ public sealed class MuxStream : Stream, IDuplexPipe
         => WriteAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
 
     public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
-        => await _send.Writer.WriteAsync(buffer, cancellationToken);
-
-    /// <summary>接收侧的写入端，仅供 <see cref="MuxSession"/> 的读取循环使用。</summary>
-    internal PipeWriter ReceiveWriter => _receive.Writer;
+        => await _output.WriteAsync(buffer, cancellationToken);
 
     internal bool IsDisposed => Volatile.Read(ref _disposed) != 0;
 
-    internal void Start()
+    /// <summary>测试用：当前剩余发送额度（字节）。</summary>
+    internal int SendWindow => Volatile.Read(ref _sendWindow);
+
+    /// <summary>
+    /// 把对端发来的一帧数据交给上层消费者。返回 true 表示上层已经不需要这条流了。
+    /// 负载是会话读取缓冲里的切片，这里只做一次「会话管道 → 流管道」的搬运。
+    /// </summary>
+    internal async ValueTask<bool> ReceiveAsync(ReadOnlySequence<byte> payload)
     {
-        _sendLoopTask ??= SendLoopAsync();
+        var writer = _receive.Writer;
+
+        foreach (var segment in payload)
+        {
+            writer.Write(segment.Span);
+        }
+
+        var flush = await writer.FlushAsync(_session.Closed);
+        return flush.IsCompleted;
     }
 
     /// <summary>
-    /// 把 <see cref="Output"/> 中的数据切成帧发出去。每个方向只有一个写入者
-    /// （上层的单向泵），所以这里不需要额外的串行化。
+    /// 把一段数据按窗口额度切成若干 Data 帧发出去。整段只取一次写锁、只 flush 一次。
     /// </summary>
-    private async Task SendLoopAsync()
+    internal async ValueTask SendAsync(ReadOnlyMemory<byte> payload, CancellationToken cancellationToken)
     {
-        var reader = _send.Reader;
-        var token = _session.Closed;
-
-        try
+        while (!payload.IsEmpty)
         {
-            while (true)
-            {
-                ReadResult result;
-                try
-                {
-                    result = await reader.ReadAsync(token);
-                }
-                catch (OperationCanceledException)
-                {
-                    break;
-                }
+            var want = Math.Min(payload.Length, MuxSession.MaxWriteBatch);
+            var granted = await WaitSendWindowAsync(want, cancellationToken);
 
-                var buffer = result.Buffer;
-                var consumed = buffer.Start;
-
-                try
-                {
-                    while (buffer.Length > 0)
-                    {
-                        var chunk = buffer.Slice(0, (int)Math.Min(buffer.Length, MuxFrame.MaxPayload));
-                        await _session.WriteDataAsync(this, chunk, token);
-                        consumed = chunk.End;
-                        buffer = buffer.Slice(chunk.End);
-                    }
-                }
-                finally
-                {
-                    reader.AdvanceTo(consumed, result.Buffer.End);
-                }
-
-                if (result.IsCompleted)
-                {
-                    break;
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogDebug(ex, "[Mux]流 {StreamId} 发送循环结束", Id);
-        }
-        finally
-        {
-            reader.Complete();
-
-            // 本方向没有更多数据了，显式告诉对端，避免它一直等 EOF。
-            if (Interlocked.Exchange(ref _finSent, 1) == 0)
-            {
-                try
-                {
-                    await _session.WriteFrameAsync(MuxFrameType.Fin, Id, ReadOnlyMemory<byte>.Empty, token);
-                }
-                catch
-                {
-                    // 会话已关闭
-                }
-            }
+            var chunk = payload.Slice(0, granted);
+            await _session.WriteDataAsync(this, chunk, cancellationToken);
+            payload = payload.Slice(granted);
         }
     }
 
@@ -259,26 +235,26 @@ public sealed class MuxStream : Stream, IDuplexPipe
     }
 
     /// <summary>
-    /// 申请发送额度。窗口不足时挂起，直到对端回补或会话结束。
-    /// 这是发送侧唯一的背压点：窗口用尽 = 对端消费不过来，就地等待，不做无界缓冲。
+    /// 申请发送额度，返回本次获批的字节数（1 ≤ granted ≤ want）。
+    /// 窗口为 0 时挂起，直到对端回补或会话结束。
     /// </summary>
-    internal async ValueTask WaitSendWindowAsync(int length, CancellationToken cancellationToken)
+    internal async ValueTask<int> WaitSendWindowAsync(int want, CancellationToken cancellationToken)
     {
         while (true)
         {
             Task wait;
             lock (_gate)
             {
-                // 只有「中止」才拒绝发送；优雅关闭期间发送循环还要把队列里的数据补发完
                 if (Volatile.Read(ref _aborted) != 0)
                 {
                     throw new ObjectDisposedException($"MuxStream {Id}");
                 }
 
-                if (_sendWindow >= length)
+                if (_sendWindow > 0)
                 {
-                    _sendWindow -= length;
-                    return;
+                    var granted = Math.Min(_sendWindow, want);
+                    _sendWindow -= granted;
+                    return granted;
                 }
 
                 wait = (_windowSignal ??=
@@ -289,7 +265,10 @@ public sealed class MuxStream : Stream, IDuplexPipe
         }
     }
 
-    /// <summary>上层消费了 bytes 字节，按阈值回补窗口。</summary>
+    /// <summary>
+    /// 上层消费了 bytes 字节：累计到阈值后回补窗口。
+    /// 这条路径在每次 AdvanceTo 时都会走，必须无锁无分配，所以只用 Interlocked。
+    /// </summary>
     internal void OnReceiveConsumed(int bytes)
     {
         if (bytes <= 0)
@@ -297,20 +276,75 @@ public sealed class MuxStream : Stream, IDuplexPipe
             return;
         }
 
-        int delta;
-        lock (_gate)
+        if (Interlocked.Add(ref _consumedSinceUpdate, bytes) < WindowUpdateThreshold)
         {
-            _consumedSinceUpdate += bytes;
-            if (_consumedSinceUpdate < MuxFrame.InitialWindow / 4)
-            {
-                return;
-            }
-
-            delta = _consumedSinceUpdate;
-            _consumedSinceUpdate = 0;
+            return;
         }
 
-        _session.TrySendWindowUpdate(Id, delta);
+        ScheduleWindowUpdate();
+    }
+
+    private void ScheduleWindowUpdate()
+    {
+        // 同一时刻只允许一个在途回补：链路拥塞时不会堆出一串待发任务，
+        // 这期间的新增量会在下一轮被一起带走。
+        if (Interlocked.CompareExchange(ref _windowUpdateScheduled, 1, 0) != 0)
+        {
+            return;
+        }
+
+        _ = SendWindowUpdatesAsync();
+    }
+
+    private async Task SendWindowUpdatesAsync()
+    {
+        try
+        {
+            while (true)
+            {
+                var delta = Interlocked.Exchange(ref _consumedSinceUpdate, 0);
+                if (delta <= 0)
+                {
+                    break;
+                }
+
+                await _session.SendWindowUpdateAsync(Id, delta);
+            }
+        }
+        catch
+        {
+            // 会话关闭：窗口回补已无意义
+        }
+        finally
+        {
+            Volatile.Write(ref _windowUpdateScheduled, 0);
+
+            // 清标记与「又有新消费」可能并发：再检查一次，避免最后一次回补永久丢失
+            if (Volatile.Read(ref _consumedSinceUpdate) >= WindowUpdateThreshold)
+            {
+                ScheduleWindowUpdate();
+            }
+        }
+    }
+
+    /// <summary>本方向数据发完：发出 Fin（半关闭）。重复调用只发一次。</summary>
+    internal async ValueTask CompleteOutputAsync()
+    {
+        _output.MarkCompleted();
+
+        if (Interlocked.Exchange(ref _finSent, 1) != 0)
+        {
+            return;
+        }
+
+        try
+        {
+            await _session.WriteFrameAsync(MuxFrameType.Fin, Id, ReadOnlyMemory<byte>.Empty, _session.Closed);
+        }
+        catch
+        {
+            // 会话已关闭
+        }
     }
 
     /// <summary>
@@ -332,8 +366,9 @@ public sealed class MuxStream : Stream, IDuplexPipe
     }
 
     /// <summary>
-    /// 优雅销毁：先完成发送侧，等发送循环把队列里剩下的数据真正写成帧（并发出 Fin），再回收资源。
-    /// 如果直接 Dispose，最后一批数据会随缓冲区一起丢掉——HTTP 响应体正是这么被截断的。
+    /// 优雅销毁：先发掉 Fin，再回收资源。
+    /// 发送是「写调用同步落进传输管道」的，没有需要排空的队列，
+    /// 所以这里只需要在写锁后面追一个 Fin，就能保证对端读完数据后再看到 EOF。
     /// </summary>
     public override async ValueTask DisposeAsync()
     {
@@ -342,27 +377,7 @@ public sealed class MuxStream : Stream, IDuplexPipe
             return;
         }
 
-        try
-        {
-            _send.Writer.Complete();
-        }
-        catch
-        {
-            // 已被完成
-        }
-
-        if (_sendLoopTask is { } loop)
-        {
-            try
-            {
-                await loop.WaitAsync(TimeSpan.FromSeconds(5));
-            }
-            catch
-            {
-                // 超时或发送失败：下行已经没有意义，直接回收
-            }
-        }
-
+        await CompleteOutputAsync();
         Cleanup();
     }
 
@@ -372,16 +387,7 @@ public sealed class MuxStream : Stream, IDuplexPipe
         Volatile.Write(ref _aborted, 1);
 
         _session.RemoveStream(Id);
-
-        try
-        {
-            _send.Writer.Complete();
-        }
-        catch
-        {
-            // 已被发送循环完成
-        }
-
+        _output.ReleaseBuffer();
         OnRemoteFin();
         _input.Complete();
 
@@ -394,6 +400,160 @@ public sealed class MuxStream : Stream, IDuplexPipe
         }
 
         signal?.TrySetResult();
+    }
+
+    /// <summary>
+    /// 流的发送侧。两种写入方式都直接落到会话的传输管道里：
+    /// <list type="bullet">
+    /// <item><c>WriteAsync</c>：零中转，按窗口额度切帧后一次 flush；</item>
+    /// <item><c>GetMemory/Advance/FlushAsync</c>：先写进一块池化缓冲，Flush 时再发出去
+    ///       （少数按「取内存自行填充」方式写管道的调用方需要它）。</item>
+    /// </list>
+    /// </summary>
+    private sealed class MuxStreamWriter : PipeWriter
+    {
+        private const int InitialBufferSize = 64 * 1024;
+
+        private readonly MuxStream _stream;
+        private byte[]? _buffer;
+        private int _written;
+        private bool _completed;
+
+        public MuxStreamWriter(MuxStream stream) => _stream = stream;
+
+        public override void Advance(int bytes)
+        {
+            if (bytes < 0 || _buffer is null || _written + bytes > _buffer.Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(bytes));
+            }
+
+            _written += bytes;
+        }
+
+        public override Memory<byte> GetMemory(int sizeHint = 0)
+        {
+            EnsureCapacity(sizeHint);
+            return _buffer.AsMemory(_written);
+        }
+
+        public override Span<byte> GetSpan(int sizeHint = 0)
+        {
+            EnsureCapacity(sizeHint);
+            return _buffer.AsSpan(_written);
+        }
+
+        public override async ValueTask<FlushResult> FlushAsync(CancellationToken cancellationToken = default)
+        {
+            if (_written == 0)
+            {
+                return new FlushResult(isCanceled: false, isCompleted: _completed);
+            }
+
+            var count = _written;
+            _written = 0;
+
+            try
+            {
+                await _stream.SendAsync(_buffer.AsMemory(0, count), cancellationToken);
+            }
+            catch (ObjectDisposedException)
+            {
+                return new FlushResult(isCanceled: false, isCompleted: true);
+            }
+            catch (OperationCanceledException)
+            {
+                return new FlushResult(isCanceled: true, isCompleted: false);
+            }
+
+            return new FlushResult(isCanceled: false, isCompleted: _completed);
+        }
+
+        public override async ValueTask<FlushResult> WriteAsync(
+            ReadOnlyMemory<byte> source, CancellationToken cancellationToken = default)
+        {
+            if (_written > 0)
+            {
+                await FlushAsync(cancellationToken);
+            }
+
+            if (source.IsEmpty)
+            {
+                return new FlushResult(isCanceled: false, isCompleted: _completed);
+            }
+
+            try
+            {
+                await _stream.SendAsync(source, cancellationToken);
+            }
+            catch (ObjectDisposedException)
+            {
+                return new FlushResult(isCanceled: false, isCompleted: true);
+            }
+            catch (OperationCanceledException)
+            {
+                return new FlushResult(isCanceled: true, isCompleted: false);
+            }
+
+            return new FlushResult(isCanceled: false, isCompleted: _completed);
+        }
+
+        public override ValueTask CompleteAsync(Exception? exception = null)
+            => _stream.CompleteOutputAsync();
+
+        public override void Complete(Exception? exception = null)
+        {
+            // 同步路径不能等 Fin 写完，交给后台收尾
+            _ = _stream.CompleteOutputAsync().AsTask();
+        }
+
+        /// <summary>没有挂起的 flush 可控：发送直接 await 在 SendAsync 上，取消由调用方的 token 负责。</summary>
+        public override void CancelPendingFlush()
+        {
+        }
+
+        public void MarkCompleted() => _completed = true;
+
+        public void ReleaseBuffer()
+        {
+            // 只断开引用，不归还共享池：连接关闭时可能还有一次写在途，
+            // 把数组还池会让别人复用到正在发送的数据。
+            // 该缓冲只在调用方按 GetMemory/Advance 方式写管道时才会分配（数据面走 WriteAsync，不会用到）。
+            Interlocked.Exchange(ref _buffer, null);
+        }
+
+        private void EnsureCapacity(int sizeHint)
+        {
+            if (_completed)
+            {
+                throw new InvalidOperationException("流已关闭");
+            }
+
+            if (sizeHint < 1)
+            {
+                sizeHint = 1;
+            }
+
+            if (_buffer != null && _buffer.Length - _written >= sizeHint)
+            {
+                return;
+            }
+
+            var needed = Math.Max(InitialBufferSize, _written + sizeHint);
+            var buffer = ArrayPool<byte>.Shared.Rent(needed);
+
+            if (_buffer != null)
+            {
+                if (_written > 0)
+                {
+                    Array.Copy(_buffer, buffer, _written);
+                }
+
+                ArrayPool<byte>.Shared.Return(_buffer);
+            }
+
+            _buffer = buffer;
+        }
     }
 }
 

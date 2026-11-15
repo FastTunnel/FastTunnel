@@ -8,16 +8,21 @@ using System;
 using System.IO;
 using System.IO.Pipelines;
 using System.Threading.Tasks;
+using FastTunnel.Core.Mux;
 
 namespace FastTunnel.Core.Forwarder.Streams;
 
 /// <summary>
 /// 把一条客户端连接（明文 NetworkStream 或 TLS 后的 SslStream）包装成 <see cref="IDuplexPipe"/>，
-/// 供多路复用会话读写。读写缓冲区取 16KB（默认 4KB），与 <see cref="Mux.MuxFrame.MaxPayload"/> 同量级，
-/// 避免一帧数据被拆成多次 4KB 拷贝。
+/// 供多路复用会话读写。
+///
+/// 缓冲大小直接决定多路复用链路上的帧数与内核写次数：读写都取 64KB（默认 4KB），
+/// 一次 flush 就能把多帧一起交给内核，而不是每 4KB 一次系统调用。
 /// </summary>
 internal sealed class SocketDuplexPipe : IDuplexPipe, IAsyncDisposable
 {
+    private const int BufferSize = 64 * 1024;
+
     private readonly Stream stream;
 
     public SocketDuplexPipe(Stream stream)
@@ -25,11 +30,11 @@ internal sealed class SocketDuplexPipe : IDuplexPipe, IAsyncDisposable
         this.stream = stream;
 
         Input = PipeReader.Create(stream, new StreamPipeReaderOptions(
-            bufferSize: 16 * 1024,
-            minimumReadSize: 8 * 1024));
+            bufferSize: BufferSize,
+            minimumReadSize: MuxFrame.MaxPayload));
 
         Output = PipeWriter.Create(stream, new StreamPipeWriterOptions(
-            minimumBufferSize: 16 * 1024));
+            minimumBufferSize: BufferSize));
     }
 
     public PipeReader Input { get; }

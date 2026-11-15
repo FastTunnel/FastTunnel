@@ -105,13 +105,17 @@ public sealed class TrafficMeter
 
     /// <summary>
     /// 记一次写入并按需限速。由两个装饰器在把数据交给内层之前调用。
+    ///
+    /// 这条路径每次写入都会走，所以「不限速」必须是最便宜的分支：
+    /// 不做字符串闭包分配、不对空规则表做字典查找、不动令牌桶的锁。
+    /// 真正的限速等待被拆到 <see cref="ThrottleAsync"/>，只有配置了速率才会进入。
     /// </summary>
-    internal async ValueTask AccountAsync(
+    internal ValueTask AccountAsync(
         TrafficScope scope, TrafficDirection direction, int bytes, CancellationToken cancellationToken)
     {
         if (bytes <= 0)
         {
-            return;
+            return default;
         }
 
         var counters = Counters(scope);
@@ -128,22 +132,40 @@ public sealed class TrafficMeter
 
         var rules = Rules();
         var rate = ResolveRate(rules, scope);
-        counters.SetLimit(rate);
 
         if (rate <= 0)
         {
-            Volatile.Write(ref counters.HasLimit, 0);
-            return;
+            if (Volatile.Read(ref counters.HasLimit) != 0)
+            {
+                Volatile.Write(ref counters.HasLimit, 0);
+                counters.SetLimit(0);
+            }
+
+            return default;
         }
 
-        Volatile.Write(ref counters.HasLimit, 1);
+        if (Volatile.Read(ref counters.HasLimit) == 0)
+        {
+            Volatile.Write(ref counters.HasLimit, 1);
+        }
+
+        counters.SetLimit(rate);
+
+        return ThrottleAsync(scope, counters, direction, bytes, rules, rate, cancellationToken);
+    }
+
+    private async ValueTask ThrottleAsync(
+        TrafficScope scope, ProxyCounters counters, TrafficDirection direction,
+        int bytes, BandwidthRuleSet rules, long rate, CancellationToken cancellationToken)
+    {
         var capacity = Math.Max(1.0, rate * Math.Max(0.05, rules.BurstSeconds));
         var bucket = buckets.GetOrAdd(
             scope.Proxy + "|" + (int)direction,
             _ => new TokenBucket(rate, capacity));
-        bucket.Configure(rate, capacity);
 
-        var delay = bucket.Reserve(bytes);
+        // 配置热加载只改速率：Configure 的快路径只做两次比较，
+        // 但每次写入都要进一次锁，所以合并进 Reserve 一次拿锁完成。
+        var delay = bucket.Reserve(rate, capacity, bytes);
         if (delay <= TimeSpan.Zero)
         {
             return;
@@ -191,19 +213,21 @@ public sealed class TrafficMeter
 
     private ProxyCounters Counters(TrafficScope scope)
     {
-        var counters = proxies.GetOrAdd(scope.Proxy, key => new ProxyCounters(key, scope.Client));
+        // static 委托：避免每次写入都因为捕获 scope 而生成一个闭包对象
+        var counters = proxies.GetOrAdd(scope.Proxy, static key => new ProxyCounters(key, "anonymous"));
         counters.NoteClient(scope.Client);
         return counters;
     }
 
     private static long ResolveRate(BandwidthRuleSet rules, TrafficScope scope)
     {
-        if (rules.PerProxy.TryGetValue(scope.Proxy, out var perProxy))
+        // 默认部署这三张表都是空的：先看 Count 再查字典，避免每条写入都算一遍字符串哈希
+        if (rules.PerProxy.Count > 0 && rules.PerProxy.TryGetValue(scope.Proxy, out var perProxy))
         {
             return Math.Max(0, perProxy);
         }
 
-        if (rules.PerClient.TryGetValue(scope.Client, out var perClient))
+        if (rules.PerClient.Count > 0 && rules.PerClient.TryGetValue(scope.Client, out var perClient))
         {
             return Math.Max(0, perClient);
         }
@@ -265,7 +289,14 @@ public sealed class TrafficMeter
 
         public DateTimeOffset FirstSeenUtc { get; }
 
-        public void NoteClient(string value) => Volatile.Write(ref client, value);
+        /// <summary>只在主体真的变化时才写：这条路径每次写入都会走，避免无谓的易失写。</summary>
+        public void NoteClient(string value)
+        {
+            if (!string.Equals(Volatile.Read(ref client), value, StringComparison.Ordinal))
+            {
+                Volatile.Write(ref client, value);
+            }
+        }
 
         public void OpenConnection()
         {

@@ -1,6 +1,12 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <!--
+      客户端是长跑的网络数据面：所有隧道流量都要在这里各搬一次。
+      工作站 GC 在吞吐压测里会明显成为瓶颈（一次 gen0 回收就抖一下），
+      与服务端保持一致改用 Server GC。
+    -->
+    <ServerGarbageCollection>true</ServerGarbageCollection>
   </PropertyGroup>
   <ItemGroup>
     <None Remove="appsettings.Development.json" />

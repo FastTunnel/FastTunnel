@@ -13,6 +13,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastTunnel.Core.Exceptions;
 using FastTunnel.Core.Extensions;
+using FastTunnel.Core.Forwarder.Streams;
 using FastTunnel.Core.Metrics;
 using FastTunnel.Core.Models;
 using FastTunnel.Core.Models.Massage;
@@ -210,7 +211,7 @@ public class ForwardDispatcher
                     ? dps.Output
                     : _meter.Wrap(dps.Output, _scope, TrafficDirection.In);
                 t1 = dps.Input.CopyToAsync(outStream, swapToken);
-                t2 = PumpSocketToPipeAsync(_socket, inWriter, swapToken);
+                t2 = PipePumps.SocketToPipeAsync(_socket, inWriter, swapToken);
             }
             else
             {
@@ -271,7 +272,13 @@ public class ForwardDispatcher
                 Proto = "tcp",
             };
 
-            logger.LogDebug($"[Forward][Mux]Swap开始 {request.Id}|{_config.RemotePort}=>{_config.LocalIp}:{_config.LocalPort}");
+            if (logger.IsEnabled(LogLevel.Debug))
+            {
+                // 每条转发连接都会走这里：日志级别没开时不要为插值生成字符串
+                logger.LogDebug("[Forward][Mux]Swap开始 {Id}|{RemotePort}=>{LocalIp}:{LocalPort}",
+                    request.Id, _config.RemotePort, _config.LocalIp, _config.LocalPort);
+            }
+
             stream = await mux.OpenStreamAsync(request, cts.Token);
 
             var inWriter = _meter == null
@@ -281,7 +288,7 @@ public class ForwardDispatcher
                 ? (Stream)userStream
                 : _meter.Wrap(userStream, _scope, TrafficDirection.Out);
 
-            var toLocal = PumpSocketToPipeAsync(socket, inWriter, cts.Token);
+            var toLocal = PipePumps.SocketToPipeAsync(socket, inWriter, cts.Token);
             var toUser = stream.Input.CopyToAsync(outStream, cts.Token);
 
             try
@@ -307,66 +314,6 @@ public class ForwardDispatcher
                 await stream.DisposeAsync();
             }
         }
-    }
-
-    /// <summary>
-    /// 从 Socket 读取数据并写入 PipeWriter，使用 PipeWriter 的池化内存避免额外分配。
-    /// 与 PipeReader.CopyToAsync(PipeWriter) 一致：到达 EOF/取消时仅停止抽送，
-    /// 不主动 Complete 对端管道（由调用方通过 TokenSource 统一收尾）。
-    /// </summary>
-    private static async Task PumpSocketToPipeAsync(Socket socket, PipeWriter writer, CancellationToken cancellationToken)
-    {
-        while (!cancellationToken.IsCancellationRequested)
-        {
-            // 1. 不指定大小，让 PipeWriter 自动从内存池获取最佳大小的内存块
-            var memory = writer.GetMemory(); 
-            int read;
-            try
-            {
-                read = await socket.ReceiveAsync(memory, SocketFlags.None, cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (SocketException)
-            {
-                break;
-            }
-            catch (ObjectDisposedException)
-            {
-                break;
-            }
-
-            if (read == 0)
-            {
-                // 远端正常关闭
-                break;
-            }
-
-            // 2. 明确告知管道实际写入了多少字节
-            writer.Advance(read);
-            
-            FlushResult flush;
-            try
-            {
-                flush = await writer.FlushAsync(cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-
-            // 3. 完善对 FlushResult 的判断，增加对 IsPaused 的处理
-            if (flush.IsCompleted || flush.IsCanceled)
-            {
-                break;
-            }
-        }
-        
-        // 4. 循环结束后，如果是因为远端关闭，建议由调用方统一 Complete，
-        // 或者在这里根据业务逻辑决定是否调用 await writer.CompleteAsync();
-        // (根据你的原代码注释，这里不主动 Complete 是对的，由调用方统一收尾)
     }
 
     private Task SendSwapAsync(MessageType type, SwapRequest request, CancellationToken cancellationToken)

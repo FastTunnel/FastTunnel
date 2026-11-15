@@ -80,6 +80,18 @@ public class PortProxyListener : IPortListener
         {
             var accept = e.AcceptSocket;
 
+            // 关闭 Nagle：转发的是交互式流量（SSH / RDP / 数据库）时，
+            // 小包被攒着等 ACK 会直接变成可感知的延迟。客户端侧建连早已是 NoDelay，
+            // 接收侧不能漏（监听 socket 的选项不会自动继承给 accept 出来的连接）。
+            try
+            {
+                accept.NoDelay = true;
+            }
+            catch (Exception)
+            {
+                // 连接已被对端关闭
+            }
+
             Interlocked.Increment(ref m_numConnectedSockets);
 
             _logerr.LogDebug($"【{ListenIp}:{ListenPort}】Accepted. There are {{0}} clients connected to the port",

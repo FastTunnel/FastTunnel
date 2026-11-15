@@ -6,6 +6,7 @@
 
 using System;
 using System.Buffers;
+using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.IO;
 using System.IO.Pipelines;
@@ -24,10 +25,23 @@ namespace FastTunnel.Core.Mux;
 /// 一次连接固定付 1~2 个 RTT 的握手成本；有了会话，新连接只是本地分配一个 streamId 并写一个 SYN 帧，
 /// 零握手。这是把「每连接一条 TCP」变成「每连接一条流」的核心。
 ///
+/// 吞吐相关的三条规则（改这个文件前先读）：
+/// 1. 读取侧是「一次 ReadAsync 尽量多解帧」的循环，不再一帧一次 ReadAsync/AdvanceTo；
+///    一帧的负载直接以切片（ReadOnlySequence）交给流，不租 ArrayPool 中转。
+/// 2. 写入侧按批走：一条流的连续数据在同一个写锁里切成多帧、只 flush 一次，
+///    因此每批最多一次内核写，而不是每帧一次。
+/// 3. 控制帧（窗口回补）绝不 Task.Run、绝不为 4 字节负载分配数组，也不阻塞读取循环。
+///
 /// streamId 分配：服务端用奇数，客户端用偶数，各自单调递增，单连接内互不冲突。
 /// </summary>
 public sealed class MuxSession : IAsyncDisposable
 {
+    /// <summary>
+    /// 一次写锁内最多搬运多少字节。越大 flush 次数越少，越小多流交织越公平；
+    /// 256KB 在 1Gbps 链路上约 2ms，既能把几十帧合成一次写，又不至于让单条流独占链路。
+    /// </summary>
+    internal const int MaxWriteBatch = 256 * 1024;
+
     private readonly IDuplexPipe _transport;
     private readonly ILogger _logger;
     private readonly bool _isServer;
@@ -82,8 +96,6 @@ public sealed class MuxSession : IAsyncDisposable
             throw new InvalidOperationException($"streamId 冲突 {id}");
         }
 
-        stream.Start();
-
         try
         {
             var payload = JsonSerializer.SerializeToUtf8Bytes(target, ControlProtocol.JsonOptions);
@@ -106,16 +118,42 @@ public sealed class MuxSession : IAsyncDisposable
     public async Task RunAsync()
     {
         var input = _transport.Input;
-        var header = new byte[MuxFrame.HeaderSize];
 
         try
         {
             while (!IsClosed)
             {
-                await ReadExactAsync(input, header, Closed);
+                var result = await input.ReadAsync(Closed);
 
-                var (type, streamId, length) = MuxFrame.ReadHeader(header);
-                await HandleFrameAsync(input, type, streamId, length);
+                if (result.IsCanceled)
+                {
+                    break;
+                }
+
+                // 一次拿到多少就解多少帧：每帧不再单独 ReadAsync + AdvanceTo，
+                // 只有「数据不够、需要等对端」时才回到 ReadAsync。
+                var buffer = result.Buffer;
+                var consumed = buffer.Start;
+
+                try
+                {
+                    while (TryReadFrame(buffer, out var type, out var streamId, out var payload, out var total))
+                    {
+                        buffer = buffer.Slice(total);
+                        consumed = buffer.Start;
+                        await HandleFrameAsync(type, streamId, payload);
+                    }
+                }
+                finally
+                {
+                    input.AdvanceTo(consumed, buffer.End);
+                }
+
+                if (result.IsCompleted)
+                {
+                    // 对端已关闭，缓冲里剩余的半个帧没有意义
+                    break;
+                }
             }
         }
         catch (OperationCanceledException)
@@ -145,21 +183,73 @@ public sealed class MuxSession : IAsyncDisposable
         }
     }
 
-    private async Task HandleFrameAsync(PipeReader input, MuxFrameType type, uint streamId, int length)
+    /// <summary>
+    /// 从会话缓冲里切出一个完整帧。缓冲不足一帧时返回 false，由调用方等待更多数据。
+    /// 帧头用 <see cref="SequenceReader{T}"/> 解析，跨段也不会多一次拷贝。
+    /// </summary>
+    private static bool TryReadFrame(
+        ReadOnlySequence<byte> buffer,
+        out MuxFrameType type,
+        out uint streamId,
+        out ReadOnlySequence<byte> payload,
+        out long totalLength)
+    {
+        type = default;
+        streamId = 0;
+        payload = default;
+        totalLength = 0;
+
+        if (buffer.Length < MuxFrame.HeaderSize)
+        {
+            return false;
+        }
+
+        var reader = new SequenceReader<byte>(buffer);
+
+        if (!reader.TryRead(out var typeByte)
+            || !reader.TryReadBigEndian(out int id)
+            || !reader.TryReadBigEndian(out int length))
+        {
+            return false;
+        }
+
+        // 长度字段来自对端，必须校验，否则一个坏帧就能让进程 OOM
+        if (length < 0 || length > MuxFrame.MaxPayload)
+        {
+            throw new InvalidOperationException($"非法帧长度 {length}");
+        }
+
+        if (buffer.Length - MuxFrame.HeaderSize < length)
+        {
+            return false;
+        }
+
+        type = (MuxFrameType)typeByte;
+        streamId = (uint)id;
+        payload = buffer.Slice(MuxFrame.HeaderSize, length);
+        totalLength = MuxFrame.HeaderSize + length;
+        return true;
+    }
+
+    private async ValueTask HandleFrameAsync(
+        MuxFrameType type, uint streamId, ReadOnlySequence<byte> payload)
     {
         switch (type)
         {
-            case MuxFrameType.Syn:
-                await HandleSynAsync(input, streamId, length);
+            case MuxFrameType.Data:
+                await HandleDataAsync(streamId, payload);
                 break;
 
-            case MuxFrameType.Data:
-                await HandleDataAsync(input, streamId, length);
+            case MuxFrameType.Syn:
+                await HandleSynAsync(streamId, payload);
                 break;
 
             case MuxFrameType.Fin:
-                _streams.TryGetValue(streamId, out var finStream);
-                finStream?.OnRemoteFin();
+                if (_streams.TryGetValue(streamId, out var finStream))
+                {
+                    finStream.OnRemoteFin();
+                }
+
                 break;
 
             case MuxFrameType.Rst:
@@ -171,16 +261,22 @@ public sealed class MuxSession : IAsyncDisposable
                 break;
 
             case MuxFrameType.WindowUpdate:
-                await HandleWindowUpdateAsync(input, streamId, length);
+                // 注意不能直接用 payload.FirstSpan：4 字节负载也可能跨段，
+                // 那样读 4 字节会抛 ArgumentOutOfRange，把整条会话带走。
+                if (payload.Length == 4 && _streams.TryGetValue(streamId, out var windowStream))
+                {
+                    Span<byte> delta = stackalloc byte[4];
+                    payload.CopyTo(delta);
+                    windowStream.AddSendWindow(BinaryPrimitives.ReadInt32BigEndian(delta));
+                }
+
                 break;
 
             case MuxFrameType.Ping:
-                await SkipPayloadAsync(input, length, Closed);
                 await WriteFrameAsync(MuxFrameType.Pong, 0, ReadOnlyMemory<byte>.Empty, Closed);
                 break;
 
             case MuxFrameType.Pong:
-                await SkipPayloadAsync(input, length, Closed);
                 break;
 
             case MuxFrameType.GoAway:
@@ -191,59 +287,66 @@ public sealed class MuxSession : IAsyncDisposable
         }
     }
 
-    private async Task HandleSynAsync(PipeReader input, uint streamId, int length)
+    private async ValueTask HandleSynAsync(uint streamId, ReadOnlySequence<byte> payload)
     {
         if (_isServer)
         {
             // 服务端不接收客户端发起的流（stcp / xtcp 才会用到，暂不支持）
-            await SkipPayloadAsync(input, length, Closed);
             await WriteFrameAsync(MuxFrameType.Rst, streamId, ReadOnlyMemory<byte>.Empty, Closed);
             return;
         }
 
-        var buffer = ArrayPool<byte>.Shared.Rent(Math.Max(length, 1));
+        SwapRequest? target;
+        byte[]? rented = null;
         try
         {
-            await ReadExactAsync(input, buffer.AsMemory(0, length), Closed);
-
-            SwapRequest? target;
-            try
+            // SYN 载荷很小且通常连续；跨段时租一次数组兜底，不在热路径上
+            ReadOnlySpan<byte> json;
+            if (payload.IsSingleSegment)
             {
-                target = JsonSerializer.Deserialize<SwapRequest>(
-                    buffer.AsSpan(0, length), ControlProtocol.JsonOptions);
+                json = payload.FirstSpan;
             }
-            catch (JsonException ex)
+            else
             {
-                _logger.LogWarning(ex, "[Mux]SYN 载荷解析失败 stream={StreamId}", streamId);
-                target = null;
-            }
-
-            if (target == null || string.IsNullOrEmpty(target.Host) || target.Port <= 0)
-            {
-                await WriteFrameAsync(MuxFrameType.Rst, streamId, ReadOnlyMemory<byte>.Empty, Closed);
-                return;
+                rented = ArrayPool<byte>.Shared.Rent((int)payload.Length);
+                payload.CopyTo(rented);
+                json = rented.AsSpan(0, (int)payload.Length);
             }
 
-            var stream = new MuxStream(this, streamId, _logger);
-            if (!_streams.TryAdd(streamId, stream))
-            {
-                // id 已被占用：客户端用了服务端的号段，属于协议错误
-                _logger.LogWarning("[Mux]streamId 冲突 {StreamId}", streamId);
-                await WriteFrameAsync(MuxFrameType.Rst, streamId, ReadOnlyMemory<byte>.Empty, Closed);
-                return;
-            }
-
-            stream.Start();
-
-            if (_onAccept != null)
-            {
-                // 交给业务层去连本地目标，不能阻塞读取循环
-                _ = AcceptAsync(stream, target);
-            }
+            target = JsonSerializer.Deserialize<SwapRequest>(json, ControlProtocol.JsonOptions);
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogWarning(ex, "[Mux]SYN 载荷解析失败 stream={StreamId}", streamId);
+            target = null;
         }
         finally
         {
-            ArrayPool<byte>.Shared.Return(buffer);
+            if (rented != null)
+            {
+                ArrayPool<byte>.Shared.Return(rented);
+            }
+        }
+
+        if (target == null || string.IsNullOrEmpty(target.Host) || target.Port <= 0)
+        {
+            await WriteFrameAsync(MuxFrameType.Rst, streamId, ReadOnlyMemory<byte>.Empty, Closed);
+            return;
+        }
+
+        var stream = new MuxStream(this, streamId, _logger);
+        if (!_streams.TryAdd(streamId, stream))
+        {
+            // id 已被占用：客户端用了服务端的号段，属于协议错误
+            _logger.LogWarning("[Mux]streamId 冲突 {StreamId}", streamId);
+            await WriteFrameAsync(MuxFrameType.Rst, streamId, ReadOnlyMemory<byte>.Empty, Closed);
+            return;
+        }
+
+        if (_onAccept != null)
+        {
+            // 交给业务层去连本地目标，不能阻塞读取循环
+            _ = AcceptAsync(stream, target);
         }
     }
 
@@ -267,38 +370,32 @@ public sealed class MuxSession : IAsyncDisposable
         }
     }
 
-    private async Task HandleDataAsync(PipeReader input, uint streamId, int length)
+    private async ValueTask HandleDataAsync(uint streamId, ReadOnlySequence<byte> payload)
     {
-        if (length == 0)
+        if (payload.IsEmpty)
         {
             return;
         }
 
         if (!_streams.TryGetValue(streamId, out var stream) || stream.IsDisposed)
         {
-            // 流已关闭，数据丢弃，但必须把帧体读掉，否则会话字节流错位
-            await SkipPayloadAsync(input, length, Closed);
+            // 流已关闭，数据丢弃（帧体已经在缓冲里被切掉，无需再读一遍）
             return;
         }
 
-        Memory<byte> memory;
+        bool closed;
         try
         {
-            memory = stream.ReceiveWriter.GetMemory(length);
+            closed = await stream.ReceiveAsync(payload);
         }
         catch (Exception)
         {
             _streams.TryRemove(streamId, out _);
             stream.Dispose();
-            await SkipPayloadAsync(input, length, Closed);
             return;
         }
 
-        await ReadExactAsync(input, memory.Slice(0, length), Closed);
-        stream.ReceiveWriter.Advance(length);
-
-        var flush = await stream.ReceiveWriter.FlushAsync(Closed);
-        if (flush.IsCompleted)
+        if (closed)
         {
             // 上层已经不再读取，这条流没有意义了
             _streams.TryRemove(streamId, out _);
@@ -306,53 +403,39 @@ public sealed class MuxSession : IAsyncDisposable
         }
     }
 
-    private async Task HandleWindowUpdateAsync(PipeReader input, uint streamId, int length)
+    // ---------------- 帧写入 ----------------
+
+    /// <summary>
+    /// 把一批流数据写成若干 Data 帧。整批只取一次写锁、只 flush 一次，
+    /// 于是「每帧一次内核写」变成「每批一次」，这是数据面吞吐的主要来源。
+    /// 单帧大小仍受 <see cref="MuxFrame.MaxPayload"/> 约束，与旧对端保持兼容。
+    /// </summary>
+    internal async ValueTask WriteDataAsync(
+        MuxStream stream, ReadOnlyMemory<byte> payload, CancellationToken cancellationToken)
     {
-        if (length != 4)
+        if (payload.IsEmpty)
         {
-            await SkipPayloadAsync(input, length, Closed);
             return;
         }
 
-        var buffer = ArrayPool<byte>.Shared.Rent(4);
-        try
-        {
-            await ReadExactAsync(input, buffer.AsMemory(0, 4), Closed);
-            var delta = System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(buffer);
-            if (delta > 0 && _streams.TryGetValue(streamId, out var stream))
-            {
-                stream.AddSendWindow(delta);
-            }
-        }
-        finally
-        {
-            ArrayPool<byte>.Shared.Return(buffer);
-        }
-    }
-
-    // ---------------- 帧写入 ----------------
-
-    internal async ValueTask WriteDataAsync(MuxStream stream, ReadOnlySequence<byte> payload, CancellationToken cancellationToken)
-    {
-        await stream.WaitSendWindowAsync((int)payload.Length, cancellationToken);
-        await WriteFrameAsync(MuxFrameType.Data, stream.Id, payload, cancellationToken);
-    }
-
-    internal async ValueTask WriteFrameAsync(
-        MuxFrameType type, uint streamId, ReadOnlySequence<byte> payload, CancellationToken cancellationToken)
-    {
         await _writeGate.WaitAsync(cancellationToken);
         try
         {
             var output = _transport.Output;
+            var rest = payload;
 
-            var header = output.GetSpan(MuxFrame.HeaderSize);
-            MuxFrame.WriteHeader(header, type, streamId, (int)payload.Length);
-            output.Advance(MuxFrame.HeaderSize);
-
-            foreach (var segment in payload)
+            while (!rest.IsEmpty)
             {
-                output.Write(segment.Span);
+                var size = (int)Math.Min(rest.Length, MuxFrame.MaxPayload);
+
+                // 一次申请「帧头 + 负载」的连续空间：整帧落在同一段内存里，
+                // 头写进去后紧跟着拷负载，整帧只有一次用户态拷贝。
+                var span = output.GetSpan(MuxFrame.HeaderSize + size);
+                MuxFrame.WriteHeader(span, MuxFrameType.Data, stream.Id, size);
+                rest.Span.Slice(0, size).CopyTo(span.Slice(MuxFrame.HeaderSize));
+                output.Advance(MuxFrame.HeaderSize + size);
+
+                rest = rest.Slice(size);
             }
 
             await output.FlushAsync(cancellationToken);
@@ -363,43 +446,63 @@ public sealed class MuxSession : IAsyncDisposable
         }
     }
 
-    internal ValueTask WriteFrameAsync(
+    internal async ValueTask WriteFrameAsync(
         MuxFrameType type, uint streamId, ReadOnlyMemory<byte> payload, CancellationToken cancellationToken)
     {
-        if (payload.IsEmpty)
+        await _writeGate.WaitAsync(cancellationToken);
+        try
         {
-            return WriteFrameAsync(type, streamId, ReadOnlySequence<byte>.Empty, cancellationToken);
+            WriteFrameNoLock(type, streamId, payload.Span);
+            await _transport.Output.FlushAsync(cancellationToken);
         }
-
-        return WriteFrameAsync(type, streamId, new ReadOnlySequence<byte>(payload), cancellationToken);
+        finally
+        {
+            _writeGate.Release();
+        }
     }
 
-    /// <summary>回调链里的尽力而为发送：失败即丢弃，绝不抛出到业务代码。</summary>
-    internal void TrySendFrame(MuxFrameType type, uint streamId, ReadOnlyMemory<byte> payload)
+    /// <summary>调用方必须已持有写锁。</summary>
+    private void WriteFrameNoLock(MuxFrameType type, uint streamId, ReadOnlySpan<byte> payload)
     {
-        if (IsClosed)
+        var output = _transport.Output;
+        var span = output.GetSpan(MuxFrame.HeaderSize + payload.Length);
+        MuxFrame.WriteHeader(span, type, streamId, payload.Length);
+
+        if (!payload.IsEmpty)
         {
-            return;
+            payload.CopyTo(span.Slice(MuxFrame.HeaderSize));
         }
 
-        _ = Task.Run(async () =>
+        output.Advance(MuxFrame.HeaderSize + payload.Length);
+    }
+
+    /// <summary>
+    /// 窗口回补帧。这是数据面上唯一的「尽力而为」写：不阻塞读取循环、
+    /// 不做线程池跳动、不为 4 字节负载分配数组。会话已关闭时静默丢弃。
+    /// </summary>
+    internal async ValueTask SendWindowUpdateAsync(uint streamId, int delta)
+    {
+        try
         {
+            await _writeGate.WaitAsync(Closed);
             try
             {
-                await WriteFrameAsync(type, streamId, payload, Closed);
+                var output = _transport.Output;
+                var span = output.GetSpan(MuxFrame.HeaderSize + 4);
+                MuxFrame.WriteHeader(span, MuxFrameType.WindowUpdate, streamId, 4);
+                BinaryPrimitives.WriteInt32BigEndian(span.Slice(MuxFrame.HeaderSize, 4), delta);
+                output.Advance(MuxFrame.HeaderSize + 4);
+                await output.FlushAsync(Closed);
             }
-            catch
+            finally
             {
-                // 会话已关闭或连接已断，无需处理
+                _writeGate.Release();
             }
-        });
-    }
-
-    internal void TrySendWindowUpdate(uint streamId, int delta)
-    {
-        var buffer = new byte[4];
-        System.Buffers.Binary.BinaryPrimitives.WriteInt32BigEndian(buffer, delta);
-        TrySendFrame(MuxFrameType.WindowUpdate, streamId, buffer);
+        }
+        catch
+        {
+            // 会话已关闭或连接已断，无需处理
+        }
     }
 
     // ---------------- 关闭 ----------------
@@ -452,70 +555,5 @@ public sealed class MuxSession : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await CloseAsync();
-    }
-
-    // ---------------- 读取工具 ----------------
-
-    private static ValueTask SkipPayloadAsync(PipeReader input, int length, CancellationToken cancellationToken)
-    {
-        if (length == 0)
-        {
-            return ValueTask.CompletedTask;
-        }
-
-        var buffer = ArrayPool<byte>.Shared.Rent(length);
-        return SkipCoreAsync(input, buffer, length, cancellationToken);
-
-        static async ValueTask SkipCoreAsync(PipeReader reader, byte[] rented, int count, CancellationToken token)
-        {
-            try
-            {
-                await ReadExactAsync(reader, rented.AsMemory(0, count), token);
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(rented);
-            }
-        }
-    }
-
-    /// <summary>从 PipeReader 精确读满指定长度。数据不足时挂起等待，EOF 抛 <see cref="EndOfStreamException"/>。</summary>
-    internal static async ValueTask ReadExactAsync(PipeReader reader, Memory<byte> destination, CancellationToken cancellationToken)
-    {
-        var filled = 0;
-
-        while (filled < destination.Length)
-        {
-            var result = await reader.ReadAsync(cancellationToken);
-
-            if (result.IsCanceled)
-            {
-                throw new OperationCanceledException();
-            }
-
-            var buffer = result.Buffer;
-            var count = (int)Math.Min(buffer.Length, destination.Length - filled);
-
-            if (count == 0)
-            {
-                reader.AdvanceTo(buffer.Start, buffer.End);
-
-                if (result.IsCompleted)
-                {
-                    throw new EndOfStreamException();
-                }
-
-                continue;
-            }
-
-            buffer.Slice(0, count).CopyTo(destination.Span.Slice(filled));
-            reader.AdvanceTo(buffer.GetPosition(count));
-            filled += count;
-
-            if (filled < destination.Length && result.IsCompleted)
-            {
-                throw new EndOfStreamException();
-            }
-        }
     }
 }

@@ -5,10 +5,13 @@
 // Copyright (c) 2019 Gui.H
 
 using System;
+using System.Buffers.Binary;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipelines;
 using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using FastTunnel.Core.Mux;
@@ -384,38 +387,115 @@ public class MuxSessionTests
         Assert.True(client.IsClosed);
     }
 
-    // ---------------- ReadExactAsync ----------------
+    // ---------------- 帧解析（读取循环改为「一次 ReadAsync 解多帧」后的回归） ----------------
 
     [Fact]
-    public async Task ReadExactAsync_分片到达也能读满()
+    public async Task 帧头被拆到多个管道段也能解析()
     {
-        var pipe = new Pipe();
+        var accepted = new TaskCompletionSource<(MuxStream Stream, SwapRequest Request)>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        await using var pair = new SessionPair((stream, request) =>
+        {
+            accepted.TrySetResult((stream, request));
+            return Task.CompletedTask;
+        });
+
+        var target = new SwapRequest { Id = "split", Host = "10.0.0.9", Port = 8081, Proto = "tcp" };
+        var json = JsonSerializer.SerializeToUtf8Bytes(target, ControlProtocol.JsonOptions);
+        var syn = Frame(MuxFrameType.Syn, 2, json);
+
         using var cts = new CancellationTokenSource(Timeout);
-        var target = new byte[10];
 
-        var readTask = MuxSession.ReadExactAsync(pipe.Reader, target, cts.Token);
+        // 故意在 9 字节帧头中间断开：解析器必须能跨段读出头，而不是要求帧头连续
+        await TestPipes.WriteAsync(pair.ServerSide, syn.AsMemory(0, 3), cts.Token);
+        await TestPipes.WriteAsync(pair.ServerSide, syn.AsMemory(3, 4), cts.Token);
+        await TestPipes.WriteAsync(pair.ServerSide, syn.AsMemory(7), cts.Token);
 
-        await pipe.Writer.WriteAsync(new byte[] { 1, 2, 3 }, cts.Token);
-        await pipe.Writer.WriteAsync(new byte[] { 4, 5 }, cts.Token);
-        await pipe.Writer.WriteAsync(new byte[] { 6, 7, 8, 9, 10 }, cts.Token);
+        var (stream, actual) = await accepted.Task.WaitAsync(Timeout);
 
-        await readTask.AsTask().WaitAsync(Timeout);
-
-        Assert.Equal(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 }, target);
+        Assert.Equal("10.0.0.9", actual.Host);
+        Assert.Equal(8081, actual.Port);
+        Assert.Equal(2u, stream.Id);
     }
 
     [Fact]
-    public async Task ReadExactAsync_数据不足就结束会报错而不是静默返回()
+    public async Task 帧体分多次到达时按长度拼齐再交给流()
     {
-        var pipe = new Pipe();
+        var accepted = new TaskCompletionSource<MuxStream>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        await using var pair = new SessionPair((stream, _) =>
+        {
+            accepted.TrySetResult(stream);
+            return Task.CompletedTask;
+        });
+
+        var target = new SwapRequest { Id = "body", Host = "10.0.0.9", Port = 8082, Proto = "tcp" };
+        var json = JsonSerializer.SerializeToUtf8Bytes(target, ControlProtocol.JsonOptions);
+
         using var cts = new CancellationTokenSource(Timeout);
 
-        var readTask = MuxSession.ReadExactAsync(pipe.Reader, new byte[10], cts.Token);
+        await TestPipes.WriteAsync(pair.ServerSide, Frame(MuxFrameType.Syn, 2, json), cts.Token);
 
-        await pipe.Writer.WriteAsync(new byte[] { 1, 2, 3 }, cts.Token);
-        pipe.Writer.Complete();
+        var stream = await accepted.Task.WaitAsync(Timeout);
+        var payload = RandomNumberGenerator.GetBytes(5000);
+        var data = Frame(MuxFrameType.Data, stream.Id, payload);
 
-        await Assert.ThrowsAsync<EndOfStreamException>(() => readTask.AsTask());
+        // 三段写入：帧头之后、帧体中间各断一次，读取循环必须等够长度才往下走
+        await TestPipes.WriteAsync(pair.ServerSide, data.AsMemory(0, 100), cts.Token);
+        await TestPipes.WriteAsync(pair.ServerSide, data.AsMemory(100, 3000), cts.Token);
+        await TestPipes.WriteAsync(pair.ServerSide, data.AsMemory(3100), cts.Token);
+
+        Assert.Equal(payload, await TestPipes.ReadExactAsync(stream.Input, payload.Length, cts.Token));
+    }
+
+    [Fact]
+    public async Task 窗口更新帧的4字节负载跨段时不会拖垮会话()
+    {
+        // 回归：窗口更新只有 4 字节负载，很容易正好跨在两个管道段之间。
+        // 早期实现直接对 FirstSpan 读 4 字节，跨段时抛 ArgumentOutOfRange，
+        // 整条多路复用会话（以及上面所有转发连接）一起断掉。
+        var accepted = new TaskCompletionSource<MuxStream>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        await using var pair = new SessionPair((stream, _) =>
+        {
+            accepted.TrySetResult(stream);
+            return Task.CompletedTask;
+        });
+
+        var target = new SwapRequest { Id = "win", Host = "10.0.0.9", Port = 8083, Proto = "tcp" };
+        var json = JsonSerializer.SerializeToUtf8Bytes(target, ControlProtocol.JsonOptions);
+
+        using var cts = new CancellationTokenSource(Timeout);
+
+        await TestPipes.WriteAsync(pair.ServerSide, Frame(MuxFrameType.Syn, 2, json), cts.Token);
+        var stream = await accepted.Task.WaitAsync(Timeout);
+
+        var before = stream.SendWindow;
+        var delta = new byte[4];
+        BinaryPrimitives.WriteInt32BigEndian(delta, 12_345);
+        var update = Frame(MuxFrameType.WindowUpdate, stream.Id, delta);
+
+        // 帧头 9 字节 + 负载前 2 字节一段，负载后 2 字节另一段
+        await TestPipes.WriteAsync(pair.ServerSide, update.AsMemory(0, 11), cts.Token);
+        await TestPipes.WriteAsync(pair.ServerSide, update.AsMemory(11), cts.Token);
+
+        await WaitUntilAsync(() => stream.SendWindow == before + 12_345, TimeSpan.FromSeconds(5));
+
+        // 会话必须还活着，流也必须还能用
+        Assert.False(pair.Client.IsClosed);
+
+        var payload = new byte[] { 7, 8, 9 };
+        await TestPipes.WriteAsync(pair.ServerSide, Frame(MuxFrameType.Data, stream.Id, payload), cts.Token);
+        Assert.Equal(payload, await TestPipes.ReadExactAsync(stream.Input, payload.Length, cts.Token));
+    }
+
+    private static byte[] Frame(MuxFrameType type, uint streamId, ReadOnlySpan<byte> payload)
+    {
+        var buffer = new byte[MuxFrame.HeaderSize + payload.Length];
+        MuxFrame.WriteHeader(buffer, type, streamId, payload.Length);
+        payload.CopyTo(buffer.AsSpan(MuxFrame.HeaderSize));
+        return buffer;
     }
 
     private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan timeout)
