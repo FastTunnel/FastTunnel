@@ -15,13 +15,23 @@
 
 ***
 
+<div align="center">
+
+# 更多开源
+
+## 由于买不起 Navicat，我手搓了一个 Navicat [Daro - navicat 替代品](https://github.com/SpringHgui/daro)
+
+</div>
+
 ## FastTunnel
 高性能跨平台内网穿透工具，使用它可以实现将内网服务暴露到公网供自己或任何人访问。
 - 与其他穿透工具不同的是，FastTunnel项目致力于打造一个易于扩展、易于维护的内网穿透框架。
 - 你可以通过引用`FastTunnel.Core`的nuget包构建出自己的穿透应用，并针自己所需的业务扩展功能。
 
 ## 文档
-[https://docs.suidao.io](https://docs.suidao.io)
+[https://docs.suidao.io](https://docs.suidao.io)  
+
+v2 旧版文档（存档）：[快速开始](https://github.com/SpringHgui/opentask-doc/blob/master/docs/fasttunel/getting-started.md)
 
 **使用内网穿透暴露3389端口的，一定要注意，电脑的密码一定要设置复杂一点，避免被黑客破解计算机登录密码，造成损失。**   
 **使用内网穿透暴露3389端口的，一定要注意，电脑的密码一定要设置复杂一点，避免被黑客破解计算机登录密码，造成损失。**   
@@ -30,11 +40,13 @@
 ## 立即体验内网穿透
 官网：https://suidao.io  
 
+此网站基于本框架开发的穿透平台，用于分享测试使用，如果你需要低频使用内网穿透可以直接注册使用，免去自己搭建和维护的成本；但生产项目请勿使用此服务。
+
 ## 开源仓库地址
 [GitHub](https://github.com/FastTunnel/FastTunnel)  
 [Gitee](https://gitee.com/Hgui/FastTunnel)
 
-**有帮助的朋友点下右上角项目的⭐Star支持一下本项目，有需求和bug请提交issue，同时欢迎各位coder进行PR**
+**有帮助的朋友点下右上角项目的⭐Star支持一下本项目，本项开发进度需要社区的推动，无论是提交issue还是PR，亦或是完善文档；想加入FastTunnel组织请发邮件给我！**
 
 ## GVP最有价值开源项目
 
@@ -89,11 +101,10 @@
 </a>  
 
 ## QQ群交流群
-加群交流FastTunnel相关的使用问题、bug、需求等
-<div align="center">
-  <img src="images/qqgroup.png" width="180" align=center />
-  <img src="images/FastTunnel-2.png" width="180" align=center />
-</div>
+加群交流FastTunnel相关的使用问题、bug、需求等  
+群1：798672272  
+群2：935214348  
+群3：768089177  
 
 ## License
 Apache License 2.0

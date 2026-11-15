@@ -12,13 +12,23 @@
 
 </div>
 
+<div align="center">
+
+# More open source projects
+
+## Since I couldn't afford Navicat, I built my own Navicat. [Daro - Navicat replacement](https://github.com/SpringHgui/daro)
+
+</div>
+
 ## What is FastTunnel？
 - FastTunnel is a high-performance cross-platform intranet penetration tool. With it, you can expose intranet services to the public network for yourself or anyone to access.
 - Unlike other penetration tools, the FastTunnel project is committed to creating an easy-to-extensible and easy-to-maintain intranet penetration framework.
 - You can build your own penetration application by referencing the nuget package of `FastTunnel.Core`, and target the business extension functions you need.
 
 ## Docs
-[https://docs.suidao.io](https://docs.suidao.io)
+[https://docs.suidao.io](https://docs.suidao.io)  
+
+v2 docs (archived): [Getting started](https://github.com/SpringHgui/opentask-doc/blob/master/docs/fasttunel/getting-started.md)
 
 ***If you use the intranet to penetrate and expose port 3389, you must pay attention to the fact that the password of the computer must be set to be more complicated to avoid being hacked by hackers to crack the computer login password and cause losses.***
 
@@ -27,6 +37,9 @@
 ***If you use the intranet to penetrate and expose port 3389, you must pay attention to the fact that the password of the computer must be set to be more complicated to avoid being hacked by hackers to crack the computer login password and cause losses.***
 ## Enjoy Now
 Official website : https://suidao.io  
+
+The penetration platform developed based on this framework, if you need intranet penetration, you can register and use it directly, eliminating the cost of building and maintaining yourself.
+But do not use this service for important items.
 
 ## Repositories
 
@@ -93,10 +106,9 @@ Official website : https://suidao.io
  
 ## Join QQ Group
 
-<div align="center">
-  <img src="images/qqgroup.png" width="180" align=center />
-  <img src="images/FastTunnel-2.png" width="180" align=center />
-</div>
+Group1: 798672272  
+Group2: 935214348  
+Group3: 768089177  
 
 ## License
 Apache License 2.0

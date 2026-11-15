@@ -195,6 +195,34 @@ appsettings.json
 > `X-Forwarded-For`，并把回源地址填进 `TrustedProxyIps`；配置示例见
 > `docs/content-compliance-plan-v0.1.md` 附录 A。
 
+#### v2 旧版客户端配置（已废弃，仅供迁移参考）
+
+以下内容取自 v2 README，供从 v2 升级的用户对照。v2 的配置根节点是 `ClientSettings`，
+`SSH` 数组只能做 TCP 转发；v3 请使用上文的 `FastTunnel` 结构。
+
+```json
+{
+  "ClientSettings": {
+    "Common": {
+      "ServerAddr": "xxx.xxx.xxx.xxx",
+      "ServerPort": 1271
+    },
+    "SSH": [
+      {
+        "LocalIp": "192.168.0.100", // linux主机
+        "LocalPort": 22,            // ssh远程默认端口号
+        "RemotePort": 12701
+      },
+      {
+        "LocalIp": "192.168.0.101", // windows主机
+        "LocalPort": 3389,          // windows远程桌面默认端口号
+        "RemotePort": 12702
+      }
+    ]
+  }
+}
+```
+
 #### ssh远程内网linux主机 (ip:192.168.0.100)
 
 假设内网主机的用户名为 root，服务器ip为x.x.x.x，访问内网的两个主机分别如下
@@ -224,7 +252,9 @@ ssh -oPort=12701 root@x.x.x.x
 
 ## QQ群交流群
 
-<div align="center"><img src="images/qqgroup.png" width="150" align=center /></div>
+群1：798672272  
+群2：935214348  
+群3：768089177  
 
 ## License
 Apache License 2.0

@@ -208,6 +208,34 @@ appsettings.json
 > FastTunnel it must pass through `Host` and `X-Forwarded-For`, and its source address must be
 > listed in `TrustedProxyIps`; see appendix A of `docs/content-compliance-plan-v0.1.md`.
 
+#### v2 legacy client configuration (deprecated, migration reference only)
+
+Kept from the v2 README for users upgrading from v2. The v2 root node is `ClientSettings`
+and its `SSH` array can only forward TCP; v3 uses the `FastTunnel` root shown above.
+
+```json
+{
+  "ClientSettings": {
+    "Common": {
+      "ServerAddr": "xxx.xxx.xxx.xxx",
+      "ServerPort": 1271
+    },
+    "SSH": [
+      {
+        "LocalIp": "192.168.0.100", // linux pc
+        "LocalPort": 22,            // ssh default port
+        "RemotePort": 12701
+      },
+      {
+        "LocalIp": "192.168.0.101", // windows pc
+        "LocalPort": 3389,          // windows default port for Remote
+        "RemotePort": 12702
+      }
+    ]
+  }
+}
+```
+
 #### remote intranet linux host by ssh (ip:192.168.0.100)
 
 Assuming that the user name of the intranet host is root, the server ip is x.x.x.x, and the two hosts that access the intranet are as follows
@@ -238,7 +266,9 @@ ssh -oPort=12701 root@x.x.x.x
 
 ## Join QQ Group
 
-<div align="center"><img src="images/qqgroup.png" width="150" align=center /></div>  
+Group1: 798672272  
+Group2: 935214348  
+Group3: 768089177  
 
 ## License
 Apache License 2.0
