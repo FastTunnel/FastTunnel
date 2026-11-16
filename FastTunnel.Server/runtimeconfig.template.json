@@ -1,0 +1,6 @@
+{
+  "configProperties": {
+    "System.Runtime.TieredCompilation.CallCountingDelayMs": 0,
+    "System.Threading.ThreadPool.SpuriousDispatchNoSpinThreshold": 0
+  }
+}

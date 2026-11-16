@@ -8,7 +8,7 @@ for project in ${projects[*]}; do
     echo
     rm -rf publish/$project/*
     echo src/$project/$project.csproj
-    dotnet publish $project/$project.csproj -o=publish/$project -c=release --nologo
+    dotnet publish $project/$project.csproj -o=publish/$project -c=release --nologo -p:GeneratePackageOnBuild=false
     echo
     echo "=========开始打包 ========="
     echo

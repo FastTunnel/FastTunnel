@@ -25,3 +25,6 @@ publish
 
 # 吞吐基准的发布产物与运行目录
 /bench/out/
+
+# WorkBuddy 本地工作数据（会话记忆、构建缓存的 nupkg），非产品内容
+/.workbuddy/

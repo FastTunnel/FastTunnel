@@ -1,13 +1,13 @@
 #See https://aka.ms/containerfastmode to understand how Visual Studio uses this Dockerfile to build your images for faster debugging.
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
+FROM mcr.microsoft.com/dotnet/aspnet:11.0 AS base
 WORKDIR /app
 EXPOSE 80
 EXPOSE 443
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:11.0 AS build
 WORKDIR /src
-# Directory.Build.props 里放着 TargetFramework=net10.0，必须在 restore 之前就位，
+# Directory.Build.props 里放着 TargetFramework=net11.0，必须在 restore 之前就位，
 # 否则 restore 阶段各工程拿不到目标框架
 COPY ["Directory.Build.props", "./"]
 COPY ["FastTunnel.Server/FastTunnel.Server.csproj", "FastTunnel.Server/"]
