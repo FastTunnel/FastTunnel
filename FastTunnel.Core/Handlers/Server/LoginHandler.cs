@@ -128,7 +128,7 @@ public class LoginHandler : ILoginHandler
 
     public virtual async Task<bool> HandlerMsg(FastTunnelServer fastTunnelServer, TunnelClient tunnelClient, string lineCmd, CancellationToken cancellationToken)
     {
-        var msg = JsonSerializer.Deserialize<LogInMassage>(lineCmd);
+        var msg = JsonSerializer.Deserialize<LogInMassage>(lineCmd, AppJsonContext.Default.Options);
         if (msg == null)
         {
             throw new FormatException("LogIn 消息解析失败");

@@ -23,10 +23,9 @@ public static class ControlProtocol
     /// <summary>遗留竖线文本协议版本，用于识别未升级的客户端。</summary>
     public const int LegacyVersion = 1;
 
-    public static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
-    {
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-    };
+    // NativeAOT：改用源生成 context 的 Options，元数据在编译期生成，不再依赖运行时反射。
+    // 选项与原先的 JsonSerializerDefaults.Web + WhenWritingNull 完全一致，wire 格式不变。
+    public static JsonSerializerOptions JsonOptions => ProtocolJsonContext.Default.Options;
 
     /// <summary>payload 是否为新版 JSON 结构。</summary>
     public static bool IsStructured(string payload)

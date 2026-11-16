@@ -15,6 +15,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using FastTunnel.Core.Config;
+using FastTunnel.Core.Protocol;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -27,7 +28,8 @@ namespace FastTunnel.Core.Security;
 /// </summary>
 public sealed class BanRegistry
 {
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+    // NativeAOT：使用源生成 context 的 Options；BanRecord/List 已在 AppJsonContext 登记。
+    private static JsonSerializerOptions JsonOptions => AppJsonContext.Default.Options;
 
     private readonly ConcurrentDictionary<string, BanRecord> records = new(StringComparer.Ordinal);
     private readonly ILogger<BanRegistry> logger;

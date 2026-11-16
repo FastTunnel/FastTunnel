@@ -51,7 +51,10 @@ public class Program
             .ConfigureWebHost(webHostBuilder =>
             {
                 webHostBuilder.UseKestrel();
-                webHostBuilder.UseSetting(WebHostDefaults.HostingStartupAssembliesKey, "FastTunnel.Api;FastTunnel.Hosting");
+
+                // NativeAOT 不支持按程序集名字符串动态加载 IHostingStartup。
+                // 显式注册原本由 FastTunnel.Api / FastTunnel.Hosting 的 HostingStartup 提供的服务。
+                webHostBuilder.UseFastTunnelAotServices();
 
                 webHostBuilder.ConfigureAppConfiguration((hostingContext, config) =>
                 {

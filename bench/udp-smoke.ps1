@@ -5,7 +5,9 @@
 param(
     [int]$BinPort = 11271,
     [int]$RemotePort = 19003,
-    [int]$EchoPort = 19004
+    [int]$EchoPort = 19004,
+    [string]$ServerExe,
+    [string]$ClientExe
 )
 
 $ErrorActionPreference = 'Stop'
@@ -115,10 +117,14 @@ try {
     $echo = [UdpSmoke+Echo]::new($EchoPort)
 
     Write-Step 'Start Server / Client'
-    $serverProc = Start-Process -FilePath (Join-Path $outDir 'server\FastTunnel.Server.exe') `
+    $srvExe = if ($ServerExe) { $ServerExe } else { Join-Path $outDir 'server\FastTunnel.Server.exe' }
+    $cliExe = if ($ClientExe) { $ClientExe } else { Join-Path $outDir 'client\FastTunnel.Client.exe' }
+    Write-Host "server exe: $srvExe"
+    Write-Host "client exe: $cliExe"
+    $serverProc = Start-Process -FilePath $srvExe `
         -WorkingDirectory (Join-Path $runDir 'server') `
         -RedirectStandardOutput (Join-Path $runDir 'server.log') -RedirectStandardError (Join-Path $runDir 'server.err') -PassThru
-    $clientProc = Start-Process -FilePath (Join-Path $outDir 'client\FastTunnel.Client.exe') `
+    $clientProc = Start-Process -FilePath $cliExe `
         -WorkingDirectory (Join-Path $runDir 'client') `
         -RedirectStandardOutput (Join-Path $runDir 'client.log') -RedirectStandardError (Join-Path $runDir 'client.err') -PassThru
 

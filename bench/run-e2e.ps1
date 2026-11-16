@@ -13,7 +13,9 @@ param(
     [int]$ChunkKB = 64,
     [int]$Connections = 1,
     [switch]$UseTls,
-    [switch]$SkipPublish
+    [switch]$SkipPublish,
+    [string]$ClientExe,
+    [string]$ServerExe
 )
 
 $ErrorActionPreference = 'Stop'
@@ -83,9 +85,11 @@ try {
     Set-Content -Path (Join-Path $runDir 'server\config\appsettings.json') -Value $serverConfig -Encoding utf8
     Set-Content -Path (Join-Path $runDir 'client\appsettings.json') -Value $clientConfig -Encoding utf8
 
-    $serverExe = Join-Path $outDir 'server\FastTunnel.Server.exe'
-    $clientExe = Join-Path $outDir 'client\FastTunnel.Client.exe'
+    $serverExe = if ($ServerExe) { $ServerExe } else { Join-Path $outDir 'server\FastTunnel.Server.exe' }
+    $clientExe = if ($ClientExe) { $ClientExe } else { Join-Path $outDir 'client\FastTunnel.Client.exe' }
     $benchExe = Join-Path $benchDir 'FastTunnel.Bench\bin\Release\net11.0\FastTunnel.Bench.exe'
+    Write-Host "server exe: $serverExe"
+    Write-Host "client exe: $clientExe"
 
     Write-Step '启动服务端 / 客户端'
     $serverProc = Start-Process -FilePath $serverExe -WorkingDirectory (Join-Path $runDir 'server') `

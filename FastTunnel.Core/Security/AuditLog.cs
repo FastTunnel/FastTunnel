@@ -14,6 +14,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using FastTunnel.Core.Config;
+using FastTunnel.Core.Protocol;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -62,10 +63,8 @@ public sealed class AuditEntry
 /// </summary>
 public sealed class AuditLog
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        WriteIndented = false,
-    };
+    // NativeAOT：使用源生成 context 的 Options；AuditEntry 已在 AppJsonContext 登记。
+    private static JsonSerializerOptions JsonOptions => AppJsonContext.Default.Options;
 
     private readonly ConcurrentQueue<AuditEntry> entries = new();
     private readonly ILogger<AuditLog> logger;

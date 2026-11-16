@@ -5,6 +5,7 @@
 // Copyright (c) 2019 Gui.H
 
 using System.Text.Json;
+using FastTunnel.Core.Protocol;
 
 namespace FastTunnel.Core.Extensions;
 
@@ -17,7 +18,8 @@ public static class ObjectExtensions
             return null;
         }
 
-        var jsonOptions = new JsonSerializerOptions { WriteIndented = false };
-        return JsonSerializer.Serialize(message, message.GetType(), jsonOptions);
+        // NativeAOT：动态类型序列化必须走源生成 context 的 resolver，
+        // 且类型须在 AppJsonContext 中登记（当前唯一调用方是 LogInMassage）。
+        return JsonSerializer.Serialize(message, message.GetType(), AppJsonContext.Default.Options);
     }
 }
