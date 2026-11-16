@@ -33,14 +33,31 @@
 
 v2 旧版文档（存档）：[快速开始](https://github.com/SpringHgui/opentask-doc/blob/master/docs/fasttunel/getting-started.md)
 
-**使用内网穿透暴露3389端口的，一定要注意，电脑的密码一定要设置复杂一点，避免被黑客破解计算机登录密码，造成损失。**   
-**使用内网穿透暴露3389端口的，一定要注意，电脑的密码一定要设置复杂一点，避免被黑客破解计算机登录密码，造成损失。**   
-**使用内网穿透暴露3389端口的，一定要注意，电脑的密码一定要设置复杂一点，避免被黑客破解计算机登录密码，造成损失。**   
- 
-## 立即体验内网穿透
-官网：https://suidao.io  
+## 性能对比（frp 0.72.0）
 
-此网站基于本框架开发的穿透平台，用于分享测试使用，如果你需要低频使用内网穿透可以直接注册使用，免去自己搭建和维护的成本；但生产项目请勿使用此服务。
+单机 loopback、1KB 静态页、256 并发 keep-alive，两侧关闭 TLS 与日志：
+
+| 指标 | FastTunnel | frp `type=tcp` |
+|---|---|---|
+| 峰值吞吐 | **≈ 43 000 RPS** | ≈ 34 000 RPS |
+| 内存（Server+Client） | 172～217 MB | 230～248 MB |
+
+FastTunnel 与 frp `type=tcp` 在 10 000 RPS 以内都零错误达成；frp 的 `type=http` 模式明显顶不到这个量级。
+表中数据为一次本机（16 核）结果，下面的图是 CI 在共享 4 vCPU runner 上的最新结果，两者绝对值不可直接比较。
+
+**HTTP 模式** — FastTunnel Web（vhost）对比 frp `type=http`：
+
+![FastTunnel vs frp — HTTP 模式](https://raw.githubusercontent.com/FastTunnel/fasttunnel-bench/main/results/latest/chart-http.png)
+
+**TCP 模式** — FastTunnel Forwards 对比 frp `type=tcp`：
+
+![FastTunnel vs frp — TCP 模式](https://raw.githubusercontent.com/FastTunnel/fasttunnel-bench/main/results/latest/chart-tcp.png)
+
+测试方法、原始数据与复现脚本见 [FastTunnel/fasttunnel-bench](https://github.com/FastTunnel/fasttunnel-bench)。
+
+**使用内网穿透暴露3389端口的，一定要注意，电脑的密码一定要设置复杂一点，避免被黑客破解计算机登录密码，造成损失。**   
+**使用内网穿透暴露3389端口的，一定要注意，电脑的密码一定要设置复杂一点，避免被黑客破解计算机登录密码，造成损失。**   
+**使用内网穿透暴露3389端口的，一定要注意，电脑的密码一定要设置复杂一点，避免被黑客破解计算机登录密码，造成损失。**   
 
 ## 开源仓库地址
 [GitHub](https://github.com/FastTunnel/FastTunnel)  

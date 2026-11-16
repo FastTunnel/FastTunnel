@@ -30,16 +30,34 @@
 
 v2 docs (archived): [Getting started](https://github.com/SpringHgui/opentask-doc/blob/master/docs/fasttunel/getting-started.md)
 
-***If you use the intranet to penetrate and expose port 3389, you must pay attention to the fact that the password of the computer must be set to be more complicated to avoid being hacked by hackers to crack the computer login password and cause losses.***
+## Performance vs frp 0.72.0
+
+Same host, loopback, 1 KB static page, 256 keep-alive connections, TLS and logging off:
+
+| Metric | FastTunnel | frp `type=tcp` |
+|---|---|---|
+| Peak throughput | **≈ 43,000 RPS** | ≈ 34,000 RPS |
+| Memory (server + client) | 172–217 MB | 230–248 MB |
+
+FastTunnel and frp `type=tcp` both sustain 10,000 RPS with zero errors; frp `type=http` saturates well
+below that. The table is one local run (16-core); the charts below are the latest CI run on a shared
+4-vCPU runner — compare trends rather than absolute values.
+
+**HTTP mode** — FastTunnel Web (vhost) vs frp `type=http`:
+
+![FastTunnel vs frp — HTTP mode](https://raw.githubusercontent.com/FastTunnel/fasttunnel-bench/main/results/latest/chart-http.png)
+
+**TCP mode** — FastTunnel Forwards vs frp `type=tcp`:
+
+![FastTunnel vs frp — TCP mode](https://raw.githubusercontent.com/FastTunnel/fasttunnel-bench/main/results/latest/chart-tcp.png)
+
+Method, raw data and reproducible scripts: [FastTunnel/fasttunnel-bench](https://github.com/FastTunnel/fasttunnel-bench).
 
 ***If you use the intranet to penetrate and expose port 3389, you must pay attention to the fact that the password of the computer must be set to be more complicated to avoid being hacked by hackers to crack the computer login password and cause losses.***
 
 ***If you use the intranet to penetrate and expose port 3389, you must pay attention to the fact that the password of the computer must be set to be more complicated to avoid being hacked by hackers to crack the computer login password and cause losses.***
-## Enjoy Now
-Official website : https://suidao.io  
 
-The penetration platform developed based on this framework, if you need intranet penetration, you can register and use it directly, eliminating the cost of building and maintaining yourself.
-But do not use this service for important items.
+***If you use the intranet to penetrate and expose port 3389, you must pay attention to the fact that the password of the computer must be set to be more complicated to avoid being hacked by hackers to crack the computer login password and cause losses.***
 
 ## Repositories
 
