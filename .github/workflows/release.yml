@@ -90,7 +90,7 @@ jobs:
           - rid: linux-x64
             os: ubuntu-latest
           - rid: osx-arm64
-            os: macos-14
+            os: macos-15
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     steps:
