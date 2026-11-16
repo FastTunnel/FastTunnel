@@ -1,12 +1,25 @@
 name: release
 
+# 自动发布：push 任何 v* tag（如 v3.6.0）即触发；也支持手动 dispatch 兜底。
+#
+# 产物分两种形态，覆盖多平台：
+#   1. dependent（依赖运行时 / framework-dependent）：体积小的 IL 包，目标机需装 .NET 11 Runtime。
+#      IL 可交叉发布，所有平台在单个 ubuntu runner 上产出。
+#   2. aot（NativeAOT / 自包含）：单文件、零运行时依赖，启动快内存省。
+#      AOT 需要各平台原生工具链，故按平台分 runner（win/linux/osx）分别编译。
+#
+# 两种形态 × 每个平台各打一个压缩包，汇总后由 release job 统一创建 GitHub Release。
+
 on:
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       version:
-        description: '版本号（tag 名，如 v3.4.0）'
+        description: '版本号（tag 名，如 v3.6.0）'
         required: true
-        default: 'v3.4.0'
+        default: 'v3.6.0'
       prerelease:
         description: '是否预发布'
         type: boolean
@@ -15,57 +28,182 @@ on:
 permissions:
   contents: write
 
+env:
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+  DOTNET_VERSION: '11.0.x'
+
 jobs:
-  build:
+  # ---------- 形态一：依赖运行时版（framework-dependent，IL 可交叉发布）----------
+  dependent:
+    name: dependent-${{ matrix.rid }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
+      fail-fast: false
       matrix:
-        runtime: [win-x64, linux-x64]
+        rid:
+          - win-x64
+          - win-x86
+          - win-arm64
+          - linux-x64
+          - linux-arm64
+          - linux-musl-x64
+          - osx-x64
+          - osx-arm64
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: v3
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Publish ${{ matrix.runtime }}
+      - name: Publish ${{ matrix.rid }} (framework-dependent)
+        shell: bash
         run: |
-          RID=${{ matrix.runtime }}
-          STAGE="dist/FastTunnel-${RID}"
+          set -euo pipefail
+          RID="${{ matrix.rid }}"
+          STAGE="dist/dependent/FastTunnel-dependent-${RID}"
           mkdir -p "$STAGE/server" "$STAGE/client"
-          dotnet publish FastTunnel.Server/FastTunnel.Server.csproj -c Release -r "$RID" --self-contained false -o "$STAGE/server"
-          dotnet publish FastTunnel.Client/FastTunnel.Client.csproj -c Release -r "$RID" --self-contained false -o "$STAGE/client"
-          cp LICENSE "$STAGE/" || true
-          cd dist && zip -qr "FastTunnel-${RID}.zip" "FastTunnel-${RID}"
+          COMMON="-c Release -r ${RID} --self-contained false -p:GeneratePackageOnBuild=false --nologo"
+          dotnet publish FastTunnel.Server/FastTunnel.Server.csproj $COMMON -o "$STAGE/server"
+          dotnet publish FastTunnel.Client/FastTunnel.Client.csproj $COMMON -o "$STAGE/client"
+          cp LICENSE "$STAGE/"
+          echo "--- ${RID} dependent published ---"
+          du -sh "$STAGE"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: pkg-${{ matrix.runtime }}
-          path: dist/*.zip
+          name: dependent-${{ matrix.rid }}
+          path: dist/dependent/
+          if-no-files-found: error
 
-  release:
-    needs: build
+  # ---------- 形态二：NativeAOT 自包含版（需各平台原生工具链）----------
+  aot:
+    name: aot-${{ matrix.rid }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: win-x64
+            os: windows-latest
+          - rid: linux-x64
+            os: ubuntu-latest
+          - rid: osx-arm64
+            os: macos-14
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      # Windows 上 NativeAOT 需要 MSVC 的 link.exe + LIB/INCLUDE（本机 advapi32.lib 问题同源）。
+      # ilammy/msvc-dev-cmd 把 VS 开发者命令行环境注入 shell。
+      - name: Setup MSVC (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Install NativeAOT prerequisites (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang zlib1g-dev
+
+      - name: Publish ${{ matrix.rid }} (NativeAOT)
+        shell: bash
+        run: |
+          set -euo pipefail
+          RID="${{ matrix.rid }}"
+          ROOT="dist/aot/FastTunnel-aot-${RID}"
+          mkdir -p "$ROOT/server" "$ROOT/client"
+          COMMON="-c Release -r ${RID} -p:PublishAot=true -p:GeneratePackageOnBuild=false --nologo"
+          dotnet publish FastTunnel.Server/FastTunnel.Server.csproj $COMMON -o "$ROOT/server"
+          dotnet publish FastTunnel.Client/FastTunnel.Client.csproj $COMMON -o "$ROOT/client"
+          cp LICENSE "$ROOT/"
+          echo "--- ${RID} AOT published ---"
+          du -sh "$ROOT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aot-${{ matrix.rid }}
+          path: dist/aot/
+          if-no-files-found: error
+
+  # ---------- 统一打包：把各 job 上传的 staging 目录压成 zip/tar.gz ----------
+  package:
+    name: package
+    needs: [dependent, aot]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
-          path: assets
-          merge-multiple: true
+          path: staging
 
-      - name: Create release
+      - name: Compress archives
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p packages
+          for d in staging/*/; do
+            name="$(basename "$d")"          # dependent-win-x64 / aot-win-x64
+            kind="${name%%-*}"               # dependent / aot
+            rid="${name#*-}"                 # win-x64 ...
+            payload="FastTunnel-${kind}-${rid}"
+            if [[ "$rid" == win-* ]]; then
+              archive="packages/${payload}.zip"
+              (cd "$d" && zip -qr "$GITHUB_WORKSPACE/$archive" "$payload")
+            else
+              archive="packages/${payload}.tar.gz"
+              (cd "$d" && tar -czf "$GITHUB_WORKSPACE/$archive" "$payload")
+            fi
+            echo "packed: $archive"
+          done
+          echo "=== all archives ==="
+          ls -lh packages
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: packages/
+          if-no-files-found: error
+
+  # ---------- 创建 Release ----------
+  release:
+    name: publish-release
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: packages
+          path: packages
+
+      - name: Resolve version
+        id: ver
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "version=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+            echo "prerelease=${{ inputs.prerelease }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.ver.outputs.version }}
+          PRERELEASE: ${{ steps.ver.outputs.prerelease }}
         run: |
-          VERSION="${{ github.event.inputs.version }}"
-          git clone --quiet "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" repo
-          cd repo
-          git tag -f "$VERSION"
-          git push -f origin "$VERSION"
-          gh release delete "$VERSION" --yes 2>/dev/null || true
-          gh release create "$VERSION" ../assets/*.zip \
-            --repo "${{ github.repository }}" \
-            --title "FastTunnel $VERSION" \
-            --generate-notes \
-            ${{ github.event.inputs.prerelease == 'true' && '--prerelease' || '' }}
+          set -euo pipefail
+          gh release view "$VERSION" >/dev/null 2>&1 && gh release delete "$VERSION" --yes || true
+          args=(--title "FastTunnel $VERSION" --generate-notes)
+          if [ "$PRERELEASE" = "true" ]; then args+=(--prerelease); fi
+          gh release create "$VERSION" packages/* \
+            --repo "${{ github.repository }}" "${args[@]}"

@@ -28,7 +28,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '11.0.x'
 
       # 只编译不打包：nupkg 由 release.yml 在打 tag 时统一产出
       - name: Build
