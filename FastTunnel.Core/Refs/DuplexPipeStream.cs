@@ -6,15 +6,17 @@
 
 using System;
 using System.Buffers;
+using System.Buffers.Binary;
 using System.IO;
 using System.IO.Pipelines;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using FastTunnel.Core.Forwarder.Streams;
 
 namespace FastTunnel.Core.Refs;
 
-internal class DuplexPipeStream : Stream
+internal class DuplexPipeStream : Stream, IDuplexPipe, IDatagramWriter
 {
     private readonly PipeReader _input;
     private readonly PipeWriter _output;
@@ -32,12 +34,12 @@ internal class DuplexPipeStream : Stream
     /// 暴露底层的 PipeReader，以便零拷贝路径可以跳过 Stream 封装，
     /// 直接使用 PipeReader.CopyToAsync(PipeWriter) 等内置零分配拷贝。
     /// </summary>
-    internal PipeReader Input => _input;
+    public PipeReader Input => _input;
 
     /// <summary>
     /// 暴露底层的 PipeWriter（同上）。
     /// </summary>
-    internal PipeWriter Output => _output;
+    public PipeWriter Output => _output;
 
     public void CancelPendingRead()
     {
@@ -112,6 +114,21 @@ internal class DuplexPipeStream : Stream
     public override ValueTask WriteAsync(ReadOnlyMemory<byte> source, CancellationToken cancellationToken = default)
     {
         return _output.WriteAsync(source, cancellationToken).GetAsValueTask();
+    }
+
+    /// <summary>
+    /// 把 UDP 长度前缀和负载写进同一段管道缓冲，只 flush 一次；
+    /// 旧回连路径的 UDP 转发因此不再需要额外的拼帧数组。
+    /// </summary>
+    public async ValueTask WriteDatagramAsync(
+        ReadOnlyMemory<byte> payload, CancellationToken cancellationToken = default)
+    {
+        var frameLength = 2 + payload.Length;
+        var memory = _output.GetMemory(frameLength);
+        BinaryPrimitives.WriteUInt16BigEndian(memory.Span, (ushort)payload.Length);
+        payload.Span.CopyTo(memory.Span.Slice(2));
+        _output.Advance(frameLength);
+        await _output.FlushAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public override void Flush()

@@ -5,9 +5,13 @@
 // Copyright (c) 2019 Gui.H
 
 using System;
+using System.Buffers;
+using System.Buffers.Binary;
 using System.IO;
+using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
+using FastTunnel.Core.Forwarder.Streams;
 
 namespace FastTunnel.Core.Metrics;
 
@@ -18,26 +22,44 @@ namespace FastTunnel.Core.Metrics;
 ///
 /// 不接管 <paramref name="inner"/> 的生命周期：调用方仍用 using 释放原始流。
 /// </summary>
-internal sealed class MeteredStream : Stream
+internal sealed class MeteredStream : Stream, IDuplexPipe, IDatagramWriter
 {
     private readonly Stream inner;
     private readonly TrafficMeter meter;
+    private readonly TrafficMeter.ProxyCounters counters;
     private readonly TrafficScope scope;
     private readonly TrafficDirection direction;
     private readonly TrafficDirection? readDirection;
     private readonly bool leaveOpen;
+    private readonly IDatagramWriter? datagramWriter;
+    private readonly PipeReader? input;
+    private readonly PipeWriter? output;
 
     public MeteredStream(
-        Stream inner, TrafficMeter meter, TrafficScope scope, TrafficDirection direction,
-        TrafficDirection? readDirection = null, bool leaveOpen = true)
+        Stream inner, TrafficMeter meter, TrafficMeter.ProxyCounters counters, TrafficScope scope,
+        TrafficDirection direction, TrafficDirection? readDirection = null, bool leaveOpen = true)
     {
         this.inner = inner;
         this.meter = meter;
+        this.counters = counters;
         this.scope = scope;
         this.direction = direction;
         this.readDirection = readDirection;
         this.leaveOpen = leaveOpen;
+
+        datagramWriter = inner as IDatagramWriter;
+        if (inner is IDuplexPipe pipe)
+        {
+            output = new MeteredPipeWriter(pipe.Output, meter, counters, scope, direction);
+            input = readDirection.HasValue
+                ? new MeteredPipeReader(pipe.Input, meter, counters, scope, readDirection.Value)
+                : pipe.Input;
+        }
     }
+
+    public PipeReader Input => input ?? throw new NotSupportedException("内层流不是双向管道");
+
+    public PipeWriter Output => output ?? throw new NotSupportedException("内层流不是双向管道");
 
     public override bool CanRead => inner.CanRead;
 
@@ -106,22 +128,51 @@ internal sealed class MeteredStream : Stream
     public override async Task WriteAsync(
         byte[] buffer, int offset, int count, CancellationToken cancellationToken)
     {
-        await meter.AccountAsync(scope, direction, count, cancellationToken).ConfigureAwait(false);
+        await meter.AccountAsync(scope, counters, direction, count, cancellationToken).ConfigureAwait(false);
         await inner.WriteAsync(buffer.AsMemory(offset, count), cancellationToken).ConfigureAwait(false);
     }
 
     public override async ValueTask WriteAsync(
         ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
     {
-        await meter.AccountAsync(scope, direction, buffer.Length, cancellationToken).ConfigureAwait(false);
+        await meter.AccountAsync(scope, counters, direction, buffer.Length, cancellationToken).ConfigureAwait(false);
         await inner.WriteAsync(buffer, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 让 UDP 数据报直接进入内层的低拷贝写路径；计量在这里一次性结算。
+    /// 内层不支持时退回 [长度+负载] 的单次写，保持线格式不变。
+    /// </summary>
+    public async ValueTask WriteDatagramAsync(
+        ReadOnlyMemory<byte> payload, CancellationToken cancellationToken = default)
+    {
+        var frameLength = 2 + payload.Length;
+        await meter.AccountAsync(scope, counters, direction, frameLength, cancellationToken).ConfigureAwait(false);
+
+        if (datagramWriter != null)
+        {
+            await datagramWriter.WriteDatagramAsync(payload, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        var frame = ArrayPool<byte>.Shared.Rent(frameLength);
+        try
+        {
+            BinaryPrimitives.WriteUInt16BigEndian(frame, (ushort)payload.Length);
+            payload.Span.CopyTo(frame.AsSpan(2, payload.Length));
+            await inner.WriteAsync(frame.AsMemory(0, frameLength), cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(frame);
+        }
     }
 
     private void Account(int bytes)
     {
         if (bytes > 0)
         {
-            meter.AccountAsync(scope, direction, bytes, CancellationToken.None)
+            meter.AccountAsync(scope, counters, direction, bytes, CancellationToken.None)
                 .AsTask().GetAwaiter().GetResult();
         }
     }
@@ -130,14 +181,14 @@ internal sealed class MeteredStream : Stream
     {
         if (bytes > 0 && readDirection.HasValue)
         {
-            meter.AccountAsync(scope, readDirection.Value, bytes, cancellationToken)
+            meter.AccountAsync(scope, counters, readDirection.Value, bytes, cancellationToken)
                 .AsTask().GetAwaiter().GetResult();
         }
     }
 
     private ValueTask AccountReadAsync(int bytes, CancellationToken cancellationToken)
         => bytes > 0 && readDirection.HasValue
-            ? meter.AccountAsync(scope, readDirection.Value, bytes, cancellationToken)
+            ? meter.AccountAsync(scope, counters, readDirection.Value, bytes, cancellationToken)
             : ValueTask.CompletedTask;
 
     /// <summary>只在 <c>leaveOpen: false</c> 时接管内层流生命周期，避免与调用方的 using 重复释放。</summary>

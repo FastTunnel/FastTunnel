@@ -62,11 +62,11 @@ public sealed class TrafficMeter
 
     /// <summary>包一层计量后的 PipeWriter，用于 PipeReader.CopyToAsync(PipeWriter) 的目标端。</summary>
     public PipeWriter Wrap(PipeWriter inner, TrafficScope scope, TrafficDirection direction)
-        => new MeteredPipeWriter(inner, this, scope, direction);
+        => new MeteredPipeWriter(inner, this, Counters(scope), scope, direction);
 
     /// <summary>包一层计量后的 Stream，用于 PipeReader.CopyToAsync(Stream) / Stream.CopyToAsync(Stream) 的目标端。</summary>
     public Stream Wrap(Stream inner, TrafficScope scope, TrafficDirection direction)
-        => new MeteredStream(inner, this, scope, direction);
+        => new MeteredStream(inner, this, Counters(scope), scope, direction);
 
     /// <summary>
     /// UDP 端口转发用的双向流：写入算一个方向、读取算另一个方向。
@@ -75,7 +75,7 @@ public sealed class TrafficMeter
     public Stream WrapBidirectional(
         Stream inner, TrafficScope scope,
         TrafficDirection writeDirection, TrafficDirection readDirection, bool leaveOpen = true)
-        => new MeteredStream(inner, this, scope, writeDirection, readDirection, leaveOpen);
+        => new MeteredStream(inner, this, Counters(scope), scope, writeDirection, readDirection, leaveOpen);
 
     public void RecordRequest() => Interlocked.Increment(ref requests);
 
@@ -112,13 +112,20 @@ public sealed class TrafficMeter
     /// </summary>
     internal ValueTask AccountAsync(
         TrafficScope scope, TrafficDirection direction, int bytes, CancellationToken cancellationToken)
+        => AccountAsync(scope, Counters(scope), direction, bytes, cancellationToken);
+
+    /// <summary>
+    /// 装饰器专用的重载：代理计数器在创建时就查好并缓存，热路径不再每次做字典查找和字符串比较。
+    /// </summary>
+    internal ValueTask AccountAsync(
+        TrafficScope scope, ProxyCounters counters, TrafficDirection direction,
+        int bytes, CancellationToken cancellationToken)
     {
         if (bytes <= 0)
         {
             return default;
         }
 
-        var counters = Counters(scope);
         if (direction == TrafficDirection.In)
         {
             Interlocked.Add(ref counters.BytesIn, bytes);

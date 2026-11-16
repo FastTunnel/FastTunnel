@@ -13,6 +13,7 @@ using System.IO.Pipelines;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using FastTunnel.Core.Forwarder.Streams;
 using FastTunnel.Core.Protocol;
 using Microsoft.Extensions.Logging;
 
@@ -436,6 +437,63 @@ public sealed class MuxSession : IAsyncDisposable
                 output.Advance(MuxFrame.HeaderSize + size);
 
                 rest = rest.Slice(size);
+            }
+
+            await output.FlushAsync(cancellationToken);
+        }
+        finally
+        {
+            _writeGate.Release();
+        }
+    }
+
+    /// <summary>
+    /// 把一条 UDP 数据报的 [2 字节长度][负载] 和 MUX 帧头写进同一段传输缓冲。
+    /// 载荷可以跨多个 MUX 帧，但 UDP 接收端看到的是连续字节流，线格式不变。
+    /// 整条数据报只取一次写锁、只 flush 一次，负载只有一次用户态拷贝。
+    /// </summary>
+    internal async ValueTask WriteDatagramAsync(
+        MuxStream stream, ReadOnlyMemory<byte> payload, CancellationToken cancellationToken)
+    {
+        if (payload.Length > UdpDatagramFramer.MaxDatagramSize)
+        {
+            throw new ArgumentOutOfRangeException(nameof(payload), "UDP 数据报超过最大长度");
+        }
+
+        await _writeGate.WaitAsync(cancellationToken);
+        try
+        {
+            var output = _transport.Output;
+            var length = (ushort)payload.Length;
+            var prefixWritten = 0;
+            var payloadWritten = 0;
+
+            while (prefixWritten < 2 || payloadWritten < payload.Length)
+            {
+                var remaining = (2 - prefixWritten) + (payload.Length - payloadWritten);
+                var size = Math.Min(remaining, MuxFrame.MaxPayload);
+
+                var span = output.GetSpan(MuxFrame.HeaderSize + size);
+                MuxFrame.WriteHeader(span, MuxFrameType.Data, stream.Id, size);
+                var destination = span.Slice(MuxFrame.HeaderSize, size);
+
+                var offset = 0;
+                if (prefixWritten == 0)
+                {
+                    destination[0] = (byte)(length >> 8);
+                    destination[1] = (byte)length;
+                    prefixWritten = 2;
+                    offset = 2;
+                }
+
+                var take = Math.Min(payload.Length - payloadWritten, size - offset);
+                if (take > 0)
+                {
+                    payload.Span.Slice(payloadWritten, take).CopyTo(destination.Slice(offset));
+                    payloadWritten += take;
+                }
+
+                output.Advance(MuxFrame.HeaderSize + size);
             }
 
             await output.FlushAsync(cancellationToken);

@@ -109,13 +109,20 @@ internal class ForwarderMiddleware
         Interlocked.Increment(ref UserCount);
         meter?.ConnectionOpened(scope);
 
-        logger.LogDebug($"=========USER START {requestId}===========");
+        if (logger.IsEnabled(LogLevel.Debug))
+        {
+            logger.LogDebug("=========USER START {RequestId}===========", requestId);
+        }
 
         // RunContinuationsAsynchronously 避免 doSwap 的线程被 waitSwap 的后续工作占用，
         // 防止高并发下同一客户端的多个请求被内联序列化。
         var tcs = new TaskCompletionSource<(Stream, CancellationTokenSource)>(
             TaskCreationOptions.RunContinuationsAsynchronously);
-        logger.LogDebug($"[Http]Swap开始 {requestId}|{feat.Host}=>{web.WebConfig.LocalIp}:{web.WebConfig.LocalPort}");
+        if (logger.IsEnabled(LogLevel.Debug))
+        {
+            logger.LogDebug("[Http]Swap开始 {RequestId}|{Host}=>{LocalIp}:{LocalPort}",
+                requestId, feat.Host, web.WebConfig.LocalIp, web.WebConfig.LocalPort);
+        }
 
         if (!fastTunnelServer.ResponseTasks.TryAdd(requestId, tcs))
         {
@@ -230,13 +237,19 @@ internal class ForwarderMiddleware
         }
         catch (Exception ex)
         {
-            logger.LogDebug(ex, $"[Http]Swap 异常 {requestId}");
+            if (logger.IsEnabled(LogLevel.Debug))
+            {
+                logger.LogDebug(ex, "[Http]Swap 异常 {RequestId}", requestId);
+            }
         }
         finally
         {
             Interlocked.Decrement(ref UserCount);
             meter?.ConnectionClosed(scope);
-            logger.LogDebug($"=========USER END {requestId} {UserCount}===========");
+            if (logger.IsEnabled(LogLevel.Debug))
+            {
+                logger.LogDebug("=========USER END {RequestId} {UserCount}===========", requestId, UserCount);
+            }
             fastTunnelServer.ResponseTasks.TryRemove(requestId, out _);
 
             // 先取消另一侧（唤醒 doSwap），再完成本侧管道，避免 doSwap 端在未取消时错误使用已关闭资源。
@@ -404,7 +417,10 @@ internal class ForwarderMiddleware
         var feat = context.Features.Get<IFastTunnelFeature>();
         var requestId = feat.MessageId;
 
-        logger.LogDebug($"=========CLINET START {requestId}===========");
+        if (logger.IsEnabled(LogLevel.Debug))
+        {
+            logger.LogDebug("=========CLINET START {RequestId}===========", requestId);
+        }
 
         if (!fastTunnelServer.ResponseTasks.TryRemove(requestId, out var responseStream))
         {
@@ -434,7 +450,10 @@ internal class ForwarderMiddleware
         finally
         {
             Interlocked.Decrement(ref ClientCount);
-            logger.LogDebug($"=========CLINET END {requestId} {ClientCount}===========");
+            if (logger.IsEnabled(LogLevel.Debug))
+            {
+                logger.LogDebug("=========CLINET END {RequestId} {ClientCount}===========", requestId, ClientCount);
+            }
             await context.Transport.Input.CompleteAsync();
             await context.Transport.Output.CompleteAsync();
         }

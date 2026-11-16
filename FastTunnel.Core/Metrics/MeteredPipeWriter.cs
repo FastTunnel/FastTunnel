@@ -8,6 +8,7 @@ using System;
 using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
+using FastTunnel.Core.Forwarder.Streams;
 
 namespace FastTunnel.Core.Metrics;
 
@@ -20,22 +21,27 @@ namespace FastTunnel.Core.Metrics;
 ///    在 <see cref="FlushAsync"/> 里结算 <c>Advance</c> 累计的字节。
 /// 两条路径都把 <c>inner</c> 的写入原样委托出去，不改变 Pipe 的背压与零拷贝语义。
 /// </summary>
-internal sealed class MeteredPipeWriter : PipeWriter
+internal sealed class MeteredPipeWriter : PipeWriter, IPipeWriterDecorator
 {
     private readonly PipeWriter inner;
     private readonly TrafficMeter meter;
+    private readonly TrafficMeter.ProxyCounters counters;
     private readonly TrafficScope scope;
     private readonly TrafficDirection direction;
     private int pending;
 
     public MeteredPipeWriter(
-        PipeWriter inner, TrafficMeter meter, TrafficScope scope, TrafficDirection direction)
+        PipeWriter inner, TrafficMeter meter, TrafficMeter.ProxyCounters counters,
+        TrafficScope scope, TrafficDirection direction)
     {
         this.inner = inner;
         this.meter = meter;
+        this.counters = counters;
         this.scope = scope;
         this.direction = direction;
     }
+
+    public PipeWriter Inner => inner;
 
     public override void Advance(int bytes)
     {
@@ -59,7 +65,7 @@ internal sealed class MeteredPipeWriter : PipeWriter
         var bytes = Interlocked.Exchange(ref pending, 0);
         if (bytes > 0)
         {
-            await meter.AccountAsync(scope, direction, bytes, cancellationToken);
+            await meter.AccountAsync(scope, counters, direction, bytes, cancellationToken);
         }
 
         return await inner.FlushAsync(cancellationToken);
@@ -70,7 +76,7 @@ internal sealed class MeteredPipeWriter : PipeWriter
     {
         if (source.Length > 0)
         {
-            await meter.AccountAsync(scope, direction, source.Length, cancellationToken);
+            await meter.AccountAsync(scope, counters, direction, source.Length, cancellationToken);
         }
 
         return await inner.WriteAsync(source, cancellationToken);

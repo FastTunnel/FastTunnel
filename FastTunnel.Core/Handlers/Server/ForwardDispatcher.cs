@@ -152,7 +152,11 @@ public class ForwardDispatcher
 
         try
         {
-            logger.LogDebug($"[Forward]Swap开始 {msgId}|{_config.RemotePort}=>{_config.LocalIp}:{_config.LocalPort}");
+            if (logger.IsEnabled(LogLevel.Debug))
+            {
+                logger.LogDebug("[Forward]Swap开始 {RequestId}|{RemotePort}=>{LocalIp}:{LocalPort}",
+                    msgId, _config.RemotePort, _config.LocalIp, _config.LocalPort);
+            }
             var tcs = new TaskCompletionSource<(Stream Stream, CancellationTokenSource TokenSource)>();
             if (!_server.ResponseTasks.TryAdd(msgId, tcs))
             {
@@ -236,14 +240,20 @@ public class ForwardDispatcher
         }
         catch (Exception ex)
         {
-            logger.LogDebug($"[Forward]Swap Error {msgId}：" + ex.Message);
+            if (logger.IsEnabled(LogLevel.Debug))
+            {
+                logger.LogDebug(ex, "[Forward]Swap Error {RequestId}", msgId);
+            }
         }
         finally
         {
             Interlocked.Decrement(ref SwapCount);
             _meter?.ConnectionClosed(_scope);
             res.TokenSource?.Cancel();
-            logger.LogDebug($"[Forward]Swap OK {msgId} {SwapCount}");
+            if (logger.IsEnabled(LogLevel.Debug))
+            {
+                logger.LogDebug("[Forward]Swap OK {RequestId} {SwapCount}", msgId, SwapCount);
+            }
             _server.ResponseTasks.TryRemove(msgId, out _);
         }
     }

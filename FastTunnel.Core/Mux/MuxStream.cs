@@ -10,6 +10,7 @@ using System.IO;
 using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
+using FastTunnel.Core.Forwarder.Streams;
 using Microsoft.Extensions.Logging;
 
 namespace FastTunnel.Core.Mux;
@@ -26,7 +27,7 @@ namespace FastTunnel.Core.Mux;
 /// 而不是「先拷进每流的发送管道 → 后台任务再拷进传输管道」（两次拷贝 + 一次异步跳转）。
 /// 反压由窗口额度提供：窗口用尽时写者就地等待，不做无界缓冲。
 /// </summary>
-public sealed class MuxStream : Stream, IDuplexPipe
+public sealed class MuxStream : Stream, IDuplexPipe, IDatagramWriter
 {
     /// <summary>
     /// 接收侧消费到这么多字节就回补一次窗口。
@@ -162,6 +163,24 @@ public sealed class MuxStream : Stream, IDuplexPipe
     public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
         => await _output.WriteAsync(buffer, cancellationToken);
 
+    /// <summary>
+    /// UDP 数据报专用写：把 [2 字节长度][负载] 作为一个整体交给会话层，
+    /// 在写锁内和 MUX 帧头一起写进传输缓冲。相比「先拼帧再写流」少一次全量拷贝，
+    /// 且无论数据报多大都只 flush 一次。
+    /// </summary>
+    public async ValueTask WriteDatagramAsync(
+        ReadOnlyMemory<byte> payload, CancellationToken cancellationToken = default)
+    {
+        if (payload.Length > UdpDatagramFramer.MaxDatagramSize)
+        {
+            throw new ArgumentOutOfRangeException(nameof(payload), "UDP 数据报超过最大长度");
+        }
+
+        // 长度前缀和数据报必须连续，因此一次性预留整条的窗口额度。
+        await ReserveSendWindowAsync(2 + payload.Length, cancellationToken).ConfigureAwait(false);
+        await _session.WriteDatagramAsync(this, payload, cancellationToken).ConfigureAwait(false);
+    }
+
     internal bool IsDisposed => Volatile.Read(ref _disposed) != 0;
 
     /// <summary>测试用：当前剩余发送额度（字节）。</summary>
@@ -262,6 +281,36 @@ public sealed class MuxStream : Stream, IDuplexPipe
             }
 
             await wait.WaitAsync(cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// 预留恰好 want 字节的发送额度。UDP 数据报的长度前缀与负载必须连续，
+    /// 不能像普通字节流那样按剩余窗口截断，所以这里等整条额度到齐再返回。
+    /// </summary>
+    private async ValueTask ReserveSendWindowAsync(int want, CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            Task wait;
+            lock (_gate)
+            {
+                if (Volatile.Read(ref _aborted) != 0)
+                {
+                    throw new ObjectDisposedException($"MuxStream {Id}");
+                }
+
+                if (_sendWindow >= want)
+                {
+                    _sendWindow -= want;
+                    return;
+                }
+
+                wait = (_windowSignal ??=
+                    new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously)).Task;
+            }
+
+            await wait.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -410,7 +459,7 @@ public sealed class MuxStream : Stream, IDuplexPipe
     ///       （少数按「取内存自行填充」方式写管道的调用方需要它）。</item>
     /// </list>
     /// </summary>
-    private sealed class MuxStreamWriter : PipeWriter
+    internal sealed class MuxStreamWriter : PipeWriter, IDirectBufferPipeWriter
     {
         private const int InitialBufferSize = 64 * 1024;
 

@@ -9,10 +9,12 @@ using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.IO;
+using System.IO.Pipelines;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using FastTunnel.Core.Forwarder.Streams;
 using FastTunnel.Core.Handlers.Server;
 using FastTunnel.Core.Sockets;
 using Microsoft.Extensions.Logging;
@@ -27,17 +29,14 @@ namespace FastTunnel.Core.Listener;
 public class UdpProxyListener : IPortListener
 {
     /// <summary>
-    /// 单个 UDP 数据报最大长度（受限于 ushort 的长度前缀以及 IP/UDP 头）
-    /// </summary>
-    private const int MaxDatagramSize = 65507;
-
-    /// <summary>
     /// 会话空闲超时时间，超过此时间没有数据则关闭会话
     /// </summary>
     private static readonly TimeSpan SessionIdleTimeout = TimeSpan.FromMinutes(2);
 
     private readonly ILogger _logger;
     private readonly UdpClient _udpServer;
+    private readonly SocketAddress _remoteAddress;
+    private readonly EndPoint _remoteEndpointPrototype;
     private readonly CancellationTokenSource _cts = new();
     private readonly ConcurrentDictionary<IPEndPoint, UdpSession> _sessions = new();
     private ForwardDispatcher _dispatcher;
@@ -57,6 +56,15 @@ public class UdpProxyListener : IPortListener
         // 双栈 socket 上 IPv4 来源会表现为 ::ffff:x.x.x.x，作为会话 key 回发同样有效，
         // 因此只在日志里还原成正常写法，不改变实际端点。
         _udpServer = NetUtil.BindUdp(NetUtil.ParseListenAddress(ip), port);
+
+        // 复用同一个 SocketAddress 接收，避免 UdpClient.ReceiveAsync 每包 new byte[]。
+        // 双栈 socket 上 IPv4 对端会是 ::ffff:x.x.x.x，原型必须跟随实际 family。
+        var anyAddress = _udpServer.Client.AddressFamily == AddressFamily.InterNetworkV6
+            ? IPAddress.IPv6Any
+            : IPAddress.Any;
+        _remoteAddress = new IPEndPoint(anyAddress, 0).Serialize();
+        _remoteEndpointPrototype = new IPEndPoint(anyAddress, 0);
+
         ListenIp = _udpServer.Client.AddressFamily == AddressFamily.InterNetworkV6
             ? (_udpServer.Client.DualMode ? "::" : "[::]")
             : "0.0.0.0";
@@ -70,43 +78,58 @@ public class UdpProxyListener : IPortListener
 
     private async Task ReceiveLoopAsync()
     {
-        while (!_cts.IsCancellationRequested)
+        // 一次租 reusable buffer，收包不再每包分配 byte[]。
+        var buffer = ArrayPool<byte>.Shared.Rent(UdpDatagramFramer.MaxDatagramSize);
+        try
         {
-            UdpReceiveResult received;
-            try
+            while (!_cts.IsCancellationRequested)
             {
-                received = await _udpServer.ReceiveAsync(_cts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (ObjectDisposedException)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogDebug(ex, $"[UdpForward]ReceiveAsync error on {ListenIp}:{ListenPort}");
-                continue;
-            }
-
-            var remoteEp = received.RemoteEndPoint;
-            var data = received.Buffer;
-
-            try
-            {
-                var session = _sessions.GetOrAdd(remoteEp, ep => CreateSession(ep));
-                await session.SendToTunnelAsync(data, _cts.Token);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogDebug(ex, $"[UdpForward]Dispatch error from {NetUtil.Display(remoteEp)}");
-                if (_sessions.TryRemove(remoteEp, out var dead))
+                int received;
+                try
                 {
-                    dead.Dispose();
+                    received = await _udpServer.Client.ReceiveFromAsync(
+                        buffer, SocketFlags.None, _remoteAddress, _cts.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (ObjectDisposedException)
+                {
+                    break;
+                }
+                catch (SocketException ex)
+                {
+                    _logger.LogDebug(ex, $"[UdpForward]ReceiveFromAsync error on {ListenIp}:{ListenPort}");
+                    continue;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, $"[UdpForward]ReceiveFromAsync error on {ListenIp}:{ListenPort}");
+                    continue;
+                }
+
+                // SocketAddress 会被下一次收包覆盖，会话 key 必须取一份快照。
+                var remoteEp = (IPEndPoint)_remoteEndpointPrototype.Create(_remoteAddress);
+
+                try
+                {
+                    var session = _sessions.GetOrAdd(remoteEp, ep => CreateSession(ep));
+                    await session.SendToTunnelAsync(buffer.AsMemory(0, received), _cts.Token).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, $"[UdpForward]Dispatch error from {NetUtil.Display(remoteEp)}");
+                    if (_sessions.TryRemove(remoteEp, out var dead))
+                    {
+                        dead.Dispose();
+                    }
                 }
             }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
         }
     }
 
@@ -193,38 +216,20 @@ public class UdpProxyListener : IPortListener
             }
         }
 
-        public async Task SendToTunnelAsync(byte[] payload, CancellationToken token)
+        public async Task SendToTunnelAsync(ReadOnlyMemory<byte> payload, CancellationToken token)
         {
-            if (payload.Length > MaxDatagramSize)
+            if (payload.Length > UdpDatagramFramer.MaxDatagramSize)
             {
                 _logger.LogDebug($"[UdpForward]Drop oversized datagram {payload.Length}");
                 return;
             }
 
-            await _ready.Task.WaitAsync(token);
-
-            await _writeLock.WaitAsync(token);
+            await _ready.Task.WaitAsync(token).ConfigureAwait(false);
+            await _writeLock.WaitAsync(token).ConfigureAwait(false);
             try
             {
                 _lastActive = DateTime.UtcNow;
-
-                // 拼接 [长度 + 负载] 到一个池化缓冲区，只调用一次 WriteAsync，
-                // 避免原来两次 await 造成的头部阻塞、以及 .ToArray() 额外分配。
-                int frameLen = 2 + payload.Length;
-                var frame = ArrayPool<byte>.Shared.Rent(frameLen);
-                try
-                {
-                    BinaryPrimitives.WriteUInt16BigEndian(frame.AsSpan(0, 2), (ushort)payload.Length);
-                    if (payload.Length > 0)
-                    {
-                        Buffer.BlockCopy(payload, 0, frame, 2, payload.Length);
-                    }
-                    await _tunnelStream.WriteAsync(frame.AsMemory(0, frameLen), token);
-                }
-                finally
-                {
-                    ArrayPool<byte>.Shared.Return(frame);
-                }
+                await UdpDatagramFramer.WriteAsync(_tunnelStream, payload, token).ConfigureAwait(false);
             }
             finally
             {
@@ -234,30 +239,76 @@ public class UdpProxyListener : IPortListener
 
         private async Task ReadFromTunnelAsync(CancellationToken token)
         {
-            var header = new byte[2];
-            var buffer = ArrayPool<byte>.Shared.Rent(MaxDatagramSize);
+            // MuxStream / DuplexPipeStream 都暴露 IDuplexPipe，直接从管道切片发 UDP。
+            if (_tunnelStream is IDuplexPipe pipe)
+            {
+                await ReadFromPipeAsync(pipe.Input, token).ConfigureAwait(false);
+                return;
+            }
+
+            await ReadFromStreamAsync(token).ConfigureAwait(false);
+        }
+
+        private async Task ReadFromPipeAsync(PipeReader reader, CancellationToken token)
+        {
+            var scratch = ArrayPool<byte>.Shared.Rent(UdpDatagramFramer.MaxDatagramSize);
             try
             {
                 while (!token.IsCancellationRequested)
                 {
-                    if (!await ReadExactAsync(_tunnelStream, header, 0, 2, token))
-                        break;
-
-                    int len = BinaryPrimitives.ReadUInt16BigEndian(header);
-                    if (len > MaxDatagramSize) break; // 协议异常，避免越界
-                    if (len > 0 && !await ReadExactAsync(_tunnelStream, buffer, 0, len, token))
-                        break;
-
-                    _lastActive = DateTime.UtcNow;
-
+                    var result = await reader.ReadAsync(token).ConfigureAwait(false);
+                    var buffer = result.Buffer;
+                    var consumed = buffer.Start;
                     try
                     {
-                        await _udpServer.SendAsync(buffer.AsMemory(0, len), _remoteEp, token);
+                        while (UdpDatagramFramer.TryRead(buffer, scratch, out var payload, out var total))
+                        {
+                            await SendBackAsync(payload, token).ConfigureAwait(false);
+                            buffer = buffer.Slice(total);
+                            consumed = buffer.Start;
+                        }
                     }
-                    catch (Exception ex)
+                    finally
                     {
-                        _logger.LogDebug(ex, $"[UdpForward]SendBack error to {NetUtil.Display(_remoteEp)}");
+                        reader.AdvanceTo(consumed, buffer.End);
                     }
+
+                    if (result.IsCompleted)
+                    {
+                        break;
+                    }
+                }
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, $"[UdpForward]ReadFromTunnel error for {NetUtil.Display(_remoteEp)}");
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(scratch);
+                _onClosed?.Invoke(_remoteEp);
+            }
+        }
+
+        private async Task ReadFromStreamAsync(CancellationToken token)
+        {
+            var header = new byte[2];
+            var buffer = ArrayPool<byte>.Shared.Rent(UdpDatagramFramer.MaxDatagramSize);
+            try
+            {
+                while (!token.IsCancellationRequested)
+                {
+                    if (!await UdpDatagramFramer.ReadExactAsync(_tunnelStream, header, token).ConfigureAwait(false))
+                        break;
+
+                    var len = BinaryPrimitives.ReadUInt16BigEndian(header);
+                    if (len > UdpDatagramFramer.MaxDatagramSize) break; // 协议异常，避免越界
+                    if (len > 0 && !await UdpDatagramFramer.ReadExactAsync(
+                        _tunnelStream, buffer.AsMemory(0, len), token).ConfigureAwait(false))
+                        break;
+
+                    await SendBackAsync(buffer.AsMemory(0, len), token).ConfigureAwait(false);
                 }
             }
             catch (OperationCanceledException) { }
@@ -269,6 +320,19 @@ public class UdpProxyListener : IPortListener
             {
                 ArrayPool<byte>.Shared.Return(buffer);
                 _onClosed?.Invoke(_remoteEp);
+            }
+        }
+
+        private async Task SendBackAsync(ReadOnlyMemory<byte> payload, CancellationToken token)
+        {
+            _lastActive = DateTime.UtcNow;
+            try
+            {
+                await _udpServer.SendAsync(payload, _remoteEp, token).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, $"[UdpForward]SendBack error to {NetUtil.Display(_remoteEp)}");
             }
         }
 
@@ -288,18 +352,6 @@ public class UdpProxyListener : IPortListener
                 }
             }
             catch (OperationCanceledException) { }
-        }
-
-        private static async Task<bool> ReadExactAsync(Stream stream, byte[] buffer, int offset, int count, CancellationToken token)
-        {
-            int read = 0;
-            while (read < count)
-            {
-                int n = await stream.ReadAsync(buffer, offset + read, count - read, token);
-                if (n == 0) return false;
-                read += n;
-            }
-            return true;
         }
 
         public void Dispose()

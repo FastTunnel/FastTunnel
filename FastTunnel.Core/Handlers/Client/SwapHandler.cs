@@ -8,6 +8,7 @@ using System;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.IO;
+using System.IO.Pipelines;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -26,7 +27,6 @@ namespace FastTunnel.Core.Handlers.Client;
 
 public class SwapHandler : IClientHandler
 {
-    private const int MaxDatagramSize = 65507;
     private static readonly TimeSpan UdpIdleTimeout = TimeSpan.FromMinutes(2);
 
     private readonly ILogger<SwapHandler> _logger;
@@ -49,7 +49,10 @@ public class SwapHandler : IClientHandler
             var request = ControlProtocol.ParseSwapRequest(msg);
             requestId = request.Id;
 
-            _logger.LogDebug($"========Swap Start:{requestId} {DescribeProto(request)}==========");
+            if (_logger.IsEnabled(LogLevel.Debug))
+            {
+                _logger.LogDebug("========Swap Start:{RequestId} {Protocol}==========", requestId, DescribeProto(request));
+            }
 
             using var serverStream = await createRemote(requestId, cleint, cancellationToken);
             await BridgeAsync(request, serverStream, cancellationToken);
@@ -61,7 +64,10 @@ public class SwapHandler : IClientHandler
         finally
         {
             Interlocked.Decrement(ref SwapCount);
-            _logger.LogDebug($"========Swap End:{requestId} {SwapCount}==========");
+            if (_logger.IsEnabled(LogLevel.Debug))
+            {
+                _logger.LogDebug("========Swap End:{RequestId} {SwapCount}==========", requestId, SwapCount);
+            }
         }
     }
 
@@ -137,36 +143,93 @@ public class SwapHandler : IClientHandler
         // UDP socket 的 family 必须与目标一致，否则发不出去（v6 目标不能用 v4 socket）
         var bindAddress = ip.AddressFamily == AddressFamily.InterNetworkV6 ? IPAddress.IPv6Any : IPAddress.Any;
         using var udp = new UdpClient(new IPEndPoint(bindAddress, 0));
+        udp.Connect(localTarget);
+        var socket = udp.Client;
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var lastActive = DateTime.UtcNow;
 
+        async Task SendToLocalAsync(ReadOnlyMemory<byte> payload)
+        {
+            lastActive = DateTime.UtcNow;
+            try
+            {
+                await socket.SendAsync(payload, SocketFlags.None, cts.Token).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "[UdpSwap]send to local error");
+            }
+        }
+
         async Task TunnelToLocalAsync()
         {
+            if (serverStream is IDuplexPipe pipe)
+            {
+                var scratch = ArrayPool<byte>.Shared.Rent(UdpDatagramFramer.MaxDatagramSize);
+                try
+                {
+                    while (!cts.IsCancellationRequested)
+                    {
+                        var result = await pipe.Input.ReadAsync(cts.Token).ConfigureAwait(false);
+                        var pipeBuffer = result.Buffer;
+                        var consumed = pipeBuffer.Start;
+                        try
+                        {
+                            while (UdpDatagramFramer.TryRead(pipeBuffer, scratch, out var payload, out var total))
+                            {
+                                await SendToLocalAsync(payload).ConfigureAwait(false);
+                                pipeBuffer = pipeBuffer.Slice(total);
+                                consumed = pipeBuffer.Start;
+                            }
+                        }
+                        finally
+                        {
+                            pipe.Input.AdvanceTo(consumed, pipeBuffer.End);
+                        }
+
+                        if (result.IsCompleted)
+                        {
+                            break;
+                        }
+                    }
+                }
+                catch (OperationCanceledException) { }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "[UdpSwap]read from tunnel error");
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(scratch);
+                    cts.Cancel();
+                }
+
+                return;
+            }
+
             var header = new byte[2];
-            var buffer = ArrayPool<byte>.Shared.Rent(MaxDatagramSize);
+            var buffer = ArrayPool<byte>.Shared.Rent(UdpDatagramFramer.MaxDatagramSize);
             try
             {
                 while (!cts.IsCancellationRequested)
                 {
-                    if (!await ReadExactAsync(serverStream, header, 0, 2, cts.Token))
+                    if (!await UdpDatagramFramer.ReadExactAsync(serverStream, header, cts.Token).ConfigureAwait(false))
                         break;
 
-                    int len = BinaryPrimitives.ReadUInt16BigEndian(header);
-                    if (len > MaxDatagramSize) break; // 协议异常，避免越界
-                    if (len > 0 && !await ReadExactAsync(serverStream, buffer, 0, len, cts.Token))
+                    var len = BinaryPrimitives.ReadUInt16BigEndian(header);
+                    if (len > UdpDatagramFramer.MaxDatagramSize) break; // 协议异常，避免越界
+                    if (len > 0 && !await UdpDatagramFramer.ReadExactAsync(
+                        serverStream, buffer.AsMemory(0, len), cts.Token).ConfigureAwait(false))
                         break;
 
-                    lastActive = DateTime.UtcNow;
-                    try
-                    {
-                        await udp.SendAsync(buffer.AsMemory(0, len), localTarget, cts.Token);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogDebug(ex, "[UdpSwap]send to local error");
-                    }
+                    await SendToLocalAsync(buffer.AsMemory(0, len)).ConfigureAwait(false);
                 }
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "[UdpSwap]read from tunnel error");
             }
             finally
             {
@@ -177,43 +240,35 @@ public class SwapHandler : IClientHandler
 
         async Task LocalToTunnelAsync()
         {
+            // 已 Connect 到唯一内网目标，直接收进池化缓冲，避免 UdpClient.ReceiveAsync 每包 new byte[]。
+            var buffer = ArrayPool<byte>.Shared.Rent(UdpDatagramFramer.MaxDatagramSize);
             try
             {
                 while (!cts.IsCancellationRequested)
                 {
-                    UdpReceiveResult result;
+                    int received;
                     try
                     {
-                        result = await udp.ReceiveAsync(cts.Token);
+                        received = await socket.ReceiveAsync(
+                            buffer.AsMemory(0, UdpDatagramFramer.MaxDatagramSize),
+                            SocketFlags.None, cts.Token).ConfigureAwait(false);
                     }
                     catch (OperationCanceledException) { break; }
                     catch (ObjectDisposedException) { break; }
 
-                    var data = result.Buffer;
-                    if (data.Length > MaxDatagramSize) continue;
-
-                    // 拼接 [长度 + 负载] 到一个池化缓冲区，只调用一次 WriteAsync，减少 await 次数与头部阻塞。
-                    int frameLen = 2 + data.Length;
-                    var frame = ArrayPool<byte>.Shared.Rent(frameLen);
-                    try
-                    {
-                        BinaryPrimitives.WriteUInt16BigEndian(frame.AsSpan(0, 2), (ushort)data.Length);
-                        if (data.Length > 0)
-                        {
-                            Buffer.BlockCopy(data, 0, frame, 2, data.Length);
-                        }
-
-                        lastActive = DateTime.UtcNow;
-                        await serverStream.WriteAsync(frame.AsMemory(0, frameLen), cts.Token);
-                    }
-                    finally
-                    {
-                        ArrayPool<byte>.Shared.Return(frame);
-                    }
+                    lastActive = DateTime.UtcNow;
+                    await UdpDatagramFramer.WriteAsync(
+                        serverStream, buffer.AsMemory(0, received), cts.Token).ConfigureAwait(false);
                 }
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "[UdpSwap]write to tunnel error");
             }
             finally
             {
+                ArrayPool<byte>.Shared.Return(buffer);
                 cts.Cancel();
             }
         }
@@ -236,18 +291,6 @@ public class SwapHandler : IClientHandler
         }
 
         await Task.WhenAny(TunnelToLocalAsync(), LocalToTunnelAsync(), IdleMonitorAsync());
-    }
-
-    private static async Task<bool> ReadExactAsync(Stream stream, byte[] buffer, int offset, int count, CancellationToken token)
-    {
-        int read = 0;
-        while (read < count)
-        {
-            int n = await stream.ReadAsync(buffer, offset + read, count - read, token);
-            if (n == 0) return false;
-            read += n;
-        }
-        return true;
     }
 
     private async Task<Stream> createLocal(string requestId, string host, int port, CancellationToken cancellationToken)

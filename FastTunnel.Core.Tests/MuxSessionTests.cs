@@ -14,6 +14,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using FastTunnel.Core.Forwarder.Streams;
 using FastTunnel.Core.Mux;
 using FastTunnel.Core.Protocol;
 using FastTunnel.Core.Tests.Support;
@@ -488,6 +489,57 @@ public class MuxSessionTests
         var payload = new byte[] { 7, 8, 9 };
         await TestPipes.WriteAsync(pair.ServerSide, Frame(MuxFrameType.Data, stream.Id, payload), cts.Token);
         Assert.Equal(payload, await TestPipes.ReadExactAsync(stream.Input, payload.Length, cts.Token));
+    }
+
+    [Fact]
+    public async Task UDP数据报写入_跨多个MUX帧后仍按长度前缀还原()
+    {
+        var accepted = new TaskCompletionSource<MuxStream>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var pair = new SessionPair((stream, _) =>
+        {
+            accepted.TrySetResult(stream);
+            return Task.CompletedTask;
+        });
+
+        await using var serverStream = await pair.Server.OpenStreamAsync(
+            new SwapRequest { Id = "udp", Host = "10.0.0.8", Port = 5353, Proto = "udp" }, TestToken());
+        var clientStream = await accepted.Task.WaitAsync(Timeout);
+
+        // 32KB 负载会被拆成多个 16KB MUX 帧，但 UDP 接收端应看到连续的 [长度][负载]。
+        var payload = new byte[32 * 1024];
+        for (var i = 0; i < payload.Length; i++)
+        {
+            payload[i] = (byte)(i % 251);
+        }
+
+        await serverStream.WriteDatagramAsync(payload, TestToken());
+
+        var framed = await TestPipes.ReadExactAsync(clientStream.Input, payload.Length + 2, TestToken());
+        Assert.Equal((byte)(payload.Length >> 8), framed[0]);
+        Assert.Equal((byte)payload.Length, framed[1]);
+        Assert.Equal(payload, framed.AsMemory(2).ToArray());
+    }
+
+    [Fact]
+    public async Task StreamToPipe_直接写入MuxWriter时数据完整()
+    {
+        var accepted = new TaskCompletionSource<MuxStream>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var pair = new SessionPair((stream, _) =>
+        {
+            accepted.TrySetResult(stream);
+            return Task.CompletedTask;
+        });
+
+        await using var serverStream = await pair.Server.OpenStreamAsync(
+            new SwapRequest { Id = "pump", Host = "10.0.0.8", Port = 8080 }, TestToken());
+        var clientStream = await accepted.Task.WaitAsync(Timeout);
+
+        var payload = RandomNumberGenerator.GetBytes(128 * 1024);
+        using var source = new MemoryStream(payload);
+
+        await PipePumps.StreamToPipeAsync(source, serverStream.Output, TestToken());
+
+        Assert.Equal(payload, await TestPipes.ReadExactAsync(clientStream.Input, payload.Length, TestToken()));
     }
 
     private static byte[] Frame(MuxFrameType type, uint streamId, ReadOnlySpan<byte> payload)
