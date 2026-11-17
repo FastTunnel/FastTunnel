@@ -6,9 +6,13 @@ name: release
 #   1. dependent（依赖运行时 / framework-dependent）：体积小的 IL 包，目标机需装 .NET 11 Runtime。
 #      IL 可交叉发布，所有平台在单个 ubuntu runner 上产出。
 #   2. aot（NativeAOT / 自包含）：单文件、零运行时依赖，启动快内存省。
-#      AOT 需要各平台原生工具链，故按平台分 runner（win/linux/osx）分别编译。
+#      AOT 需要各平台原生工具链，故按平台分 runner（win/linux）分别编译。
 #
 # 两种形态 × 每个平台各打一个压缩包，汇总后由 release job 统一创建 GitHub Release。
+#
+# macOS 暂不发布：GitHub 的 macOS runner 长期拿不到可用资源（排队超时/无额度），
+# 因此 dependent 的 osx-x64/osx-arm64 与 aot 的 osx-arm64(macos-15) 已暂时移除。
+# 需要恢复时把这几项加回下面两个 matrix 即可，打包与发版流程无需改动。
 
 on:
   push:
@@ -49,8 +53,6 @@ jobs:
           - linux-x64
           - linux-arm64
           - linux-musl-x64
-          - osx-x64
-          - osx-arm64
     steps:
       - uses: actions/checkout@v4
 
@@ -89,8 +91,6 @@ jobs:
             os: windows-latest
           - rid: linux-x64
             os: ubuntu-latest
-          - rid: osx-arm64
-            os: macos-15
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     steps:
