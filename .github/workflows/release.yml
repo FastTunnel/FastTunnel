@@ -2,17 +2,17 @@ name: release
 
 # 自动发布：push 任何 v* tag（如 v3.6.0）即触发；也支持手动 dispatch 兜底。
 #
-# 产物分两种形态，覆盖多平台：
-#   1. dependent（依赖运行时 / framework-dependent）：体积小的 IL 包，目标机需装 .NET 11 Runtime。
-#      IL 可交叉发布，所有平台在单个 ubuntu runner 上产出。
+# 产物分两种形态：
+#   1. dependent（依赖运行时 / framework-dependent）：纯 IL 包，架构无关，全平台只发一份 any。
+#      目标机需装对应架构的 .NET 11 Runtime，用 `dotnet FastTunnel.Server.dll` 启动。
 #   2. aot（NativeAOT / 自包含）：单文件、零运行时依赖，启动快内存省。
 #      AOT 需要各平台原生工具链，故按平台分 runner（win/linux）分别编译。
 #
-# 两种形态 × 每个平台各打一个压缩包，汇总后由 release job 统一创建 GitHub Release。
+# dependent 一份 + aot 各平台各一份，汇总后由 release job 统一创建 GitHub Release。
 #
-# macOS 暂不发布：GitHub 的 macOS runner 长期拿不到可用资源（排队超时/无额度），
-# 因此 dependent 的 osx-x64/osx-arm64 与 aot 的 osx-arm64(macos-15) 已暂时移除。
-# 需要恢复时把这几项加回下面两个 matrix 即可，打包与发版流程无需改动。
+# macOS 原生包暂不发布：GitHub 的 macOS runner 长期拿不到可用资源（排队超时/无额度），
+# 因此 aot 的 osx-arm64(macos-15) 已移除；dependent 是架构无关的 IL 包，
+# macOS 用户装好 .NET Runtime 后可直接跑。需要恢复 AOT macOS 时把该项加回 aot matrix 即可。
 
 on:
   push:
@@ -38,21 +38,11 @@ env:
   DOTNET_VERSION: '11.0.x'
 
 jobs:
-  # ---------- 形态一：依赖运行时版（framework-dependent，IL 可交叉发布）----------
+  # ---------- 形态一：依赖运行时版（framework-dependent，纯 IL、架构无关）----------
   dependent:
-    name: dependent-${{ matrix.rid }}
+    name: dependent-any
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        rid:
-          - win-x64
-          - win-x86
-          - win-arm64
-          - linux-x64
-          - linux-arm64
-          - linux-musl-x64
     steps:
       - uses: actions/checkout@v4
 
@@ -60,23 +50,24 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Publish ${{ matrix.rid }} (framework-dependent)
+      - name: Publish portable IL (framework-dependent)
         shell: bash
         run: |
           set -euo pipefail
-          RID="${{ matrix.rid }}"
-          STAGE="dist/dependent/FastTunnel-dependent-${RID}"
+          STAGE="dist/dependent/FastTunnel-dependent-any"
           mkdir -p "$STAGE/server" "$STAGE/client"
-          COMMON="-c Release -r ${RID} --self-contained false -p:GeneratePackageOnBuild=false --nologo"
+          # 不指定 RID + UseAppHost=false：产物是纯 IL，无平台原生启动器，
+          # x86/x64/arm64 装好对应架构的 .NET Runtime 后都能跑。
+          COMMON="-c Release --self-contained false -p:UseAppHost=false -p:GeneratePackageOnBuild=false --nologo"
           dotnet publish FastTunnel.Server/FastTunnel.Server.csproj $COMMON -o "$STAGE/server"
           dotnet publish FastTunnel.Client/FastTunnel.Client.csproj $COMMON -o "$STAGE/client"
           cp LICENSE "$STAGE/"
-          echo "--- ${RID} dependent published ---"
+          echo "--- portable IL published ---"
           du -sh "$STAGE"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: dependent-${{ matrix.rid }}
+          name: dependent-any
           path: dist/dependent/
           if-no-files-found: error
 
@@ -150,9 +141,9 @@ jobs:
           set -euo pipefail
           mkdir -p packages
           for d in staging/*/; do
-            name="$(basename "$d")"          # dependent-win-x64 / aot-win-x64
+            name="$(basename "$d")"          # dependent-any / aot-win-x64
             kind="${name%%-*}"               # dependent / aot
-            rid="${name#*-}"                 # win-x64 ...
+            rid="${name#*-}"                 # any / win-x64 ...
             payload="FastTunnel-${kind}-${rid}"
             if [[ "$rid" == win-* ]]; then
               archive="packages/${payload}.zip"
