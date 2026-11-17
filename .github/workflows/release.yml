@@ -191,10 +191,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.ver.outputs.version }}
           PRERELEASE: ${{ steps.ver.outputs.prerelease }}
+          REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          gh release view "$VERSION" >/dev/null 2>&1 && gh release delete "$VERSION" --yes || true
+          # 本 job 没有 checkout，gh 无 git remote 上下文，必须显式 --repo。
+          # 重推 tag 时先删旧 Release（gh release delete 默认保留 tag），不存在则忽略。
+          gh release delete "$VERSION" --repo "$REPO" --yes >/dev/null 2>&1 || true
           args=(--title "FastTunnel $VERSION" --generate-notes)
           if [ "$PRERELEASE" = "true" ]; then args+=(--prerelease); fi
           gh release create "$VERSION" packages/* \
-            --repo "${{ github.repository }}" "${args[@]}"
+            --repo "$REPO" "${args[@]}"
