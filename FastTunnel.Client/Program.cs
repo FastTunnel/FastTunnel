@@ -59,13 +59,59 @@ class Program
                     Log.Information("已加载扩展格式配置文件：{Files}", string.Join(", ", loaded));
                 }
             })
-            .UseSerilog((context, services, configuration) => configuration
-                    .ReadFrom.Configuration(context.Configuration)
-                    .WriteTo.Console())
+            .UseSerilog((context, configuration) =>
+                ConfigureSerilog(configuration, context.Configuration))
             .ConfigureServices((hostContext, services) =>
             {
                 // -------------------FastTunnel START------------------
                 services.AddFastTunnelClient(hostContext.Configuration.GetSection("FastTunnel"));
                 // -------------------FastTunnel EDN--------------------
             });
+
+    /// <summary>
+    /// AOT 安全的 Serilog 配置：不依赖 ReadFrom.Configuration 的反射式 sink 发现。
+    /// 直接从 IConfiguration 读取级别与 sink 参数，代码静态调用，NativeAOT 下无反射裁剪风险。
+    /// 与 Server/Program.cs 中的同名方法保持一致。
+    /// </summary>
+    private static LoggerConfiguration ConfigureSerilog(
+        LoggerConfiguration logger, Microsoft.Extensions.Configuration.IConfiguration config)
+    {
+        var section = config.GetSection("Serilog");
+
+        var defaultLevel = ParseLevel(section["MinimumLevel:Default"], Serilog.Events.LogEventLevel.Information);
+        logger.MinimumLevel.Is(defaultLevel!.Value);
+        foreach (var item in section.GetSection("MinimumLevel:Override").GetChildren())
+        {
+            var level = ParseLevel(item.Value, null);
+            if (level.HasValue)
+            {
+                logger.MinimumLevel.Override(item.Key, level.Value);
+            }
+        }
+
+        logger.Enrich.FromLogContext();
+        logger.WriteTo.Console();
+
+        foreach (var sink in section.GetSection("WriteTo").GetChildren())
+        {
+            if (!string.Equals(sink["Name"], "File", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var path = sink["Args:path"] ?? "Logs/log-.log";
+            var rolling = ParseRolling(sink["Args:rollingInterval"]);
+            logger.WriteTo.File(path, rollingInterval: rolling);
+        }
+
+        return logger;
+    }
+
+    private static Serilog.Events.LogEventLevel? ParseLevel(string? value, Serilog.Events.LogEventLevel? fallback) =>
+        Enum.TryParse<Serilog.Events.LogEventLevel>(value, ignoreCase: true, out var level) ? level : fallback;
+
+    private static Serilog.RollingInterval ParseRolling(string? value) =>
+        Enum.TryParse<Serilog.RollingInterval>(value, ignoreCase: true, out var interval)
+            ? interval
+            : Serilog.RollingInterval.Day;
 }
