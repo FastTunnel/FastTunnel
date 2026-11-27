@@ -59,6 +59,13 @@ public sealed class PeerOptions
     /// 开启需要服务端同时配置 <c>FastTunnel:P2PNetwork:Enabled=true</c>，且设备是通过入网码入网的。</summary>
     public bool EnableL3 { get; set; }
 
+    /// <summary>虚拟网卡名称；留空时 Linux 用 <c>ft0</c>、Windows 用 <c>FastTunnel</c>。
+    /// 只允许字母、数字和 <c>- _ .</c>，最长 15 字符。</summary>
+    public string? L3Interface { get; set; }
+
+    /// <summary>虚拟网卡 MTU，0 表示使用 1400（为直连封装留出余量）；超出 576-1500 的配置会被收敛到边界。</summary>
+    public int L3Mtu { get; set; }
+
     internal bool HasEndpoints => Services.Length != 0 || Visitors.Length != 0 || Share.Count != 0
         || Connect.Count != 0 || Socks5 != 0 || EnableL3;
 

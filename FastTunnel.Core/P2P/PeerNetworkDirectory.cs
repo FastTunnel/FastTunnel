@@ -20,6 +20,15 @@ internal sealed class PeerNetworkDirectory(SuiDaoServer server, string credentia
         + PeerProtocol.NetworkPath);
     private readonly HttpClient http = new(Pin(server, logger)) { Timeout = TimeSpan.FromSeconds(15) };
 
+    /// <summary>服务端没给缓存头时的兜底刷新周期。</summary>
+    private static readonly TimeSpan DefaultRefresh = TimeSpan.FromSeconds(60);
+
+    /// <summary>下次刷新目录的间隔，取服务端 <c>Cache-Control: max-age</c>。</summary>
+    internal TimeSpan RefreshAfter { get; private set; } = DefaultRefresh;
+
+    /// <summary>服务端明确表示组网用不了（未开启、没走 TLS、凭据不在台账），再重试也没有意义。</summary>
+    internal bool Blocked { get; private set; }
+
     internal async Task<PeerNetworkRoster?> FetchAsync(CancellationToken cancellation)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, address);
@@ -29,6 +38,8 @@ internal sealed class PeerNetworkDirectory(SuiDaoServer server, string credentia
             using var answer = await http.SendAsync(request, cancellation);
             if (!answer.IsSuccessStatusCode)
             {
+                Blocked = answer.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.BadRequest
+                    or HttpStatusCode.Forbidden;
                 logger.LogWarning("从 {Node} 领取组网目录失败：{Reason}", address.Host, Explain(answer.StatusCode));
                 return null;
             }
@@ -41,6 +52,10 @@ internal sealed class PeerNetworkDirectory(SuiDaoServer server, string credentia
                 return null;
             }
 
+            Blocked = false;
+            RefreshAfter = answer.Headers.CacheControl?.MaxAge is { } maxAge
+                ? TimeSpan.FromSeconds(Math.Clamp(maxAge.TotalSeconds, 10, 3600))
+                : DefaultRefresh;
             return roster;
         }
         catch (Exception ex) when (!cancellation.IsCancellationRequested

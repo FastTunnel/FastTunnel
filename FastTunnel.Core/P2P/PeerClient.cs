@@ -1,3 +1,4 @@
+using System.IO.Pipelines;
 using System.Net;
 using System.Net.Sockets;
 using System.Net.WebSockets;
@@ -18,6 +19,11 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
 {
     internal static readonly SwapRequest PrivateStream = new() { Id = PeerProtocol.PrivateId, Host = "private", Port = 1 };
     private static readonly TimeSpan DirectDisconnectGrace = TimeSpan.FromSeconds(5);
+
+    /// <summary>目录领取失败的退避上限（秒）、网卡建不起来或停止收发后的重试间隔、服务端明确拒绝组网时的轮询间隔。</summary>
+    private const double MaxRetrySeconds = 300;
+    private static readonly TimeSpan DeviceRetry = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan BlockedRetry = TimeSpan.FromMinutes(15);
     private readonly SemaphoreSlim providerSessions = new(96);
     private PeerUdpHub? udp;
     private PeerTcpHub? tcp;
@@ -82,6 +88,7 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
             .Concat(visitors.Select(visitor => RunVisitorAsync(config,
                 channels[PeerChannel.Key(visitor.Provider, visitor.Service)], visitor, lifetime.Token)))
             .Concat(peer.Socks5 != 0 ? new[] { RunSocks5Async(config, exits, channels, lifetime.Token) } : [])
+            .Concat(peer.EnableL3 ? new[] { RunL3Async(config, servers, direct, lifetime.Token) } : [])
             .ToArray();
         try { await await Task.WhenAny(tasks); }
         catch (OperationCanceledException) when (lifetime.IsCancellationRequested)
@@ -189,7 +196,7 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
     {
         using (socket)
         {
-            try { await RunSessionAsync(socket, options, service.Name, direct, service, null, index, token); }
+            try { await RunSessionAsync(socket, options, service.Name, direct, service, null, null, index, token); }
             catch (Exception ex) { logger.LogDebug(ex, "P2P 服务 {Service} 会话结束", service.Name); }
             finally { providerSessions.Release(); }
         }
@@ -240,7 +247,7 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
                 var mode = await PeerProtocol.ReceiveTextAsync(socket, handshake.Token);
                 if (mode is "direct" or "relay")
                     await RunSessionAsync(socket, config.P2P, channel.Name,
-                        mode == "direct", null, channel.Path, index, token);
+                        mode == "direct", null, channel.Path, null, index, token);
             }
             catch (Exception ex) when (!token.IsCancellationRequested)
             {
@@ -250,6 +257,194 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
             await Task.Delay(TimeSpan.FromMilliseconds(Random.Shared.Next(500, 1000)), token);
         }
     }
+
+    /// <summary>
+    /// L3 组网总控：领取目录、创建虚拟网卡、按成员维护通道，成员表变化时整套重建。
+    /// 只要客户端还在跑，本任务就不结束——其他任务结束即停止整个 PeerClient，
+    /// 而 L3 建不起来不应该影响已经在用的 Web / TCP 穿透。
+    /// </summary>
+    private async Task RunL3Async(DefaultClientConfig config, SuiDaoServer[] servers, bool direct, CancellationToken token)
+    {
+        // 网段和台账是服务端的全局状态，只向主节点领取
+        using var directory = new PeerNetworkDirectory(servers[0], config.Token, logger);
+        PeerNetworkRoster? roster = null;
+        var retry = TimeSpan.FromSeconds(1);
+        while (!token.IsCancellationRequested)
+        {
+            roster ??= await directory.FetchAsync(token);
+            if (roster is null)
+            {
+                // 服务端没开组网时按刻钟轮询，管理员打开后本端能自动跟上；网络故障则退避到分钟级
+                await Task.Delay(directory.Blocked ? BlockedRetry : retry, token);
+                if (!directory.Blocked)
+                    retry = TimeSpan.FromSeconds(Math.Min(retry.TotalSeconds * 2, MaxRetrySeconds));
+                continue;
+            }
+
+            retry = TimeSpan.FromSeconds(1);
+            (roster, retry) = await RunNetworkAsync(config, servers, direct, roster, directory, token);
+        }
+    }
+
+    /// <summary>跑一套组网，直到成员表变化或本端停用；返回下一份目录（为 null 时重新领取）和下次尝试前的等待。</summary>
+    private async Task<(PeerNetworkRoster? Roster, TimeSpan Delay)> RunNetworkAsync(DefaultClientConfig config,
+        SuiDaoServer[] servers, bool direct, PeerNetworkRoster roster, PeerNetworkDirectory directory, CancellationToken token)
+    {
+        var device = PeerTun.Open(roster, config.P2P, logger);
+        if (device is null)
+            return (null, DeviceRetry);
+
+        await using var tun = device;
+        await using var network = new PeerNetwork(roster, device, logger);
+        using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(token);
+        var changed = new TaskCompletionSource<PeerNetworkRoster>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var members = network.Peers;
+        var links = new List<Task>();
+        foreach (var peer in members)
+        {
+            if (IsDialer(roster.Self, peer))
+            {
+                // 每对成员只由编号较小的一侧开流：两侧都开时后到的一条会被当成重复通道丢弃，
+                // 结果两边各留一条单向通道，谁都不通
+                var channel = new PeerChannel(peer, PeerProtocol.IpService, servers.Length);
+                links.AddRange(servers.Select((server, index) =>
+                    MaintainVisitorAsync(config, server, channel, direct, index, lifetime.Token)));
+                links.Add(MaintainIpChannelAsync(channel.Path, peer, network, config.P2P.LogConnectionPath, lifetime.Token));
+            }
+            else
+            {
+                links.AddRange(servers.Select((server, index) =>
+                    PublishIpSlotAsync(config, server, peer, network, direct, index, lifetime.Token)));
+            }
+        }
+
+        links.Add(WatchDirectoryAsync(directory, roster, changed, lifetime.Token));
+        var pump = network.RunAsync(lifetime.Token);
+        try
+        {
+            logger.LogInformation("P2P 组网已启用：{Device} = {Address}（{Cidr}），成员 {Peers}",
+                device.Name, network.VirtualIp, roster.Cidr, members.Length == 0 ? "无" : string.Join(", ", members));
+            if (await Task.WhenAny(pump, changed.Task) != changed.Task)
+            {
+                if (!token.IsCancellationRequested)
+                    logger.LogWarning("虚拟网卡 {Device} 已停止收发，稍后重建", device.Name);
+                return (null, DeviceRetry);
+            }
+
+            return (changed.Task.Result, TimeSpan.FromSeconds(1));
+        }
+        finally
+        {
+            lifetime.Cancel();
+            await Task.WhenAll(links).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+            await pump.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+        }
+    }
+
+    /// <summary>按服务端给出的新鲜度刷新目录，成员表变了就通知上层重建组网。</summary>
+    private async Task WatchDirectoryAsync(PeerNetworkDirectory directory, PeerNetworkRoster current,
+        TaskCompletionSource<PeerNetworkRoster> changed, CancellationToken token)
+    {
+        while (!token.IsCancellationRequested)
+        {
+            await Task.Delay(directory.RefreshAfter, token);
+            var roster = await directory.FetchAsync(token);
+            if (roster != null && !SameRoster(current, roster))
+                changed.TrySetResult(roster);
+        }
+    }
+
+    /// <summary>为主动连进来的成员占一个席位：一个席位只服务一个访客，断开后重新排队。</summary>
+    private async Task PublishIpSlotAsync(DefaultClientConfig config, SuiDaoServer server, string peerId,
+        PeerNetwork network, bool direct, int index, CancellationToken token)
+    {
+        var sessions = new HashSet<Task>();
+        try
+        {
+            while (!token.IsCancellationRequested)
+            {
+                await providerSessions.WaitAsync(token);
+                ClientWebSocket? socket = null;
+                var transferred = false;
+                try
+                {
+                    socket = await ConnectAsync(server, config.Token, PeerProtocol.IpService, null, [peerId], direct, token);
+                    var mode = await PeerProtocol.ReceiveTextAsync(socket, token);
+                    if (mode is "direct" or "relay")
+                    {
+                        sessions.RemoveWhere(task => task.IsCompleted);
+                        sessions.Add(RunIpSessionAsync(socket, network, config.P2P, direct, index, token));
+                        transferred = true;
+                        continue;
+                    }
+                }
+                catch (Exception ex) when (!token.IsCancellationRequested)
+                {
+                    logger.LogDebug(ex, "P2P 组网席位 {Peer} 注册中断", peerId);
+                }
+                finally
+                {
+                    if (!transferred)
+                    {
+                        socket?.Dispose();
+                        providerSessions.Release();
+                    }
+                }
+
+                await Task.Delay(TimeSpan.FromSeconds(1), token);
+            }
+        }
+        finally { await Task.WhenAll(sessions); }
+    }
+
+    private async Task RunIpSessionAsync(ClientWebSocket socket, PeerNetwork network, PeerOptions options,
+        bool direct, int index, CancellationToken token)
+    {
+        using (socket)
+        {
+            try { await RunSessionAsync(socket, options, PeerProtocol.IpService, direct, null, null, network, index, token); }
+            catch (Exception ex) { logger.LogDebug(ex, "P2P 组网会话结束"); }
+            finally { providerSessions.Release(); }
+        }
+    }
+
+    /// <summary>开一条长驻组网流交给泵；流结束后隔一秒重来，空档里由内核自行重传。</summary>
+    private async Task MaintainIpChannelAsync(PeerPath path, string peerId, PeerNetwork network,
+        bool logConnectionPath, CancellationToken token)
+    {
+        while (!token.IsCancellationRequested)
+        {
+            MuxStream? stream = null;
+            try
+            {
+                stream = await OpenVisitorStreamAsync(path, network.NewTarget(), logConnectionPath, token);
+                if (stream != null)
+                    await network.ServeAsync(peerId, stream, token);
+            }
+            catch (Exception ex) when (!token.IsCancellationRequested)
+            {
+                // 会话被拆掉时流可能直接报错，这里只留日志，重连由下面的循环负责
+                logger.LogDebug(ex, "P2P 组网到 {Peer} 的通道中断", peerId);
+                if (stream != null)
+                    await stream.DisposeAsync().AsTask().ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+            }
+
+            await Task.Delay(TimeSpan.FromSeconds(1), token);
+        }
+    }
+
+    /// <summary>虚拟地址和成员表都没变就不用重建网卡。</summary>
+    private static bool SameRoster(PeerNetworkRoster left, PeerNetworkRoster right)
+        => string.Equals(left.Cidr, right.Cidr, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(left.Self, right.Self, StringComparison.OrdinalIgnoreCase)
+            && left.Peers.Length == right.Peers.Length
+            && left.Peers.All(entry => string.Equals(Array.Find(right.Peers,
+                other => string.Equals(other.Id, entry.Id, StringComparison.OrdinalIgnoreCase))?.Ip,
+                entry.Ip, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>每对成员固定由编号较小的一侧负责拨组网速流，另一侧只占席位。</summary>
+    internal static bool IsDialer(string self, string peer)
+        => string.Compare(self, peer, StringComparison.OrdinalIgnoreCase) < 0;
 
     private async Task RunSocks5Async(DefaultClientConfig config, PeerSocks5.Exit[] exits,
         Dictionary<string, PeerChannel> channels, CancellationToken token)
@@ -372,14 +567,16 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
     }
 
     private async Task RunSessionAsync(ClientWebSocket socket, PeerOptions options, string serviceName, bool direct,
-        PeerServiceOptions? service, PeerPath? path, int index, CancellationToken token)
+        PeerServiceOptions? service, PeerPath? path, PeerNetwork? network, int index, CancellationToken token)
     {
         using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(token);
         using var directLifetime = CancellationTokenSource.CreateLinkedTokenSource(token);
         using var transport = new PeerWebSocket(socket);
-        var udpControl = direct && udp != null ? new PeerDirectControl(visitor: service == null) : null;
-        var tcpControl = direct && tcp != null ? new PeerDirectControl(visitor: service == null) : null;
-        var relay = CreateMux(transport.Pipe, service, logger);
+        // 直连的探测由拨号方发起：提供端和组网被动方都只应答
+        var visitor = service is null && network is null;
+        var udpControl = direct && udp != null ? new PeerDirectControl(visitor) : null;
+        var tcpControl = direct && tcp != null ? new PeerDirectControl(visitor) : null;
+        var relay = CreateMux(transport.Pipe, service, network, logger);
         var relayIo = transport.RunAsync(message =>
         {
             if (message.StartsWith('T'))
@@ -391,10 +588,10 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
         path?.SetRelay(index, relay);
         logger.LogInformation("P2P WSS 中继已就绪");
         var udpMux = udpControl == null ? Task.CompletedTask
-            : MaintainDirectAsync(udpControl, transport, options, serviceName, service, path, index, false,
+            : MaintainDirectAsync(udpControl, transport, options, serviceName, service, network, path, index, false,
                 lifetime.Token, directLifetime.Token);
         var tcpMux = tcpControl == null ? Task.CompletedTask
-            : MaintainDirectAsync(tcpControl, transport, options, serviceName, service, path, index, true,
+            : MaintainDirectAsync(tcpControl, transport, options, serviceName, service, network, path, index, true,
                 lifetime.Token, directLifetime.Token);
         try { await await Task.WhenAny(relayIo, relayMux); }
         finally
@@ -411,13 +608,13 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
     }
 
     private async Task MaintainDirectAsync(PeerDirectControl control, PeerWebSocket relay,
-        PeerOptions options, string serviceName, PeerServiceOptions? service, PeerPath? path, int index, bool useTcp,
-        CancellationToken token, CancellationToken directToken)
+        PeerOptions options, string serviceName, PeerServiceOptions? service, PeerNetwork? network, PeerPath? path,
+        int index, bool useTcp, CancellationToken token, CancellationToken directToken)
     {
-        if (service != null)
+        if (service != null || network != null)
         {
             await foreach (var attempt in control.ReadAttemptsAsync(token))
-                if (await RunDirectAttemptAsync(attempt, relay, options, serviceName, service, null,
+                if (await RunDirectAttemptAsync(attempt, relay, options, serviceName, service, network, null,
                     index, useTcp, token, directToken) == null)
                     return;
             return;
@@ -427,7 +624,7 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
         while (!token.IsCancellationRequested)
         {
             var connected = await RunDirectAttemptAsync(control.Start(), relay, options, serviceName, null,
-                path, index, useTcp, token, directToken);
+                network, path, index, useTcp, token, directToken);
             if (connected == null)
                 return;
             await Task.Delay(TimeSpan.FromSeconds(delay + Random.Shared.NextDouble()), token);
@@ -436,20 +633,20 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
     }
 
     private async Task<bool?> RunDirectAttemptAsync(PeerDirectControl.Attempt attempt, PeerWebSocket relay,
-        PeerOptions options, string serviceName, PeerServiceOptions? service, PeerPath? path, int index, bool useTcp,
-        CancellationToken token, CancellationToken directToken)
+        PeerOptions options, string serviceName, PeerServiceOptions? service, PeerNetwork? network, PeerPath? path,
+        int index, bool useTcp, CancellationToken token, CancellationToken directToken)
     {
         var connected = false;
         var transport = useTcp ? "TCP/TLS" : "UDP";
-        var diagnostics = new PeerAttemptLog(logger, transport, serviceName, service == null, index + 1, attempt.Generation);
+        var diagnostics = new PeerAttemptLog(logger, transport, serviceName, service == null && network == null, index + 1, attempt.Generation);
         try
         {
             if (useTcp)
-                await PeerTcpConnection.RunAsync(tcp!, attempt, relay, tcpEndpoint, service == null,
+                await PeerTcpConnection.RunAsync(tcp!, attempt, relay, tcpEndpoint, service == null && network == null,
                     diagnostics, UseTransportAsync, token, directToken);
             else
                 await PeerUdpConnection.RunAsync(udp!, attempt, relay, options.StunServers, discoveryNodes, gateway,
-                    service == null, diagnostics, UseTransportAsync, token, directToken);
+                    service == null && network == null, diagnostics, UseTransportAsync, token, directToken);
         }
         catch (PeerPathException ex) when (ex.Reason == "no_tcp_candidates" && !token.IsCancellationRequested)
         {
@@ -469,7 +666,7 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
         async Task UseTransportAsync(PeerPipe pipe, Task wire)
         {
             connected = true;
-            var mux = CreateMux(pipe, service, logger);
+            var mux = CreateMux(pipe, service, network, logger);
             var loop = mux.RunAsync();
             path?.SetDirect(index, useTcp, mux);
             logger.LogInformation("P2P {Transport} 直连已就绪，新 TCP 连接使用直连", transport);
@@ -483,13 +680,27 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
         }
     }
 
-    internal static MuxSession CreateMux(PeerPipe transport, PeerServiceOptions? service, ILogger logger)
+    internal static MuxSession CreateMux(IDuplexPipe transport, PeerServiceOptions? service, PeerNetwork? network, ILogger logger)
     {
-        if (service == null)
+        if (service == null && network == null)
             return new MuxSession(transport, isServer: true, logger);
 
         return new MuxSession(transport, isServer: false, logger, async (stream, target) =>
         {
+            if (network != null)
+            {
+                // 组网速流只认目录里成员自己声明的虚拟地址，认领成功后整条流交给泵
+                if (!network.TryAdmit(target, out var peerId))
+                {
+                    logger.LogWarning("P2P 组网拒绝 {Host} 的通道：地址不在组网目录里", target.Host);
+                    await stream.DisposeAsync();
+                    return;
+                }
+
+                await network.ServeAsync(peerId, stream, stream.ConnectionClosed);
+                return;
+            }
+
             await using var mux = stream;
             if (!TryPickPort(service, target, out var port))
             {

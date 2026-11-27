@@ -196,7 +196,7 @@ public static class PeerManualPair
     {
         using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(token);
         await using var mux = PeerClient.CreateMux(transport.Pipe,
-            listener == null ? new PeerServiceOptions { LocalPort = port } : null, NullLogger.Instance);
+            listener == null ? new PeerServiceOptions { LocalPort = port } : null, null, NullLogger.Instance);
         var wire = transport.RunAsync(lifetime.Token);
         var loop = mux.RunAsync();
         var accept = listener == null ? Task.Delay(Timeout.Infinite, lifetime.Token) : AcceptAsync(listener, mux, lifetime.Token);

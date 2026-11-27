@@ -160,6 +160,99 @@ public class PeerNetworkPumpTests
     private static SwapRequest Target(string ip)
         => new() { Id = PeerProtocol.PrivateId, Host = PeerProtocol.IpService + "/" + ip, Port = 1 };
 
+    [Fact]
+    public void 每对成员只由编号较小的一侧拨组网速流()
+    {
+        Assert.True(PeerClient.IsDialer(Laptop, Nas));
+        Assert.False(PeerClient.IsDialer(Nas, Laptop));
+        // 大小写不敏感：服务端把主体编号统一成大写比较，两侧不能因为写法不同都去拨号
+        Assert.True(PeerClient.IsDialer("NAS", "nas1"));
+        Assert.False(PeerClient.IsDialer("nas1", "NAS"));
+    }
+
+    /// <summary>
+    /// 用 PeerClient 的真实接线跑一对成员：拨号方开完流也要把同一条流交给自己的泵，
+    /// 被叫方靠 CreateMux 的接受回调按声明地址认领，这样两侧的通道键才一致、双向都通。
+    /// </summary>
+    [Fact]
+    public async Task 两端各自的生产接线把包送到对方网卡()
+    {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        var (dialerPipe, answerPipe) = TestPipes.CreatePair();
+        await using var dialerTun = new FakeTun();
+        await using var answerTun = new FakeTun();
+        await using var dialerSide = new PeerNetwork(Roster(), dialerTun, NullLogger.Instance);
+        await using var answerSide = new PeerNetwork(NasRoster(), answerTun, NullLogger.Instance);
+        var dialer = PeerClient.CreateMux(dialerPipe, null, null, NullLogger.Instance);
+        var answer = PeerClient.CreateMux(answerPipe, null, answerSide, NullLogger.Instance);
+        var loops = new[] { dialer.RunAsync(), answer.RunAsync(),
+            dialerSide.RunAsync(cts.Token), answerSide.RunAsync(cts.Token) };
+        try
+        {
+            var stream = await dialer.OpenStreamAsync(dialerSide.NewTarget(), cts.Token);
+            _ = dialerSide.ServeAsync(Nas, stream, cts.Token);
+            Assert.True(await PumpFixture.WaitUntilAsync(() => answerSide.HasChannel(Laptop) && dialerSide.HasChannel(Nas)));
+
+            var outbound = TestPackets.Ipv4(PeerIpPacket.ProtocolTcp, LaptopIp, NasIp, [0x04, 0xB0, 0x01, 0xBB]);
+            await dialerTun.SendFromKernelAsync(outbound);
+            Assert.Equal(outbound, await answerTun.ReceiveFromNetworkAsync(Timeout));
+
+            var inbound = TestPackets.Ipv4(PeerIpPacket.ProtocolTcp, NasIp, LaptopIp, [0x01, 0xBB, 0x04, 0xB0]);
+            await answerTun.SendFromKernelAsync(inbound);
+            Assert.Equal(inbound, await dialerTun.ReceiveFromNetworkAsync(Timeout));
+        }
+        finally
+        {
+            // 会话不先关掉，搬运循环就永远等在管道上
+            await dialer.DisposeAsync();
+            await answer.DisposeAsync();
+            cts.Cancel();
+            await Task.WhenAny(Task.WhenAll(loops), Task.Delay(Timeout));
+        }
+    }
+
+    /// <summary>被叫方不接受目录外的地址声明，也不会因此影响会话本身。</summary>
+    [Fact]
+    public async Task 接线拒绝目录外的地址声明()
+    {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        var (dialerPipe, answerPipe) = TestPipes.CreatePair();
+        await using var dialerTun = new FakeTun();
+        await using var answerTun = new FakeTun();
+        await using var dialerSide = new PeerNetwork(Roster(), dialerTun, NullLogger.Instance);
+        await using var answerSide = new PeerNetwork(NasRoster(), answerTun, NullLogger.Instance);
+        var dialer = PeerClient.CreateMux(dialerPipe, null, null, NullLogger.Instance);
+        var answer = PeerClient.CreateMux(answerPipe, null, answerSide, NullLogger.Instance);
+        var loops = new[] { dialer.RunAsync(), answer.RunAsync(),
+            dialerSide.RunAsync(cts.Token), answerSide.RunAsync(cts.Token) };
+        try
+        {
+            // 地址不在目录里：不认通道，也不能把整条会话带崩
+            _ = await dialer.OpenStreamAsync(Target("100.64.0.9"), cts.Token);
+            await Task.Delay(Quiet);
+            Assert.False(answerSide.HasChannel(Laptop) || answerSide.HasChannel(Nas));
+
+            var stream = await dialer.OpenStreamAsync(dialerSide.NewTarget(), cts.Token);
+            _ = dialerSide.ServeAsync(Nas, stream, cts.Token);
+            Assert.True(await PumpFixture.WaitUntilAsync(() => answerSide.HasChannel(Laptop) && dialerSide.HasChannel(Nas)));
+        }
+        finally
+        {
+            await dialer.DisposeAsync();
+            await answer.DisposeAsync();
+            cts.Cancel();
+            await Task.WhenAny(Task.WhenAll(loops), Task.Delay(Timeout));
+        }
+    }
+
+    /// <summary>同一对成员里 nas 视角的目录：网段和成员不变，只是「自己」换了。</summary>
+    private static PeerNetworkRoster NasRoster()
+    {
+        var roster = Roster();
+        roster.Self = Nas;
+        return roster;
+    }
+
     /// <summary>
     /// 客户端从真实服务端领目录：开关、指纹、入网台账任一处不满足都只留日志，不抛异常。
     /// </summary>
