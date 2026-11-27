@@ -231,6 +231,37 @@ FastTunnel 与 frp `type=tcp` 在 10 000 RPS 以内都零错误达成；frp 的 
 服务名区分大小写，主体 ID 和服务名使用字母、数字、点、下划线或连字符。
 修改 P2P 客户端配置后重启客户端。
 
+### 一次授权一台机器：端口交给访客选
+
+不想为内网每台服务各写一行配置，就让提供端放行一组端口，由访客在需要时指定端口。
+提供端把端口位写成列表、区间或 `*`：
+
+```json
+"P2P": { "Share": { "dev": "3389,8000-8100@laptop" } }
+```
+
+访客端在目标后面加一段远端端口，本机端口与它不必相同：
+
+```json
+"P2P": { "Connect": { "home/dev/3389": 13389, "home/dev/8080": 18080 } }
+```
+
+完整的 `Services` / `Visitors` 写法对应 `Ports` 与 `RemotePort` 两个字段：
+
+```json
+{ "Services": [{ "Name": "dev", "LocalHost": "127.0.0.1", "Ports": "*", "AllowVisitors": ["laptop"] }] }
+```
+
+```json
+{ "Visitors": [{ "Provider": "home", "Service": "dev", "RemotePort": 3389, "ListenPort": 13389 }] }
+```
+
+`Ports` 只放开端口，主机名仍取提供端自己的 `LocalHost`，访客无法借这条路访问提供端的
+其他主机；不在放行范围内的端口由提供端直接断开该流并留一条 Warning 日志。
+不写 `Ports`（或 `Connect` 不带第三段）时行为与之前完全一致：端口固定在 `LocalPort`。
+旧版客户端不会带端口，因此只能连未开放 `Ports` 的服务。要真正做到「任意主机名 + 任意端口」
+而不逐条登记，用下一节的 SOCKS5 出口。
+
 UDP 直连使用 .NET 自带的网络和加密 API，无需安装额外的库。启用 P2P 后，
 FastTunnel 服务端默认在与 `BinPort` 相同的 **UDP** 端口提供地址发现。
 在服务端防火墙、容器或云安全组放行该 UDP 端口后，仅使用上面的两行简写也能获取公网映射候选。

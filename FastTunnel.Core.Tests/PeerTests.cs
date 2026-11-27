@@ -91,6 +91,58 @@ public class PeerTests
     }
 
     [Fact]
+    public void ShareCanOpenAPortRangeAndLeaveTheChoiceToTheVisitor()
+    {
+        using var config = new ConfigurationManager();
+        config["FastTunnel:P2P:Share:dev"] = "3389, 8000-8100@laptop";
+        config["FastTunnel:P2P:Share:any"] = "*@laptop";
+        config["FastTunnel:P2P:Connect:home/dev/3389"] = "13389";
+        var peer = config.GetSection("FastTunnel").Get<DefaultClientConfig>()!.P2P;
+
+        var dev = Assert.Single(peer.GetServices(), service => service.Name == "dev");
+        Assert.Equal(0, dev.LocalPort);
+        Assert.Equal("3389, 8000-8100", dev.Ports);
+        Assert.Equal(new[] { "laptop" }, dev.AllowVisitors);
+        Assert.Equal("*", Assert.Single(peer.GetServices(), service => service.Name == "any").Ports);
+
+        var visitor = Assert.Single(peer.GetVisitors());
+        Assert.Equal("home", visitor.Provider);
+        Assert.Equal("dev", visitor.Service);
+        Assert.Equal(13389, visitor.ListenPort);
+        Assert.Equal(3389, visitor.RemotePort);
+
+        Assert.Throws<InvalidOperationException>(() => new PeerOptions { Share = { ["bad"] = "not-a-port@laptop" } }.GetServices());
+        Assert.Throws<InvalidOperationException>(() => new PeerOptions { Share = { ["bad"] = "8100-8000@laptop" } }.GetServices());
+        Assert.Throws<InvalidOperationException>(() => new PeerOptions { Share = { ["bad"] = "99999@laptop" } }.GetServices());
+        Assert.Throws<InvalidOperationException>(() => new PeerOptions { Connect = { ["home/dev/99999"] = "13389" } }.GetVisitors());
+        Assert.Throws<InvalidOperationException>(() => new PeerOptions { Connect = { ["home/dev/0"] = "13389" } }.GetVisitors());
+    }
+
+    [Fact]
+    public void PortPolicyOnlyAdmitsPortsTheProviderShared()
+    {
+        var fixedService = new PeerServiceOptions { Name = "ssh", LocalHost = "127.0.0.1", LocalPort = 22 };
+        // 未写 Ports 时访客说了不算，旧版客户端也只带占位端口
+        Assert.True(PeerClient.TryPickPort(fixedService, PeerClient.NewTarget(3389), out var port));
+        Assert.Equal(22, port);
+        Assert.True(PeerClient.TryPickPort(fixedService, PeerClient.PrivateStream, out port));
+        Assert.Equal(22, port);
+
+        var ranged = new PeerServiceOptions { Name = "dev", LocalHost = "127.0.0.1", Ports = "3389,8000-8100" };
+        Assert.True(PeerClient.TryPickPort(ranged, PeerClient.NewTarget(8100), out port));
+        Assert.Equal(8100, port);
+        Assert.False(PeerClient.TryPickPort(ranged, PeerClient.NewTarget(8101), out _));
+        Assert.False(PeerClient.TryPickPort(ranged, PeerClient.NewTarget(445), out _));
+        // 旧版访客端不知道要访问哪个端口，不能凭猜测放行
+        Assert.False(PeerClient.TryPickPort(ranged, PeerClient.PrivateStream, out _));
+
+        var everything = new PeerServiceOptions { Name = "lab", LocalHost = "10.0.0.5", Ports = "*" };
+        Assert.True(PeerClient.TryPickPort(everything, PeerClient.NewTarget(6379), out port));
+        Assert.Equal(6379, port);
+        Assert.False(PeerClient.TryPickPort(everything, PeerClient.NewTarget(70000), out _));
+    }
+
+    [Fact]
     public async Task IceRestartDiscardsCandidatesFromPreviousAttempt()
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));

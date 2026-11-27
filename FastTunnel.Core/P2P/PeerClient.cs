@@ -98,13 +98,14 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
 
         if (services.Length * servers.Length > 64
             || services.Select(service => service.Name).Distinct(StringComparer.Ordinal).Count() != services.Length
-            || services.Any(service => !PeerProtocol.IsName(service.Name) || !PeerProtocol.IsPort(service.LocalPort)
+            || services.Any(service => !PeerProtocol.IsName(service.Name) || !HasPorts(service)
                 || string.IsNullOrWhiteSpace(service.LocalHost) || service.AllowVisitors.Length is 0 or > 60
                 || !service.AllowVisitors.All(PeerProtocol.IsName)))
             throw new InvalidOperationException("P2P Services/Share 的服务名称、端口或访客名单无效");
 
         if (visitors.Any(visitor => !PeerProtocol.IsName(visitor.Provider) || !PeerProtocol.IsName(visitor.Service)
-            || !PeerProtocol.IsPort(visitor.ListenPort) || !IPAddress.TryParse(visitor.ListenAddress, out var address)
+            || !PeerProtocol.IsPort(visitor.ListenPort) || visitor.RemotePort != 0 && !PeerProtocol.IsPort(visitor.RemotePort)
+            || !IPAddress.TryParse(visitor.ListenAddress, out var address)
             || !IPAddress.IsLoopback(NetUtil.Unmap(address)!)))
             throw new InvalidOperationException("P2P Visitors/Connect 要求有效的服务名、主体、端口和本机回环监听地址");
 
@@ -121,6 +122,10 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
                 || !PeerUdpHub.IsCandidate(endpoint.Address)))
             throw new InvalidOperationException("P2P DirectTcpEndpoint 要求有效的 IP:端口和非零 DirectTcpPort");
     }
+
+    /// <summary>要么固定一个 LocalPort，要么给出一段访客可选的 Ports 白名单。</summary>
+    private static bool HasPorts(PeerServiceOptions service)
+        => service.Ports is null ? PeerProtocol.IsPort(service.LocalPort) : PeerPortPolicy.Parse(service.Ports) != null;
 
     private async Task RunProviderAsync(DefaultClientConfig config, SuiDaoServer server, PeerServiceOptions service, bool direct,
         int index, CancellationToken token)
@@ -186,6 +191,7 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
         logger.LogInformation("P2P 访客 {Provider}/{Service} 在 {Address}:{Port} 监听",
             visitor.Provider, visitor.Service, visitor.ListenAddress, visitor.ListenPort);
         var path = new PeerPath(servers.Length);
+        var target = NewTarget(visitor.RemotePort);
         var connectors = servers.Select((server, index) =>
             MaintainVisitorAsync(config, server, visitor, direct, path, index, lifetime.Token)).ToArray();
         var active = new HashSet<Task>();
@@ -199,7 +205,7 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
                 try { local = await listener.AcceptAsync(lifetime.Token); }
                 catch { permits.Release(); throw; }
                 active.RemoveWhere(task => task.IsCompleted);
-                active.Add(ForwardVisitorAsync(local, path, permits, config.P2P.LogConnectionPath, lifetime.Token));
+                active.Add(ForwardVisitorAsync(local, path, target, permits, config.P2P.LogConnectionPath, lifetime.Token));
             }
         }
         finally
@@ -374,18 +380,44 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
     }
 
     internal static MuxSession CreateMux(PeerPipe transport, PeerServiceOptions? service, ILogger logger)
-        => service == null
-            ? new MuxSession(transport, isServer: true, logger)
-            : new MuxSession(transport, isServer: false, logger, async (stream, _) =>
-            {
-                await using var mux = stream;
-                using var connect = CancellationTokenSource.CreateLinkedTokenSource(stream.ConnectionClosed);
-                connect.CancelAfter(TimeSpan.FromSeconds(5));
-                using var socket = await DnsSocketFactory.ConnectAsync(service.LocalHost, service.LocalPort, connect.Token);
-                await BridgeAsync(socket, stream, stream.ConnectionClosed);
-            });
+    {
+        if (service == null)
+            return new MuxSession(transport, isServer: true, logger);
 
-    private async Task ForwardVisitorAsync(Socket local, PeerPath path, SemaphoreSlim permits,
+        return new MuxSession(transport, isServer: false, logger, async (stream, target) =>
+        {
+            await using var mux = stream;
+            if (!TryPickPort(service, target, out var port))
+            {
+                logger.LogWarning("P2P 拒绝访问本机端口 {Port}：不在 Share 放行范围内，或访客端过旧未指定端口", target.Port);
+                return;
+            }
+
+            using var connect = CancellationTokenSource.CreateLinkedTokenSource(stream.ConnectionClosed);
+            connect.CancelAfter(TimeSpan.FromSeconds(5));
+            // 主机名只取提供端自己的配置，放开的只有端口；否则一条凭据就能横向扫内网。
+            using var socket = await DnsSocketFactory.ConnectAsync(service.LocalHost, port, connect.Token);
+            await BridgeAsync(socket, stream, stream.ConnectionClosed);
+        });
+    }
+
+    /// <summary>这条流该连到提供端的哪个端口。未放行、或旧版访客端只带占位端口时返回 false。</summary>
+    internal static bool TryPickPort(PeerServiceOptions service, SwapRequest target, out int port)
+    {
+        var policy = PeerPortPolicy.For(service);
+        port = policy.FixedPort ?? target.Port;
+        return (policy.FixedPort is not null || target.Port != PrivateStream.Port) && policy.Allows(port);
+    }
+
+    /// <summary>访客开流时带的目标；未写远端端口时保留占位端口，由提供端按自己的 LocalPort 连接。</summary>
+    internal static SwapRequest NewTarget(int remotePort) => new()
+    {
+        Id = PrivateStream.Id,
+        Host = PrivateStream.Host,
+        Port = remotePort == 0 ? PrivateStream.Port : remotePort,
+    };
+
+    private async Task ForwardVisitorAsync(Socket local, PeerPath path, SwapRequest target, SemaphoreSlim permits,
         bool logConnectionPath, CancellationToken token)
     {
         using (local)
@@ -403,7 +435,7 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
                         open.CancelAfter(TimeSpan.FromMilliseconds(750));
 
                     MuxStream stream;
-                    try { stream = await route.Session.OpenStreamAsync(PrivateStream, open.Token); }
+                    try { stream = await route.Session.OpenStreamAsync(target, open.Token); }
                     catch (Exception ex) when (i < routes.Length - 1 && !timeout.IsCancellationRequested
                         && ex is IOException or OperationCanceledException or InvalidOperationException)
                     {
