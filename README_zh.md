@@ -99,7 +99,8 @@ FastTunnel 与 frp `type=tcp` 在 10 000 RPS 以内都零错误达成；frp 的 
       客户端支持程序目录下的同名变体；后加载覆盖先加载，全部支持热重载（示例见
       `FastTunnel.Server/config/appsettings.sample.ini`；INI 无原生数组，列表用节名下标）
 - [ ] 内容检测（旁路送审、主动巡检）：需先完成用户协议授权，尚未实施
-- [x] 私有 TCP P2P：托管 UDP 直连与 WSS 中继自动选路；`p2p-enroll` 入网码让设备免配置接入；无服务端时可 `p2p-pair` 手动配对
+- [x] 私有 TCP P2P：托管 UDP 直连与 WSS 中继自动选路；`p2p-enroll` 入网码让设备免配置接入；无服务端时可 `p2p-pair` 手动配对；
+      提供端可放行端口范围，访客端 SOCKS5 出口用 `服务名.提供端ID.ft:端口` 直连任意已授权端口
 - [ ] Dashboard / Admin UI（指标已有 `/metrics`、健康检查已有 `/healthz`）
 
 > 两个「白名单」别混淆：旧文档打勾的「域名白名单限制」从未实现，那个
@@ -297,6 +298,42 @@ UDP 地址发现需要独立放行或转发，特别是反代已在 UDP/443 提�
 `selection_timeout`（已收到对端探测流量，但候选未完成确认）、`commit_timeout`（最终确认超时）、
 `tcp_connect_failed`（TCP 连接失败）和 `tcp_tls_failed`（TLS 握手或会话绑定失败）。
 失败日志默认省略候选 IP、Token 和密钥。若已有可用备用候选，最终确认失败时会在同一轮快速重选。
+
+### 主机名 + 任意端口：访客本机 SOCKS5 出口
+
+上一节的 `Connect` 要为一个端口开一个本机监听。想让浏览器、SSH 客户端、数据库工具直接连远端的
+任意端口，在**访客端**开一个 SOCKS5 出口：
+
+```json
+{
+  "FastTunnel": {
+    "Server": { "Protocol": "wss", "ServerAddr": "p2p.example.com", "ServerPort": 8443, "CertificateFingerprint": "..." },
+    "Token": "visitor-token",
+    "P2P": {
+      "Socks5": 1080,
+      "Socks5Via": [ "home/dev", "work/file" ]
+    }
+  }
+}
+```
+
+把应用（或浏览器）的 SOCKS5 代理指向 `127.0.0.1:1080`，目标地址写成
+**`服务名.提供端ID.ft`**，端口由应用自己决定——访问提供端 RDP 就是 `dev.home.ft:3389`，
+SSH 就是 `dev.home.ft:22`，无需再为每个端口登记监听。只写 `提供端ID.ft` 时，要求该提供端在该
+出口里只有一个服务。
+
+* `Socks5` 是本机监听端口（`0` 表示不启用），只会绑定 `127.0.0.1` 与 `::1`，不对外提供服务。
+* `Socks5Via` 留空时复用 `Connect`/`Visitors` 里已登记的全部通道；写出来则只放行列出的
+  `提供端ID/服务名`（最多 16 个），SOCKS 出口不需要为本机端口占位。
+* 支持版本 5、`CONNECT` 命令、域名/IPv4/IPv6 目标；不提供鉴权（只监听回环），不支持 UDP 转发。
+* 端口能否连由**提供端**的 `Ports` 决定：`"*@guest"` 或 `"3389,8000-8100@guest"` 才能配合 SOCKS
+  选端口；只提供固定 `LocalPort` 的服务，走 SOCKS 也只会连那个端口。主机名一律取提供端自己的
+  `LocalHost`，出口不会变成访问提供端内网的跳板。
+* 目标名无法解析、端口不在放行范围、隧道尚未就绪时，SOCKS 返回标准错误码（0x02 连接不被允许、
+  0x04 目标不可达），应用会看到普通的连接被拒。
+
+至此一条授权覆盖一台机器的任意端口，体验上接近「同一个网段」，但仍不虚拟网卡：只有走这个 SOCKS
+代理的流量在隧道里，本机路由表和其他应用不受影响。
 
 ### 打洞排障
 

@@ -47,7 +47,15 @@ public sealed class PeerOptions
     /// <summary>本客户端访问的服务。</summary>
     public PeerVisitorOptions[] Visitors { get; set; } = [];
 
-    internal bool HasEndpoints => Services.Length != 0 || Visitors.Length != 0 || Share.Count != 0 || Connect.Count != 0;
+    /// <summary>访客本机的 SOCKS5 出口端口，0 表示不启用。启用后目标写成「服务名.提供端ID.ft」，
+    /// 端口由应用自己决定，无需为每个远端端口在本机开监听。</summary>
+    public int Socks5 { get; set; }
+
+    /// <summary>SOCKS5 出口可用的「提供端ID/服务名」列表；留空表示复用 Visitors/Connect 里的全部通道。</summary>
+    public string[] Socks5Via { get; set; } = [];
+
+    internal bool HasEndpoints => Services.Length != 0 || Visitors.Length != 0 || Share.Count != 0
+        || Connect.Count != 0 || Socks5 != 0;
 
     internal PeerServiceOptions[] GetServices() => Services.Concat(Share.Select(entry =>
     {

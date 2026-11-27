@@ -47,7 +47,8 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
         var services = peer.GetServices();
         var visitors = peer.GetVisitors();
         var servers = new[] { config.Server }.Concat(peer.AdditionalRelays).ToArray();
-        Validate(config, servers, services, visitors);
+        var exits = peer.Socks5 != 0 ? PeerSocks5.ResolveExits(peer, visitors) : [];
+        Validate(config, servers, services, visitors, exits);
         discoveryNodes = servers;
         if (peer.EnableDirect)
         {
@@ -67,9 +68,20 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
             gateway = new PeerGatewayMapper(udp.Port, logger, token);
         await using var gatewayLifetime = gateway;
 
+        // 每个「提供端/服务」只维护一条通道：连接器建一次，本机监听端口和 SOCKS5 出口在同一条路上开流
+        var channels = new Dictionary<string, PeerChannel>(StringComparer.OrdinalIgnoreCase);
+        foreach (var target in visitors.Select(visitor => (visitor.Provider, visitor.Service))
+                     .Concat(exits.Select(exit => (exit.Provider, exit.Service))))
+            channels[PeerChannel.Key(target.Provider, target.Service)] =
+                new PeerChannel(target.Provider, target.Service, servers.Length);
+
         var tasks = servers.SelectMany((server, index) => services.Select(service =>
                 RunProviderAsync(config, server, service, direct, index, lifetime.Token)))
-            .Concat(visitors.Select(visitor => RunVisitorAsync(config, servers, visitor, direct, lifetime.Token)))
+            .Concat(channels.Values.SelectMany(channel => servers.Select((server, index) =>
+                MaintainVisitorAsync(config, server, channel, direct, index, lifetime.Token))))
+            .Concat(visitors.Select(visitor => RunVisitorAsync(config,
+                channels[PeerChannel.Key(visitor.Provider, visitor.Service)], visitor, lifetime.Token)))
+            .Concat(peer.Socks5 != 0 ? new[] { RunSocks5Async(config, exits, channels, lifetime.Token) } : [])
             .ToArray();
         try { await await Task.WhenAny(tasks); }
         catch (OperationCanceledException) when (lifetime.IsCancellationRequested)
@@ -85,7 +97,7 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
     }
 
     private static void Validate(DefaultClientConfig config, SuiDaoServer[] servers,
-        PeerServiceOptions[] services, PeerVisitorOptions[] visitors)
+        PeerServiceOptions[] services, PeerVisitorOptions[] visitors, PeerSocks5.Exit[] exits)
     {
         var peer = config.P2P;
         if (servers.Length > 4 || servers.Any(server => server == null
@@ -108,6 +120,9 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
             || !IPAddress.TryParse(visitor.ListenAddress, out var address)
             || !IPAddress.IsLoopback(NetUtil.Unmap(address)!)))
             throw new InvalidOperationException("P2P Visitors/Connect 要求有效的服务名、主体、端口和本机回环监听地址");
+
+        if (peer.Socks5 is < 0 or > 65535 || peer.Socks5 != 0 && exits.Length * servers.Length > 64)
+            throw new InvalidOperationException("P2P Socks5 需要 1–65535 的本机监听端口，且出口数乘以节点数不超过 64");
 
         if (peer.StunServers.Length > 8 || peer.StunServers.Any(server =>
             !server.StartsWith("stun:", StringComparison.OrdinalIgnoreCase) || server.Length > 256 || server.Contains('\0')))
@@ -180,7 +195,7 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
         }
     }
 
-    private async Task RunVisitorAsync(DefaultClientConfig config, SuiDaoServer[] servers, PeerVisitorOptions visitor, bool direct,
+    private async Task RunVisitorAsync(DefaultClientConfig config, PeerChannel channel, PeerVisitorOptions visitor,
         CancellationToken token)
     {
         using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(token);
@@ -190,10 +205,7 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
         listener.Listen(128);
         logger.LogInformation("P2P 访客 {Provider}/{Service} 在 {Address}:{Port} 监听",
             visitor.Provider, visitor.Service, visitor.ListenAddress, visitor.ListenPort);
-        var path = new PeerPath(servers.Length);
         var target = NewTarget(visitor.RemotePort);
-        var connectors = servers.Select((server, index) =>
-            MaintainVisitorAsync(config, server, visitor, direct, path, index, lifetime.Token)).ToArray();
         var active = new HashSet<Task>();
         using var permits = new SemaphoreSlim(256);
         try
@@ -205,37 +217,129 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
                 try { local = await listener.AcceptAsync(lifetime.Token); }
                 catch { permits.Release(); throw; }
                 active.RemoveWhere(task => task.IsCompleted);
-                active.Add(ForwardVisitorAsync(local, path, target, permits, config.P2P.LogConnectionPath, lifetime.Token));
+                active.Add(ForwardVisitorAsync(local, channel.Path, target, permits, config.P2P.LogConnectionPath, lifetime.Token));
             }
         }
         finally
         {
             lifetime.Cancel();
-            await Task.WhenAll(active.Concat(connectors)).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+            await Task.WhenAll(active).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
         }
     }
 
-    private async Task MaintainVisitorAsync(DefaultClientConfig config, SuiDaoServer server, PeerVisitorOptions visitor,
-        bool direct, PeerPath path, int index, CancellationToken token)
+    private async Task MaintainVisitorAsync(DefaultClientConfig config, SuiDaoServer server, PeerChannel channel,
+        bool direct, int index, CancellationToken token)
     {
         while (!token.IsCancellationRequested)
         {
             try
             {
-                using var socket = await ConnectAsync(server, config.Token, visitor.Service, visitor.Provider, null, direct, token);
+                using var socket = await ConnectAsync(server, config.Token, channel.Service, channel.Provider, null, direct, token);
                 using var handshake = CancellationTokenSource.CreateLinkedTokenSource(token);
                 handshake.CancelAfter(TimeSpan.FromSeconds(5));
                 var mode = await PeerProtocol.ReceiveTextAsync(socket, handshake.Token);
                 if (mode is "direct" or "relay")
-                    await RunSessionAsync(socket, config.P2P, visitor.Provider + "/" + visitor.Service,
-                        mode == "direct", null, path, index, token);
+                    await RunSessionAsync(socket, config.P2P, channel.Name,
+                        mode == "direct", null, channel.Path, index, token);
             }
             catch (Exception ex) when (!token.IsCancellationRequested)
             {
                 logger.LogDebug(ex, "P2P 访客 {Provider}/{Service} 在 {Server}:{Port} 的会话中断",
-                    visitor.Provider, visitor.Service, server.ServerAddr, server.ServerPort);
+                    channel.Provider, channel.Service, server.ServerAddr, server.ServerPort);
             }
             await Task.Delay(TimeSpan.FromMilliseconds(Random.Shared.Next(500, 1000)), token);
+        }
+    }
+
+    private async Task RunSocks5Async(DefaultClientConfig config, PeerSocks5.Exit[] exits,
+        Dictionary<string, PeerChannel> channels, CancellationToken token)
+    {
+        // 两个回环族都监听，应用填 localhost 不会因为解析到 ::1 而连不上
+        var listeners = new List<Task> { RunSocks5ListenerAsync(config, IPAddress.Loopback, exits, channels, token) };
+        if (Socket.OSSupportsIPv6)
+            listeners.Add(RunSocks5ListenerAsync(config, IPAddress.IPv6Loopback, exits, channels, token));
+        await Task.WhenAll(listeners);
+    }
+
+    private async Task RunSocks5ListenerAsync(DefaultClientConfig config, IPAddress address,
+        PeerSocks5.Exit[] exits, Dictionary<string, PeerChannel> channels, CancellationToken token)
+    {
+        using var listener = new Socket(address.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+        try
+        {
+            listener.Bind(new IPEndPoint(address, config.P2P.Socks5));
+        }
+        catch (SocketException ex) when (!address.Equals(IPAddress.Loopback))
+        {
+            // 监听不了 ::1 不算故障，127.0.0.1 已经在工作
+            logger.LogDebug("P2P SOCKS5 跳过 {Address} 监听 Socket错误={SocketError}", address, ex.SocketErrorCode);
+            return;
+        }
+        catch (SocketException ex)
+        {
+            throw new InvalidOperationException($"P2P SOCKS5 无法监听 {address}:{config.P2P.Socks5}（{ex.SocketErrorCode}）");
+        }
+
+        listener.Listen(128);
+        if (address.Equals(IPAddress.Loopback))
+            logger.LogInformation("P2P SOCKS5 出口已就绪：把代理设为 {Address}:{Port}，目标写 服务名.提供端ID.ft",
+                address, config.P2P.Socks5);
+
+        var active = new HashSet<Task>();
+        using var permits = new SemaphoreSlim(256);
+        try
+        {
+            while (!token.IsCancellationRequested)
+            {
+                await permits.WaitAsync(token);
+                Socket local;
+                try { local = await listener.AcceptAsync(token); }
+                catch { permits.Release(); throw; }
+                active.RemoveWhere(task => task.IsCompleted);
+                active.Add(HandleSocks5Async(local, exits, channels, config.P2P.LogConnectionPath, permits, token));
+            }
+        }
+        finally
+        {
+            await Task.WhenAll(active).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+        }
+    }
+
+    private async Task HandleSocks5Async(Socket local, PeerSocks5.Exit[] exits, Dictionary<string, PeerChannel> channels,
+        bool logConnectionPath, SemaphoreSlim permits, CancellationToken token)
+    {
+        using (local)
+        {
+            try
+            {
+                var (host, port) = await PeerSocks5.ReadRequestAsync(local, token);
+                if (!PeerSocks5.TryResolve(host, exits, out var index)
+                    || !channels.TryGetValue(PeerChannel.Key(exits[index].Provider, exits[index].Service), out var channel))
+                {
+                    await PeerSocks5.WriteHostUnreachableAsync(local, token);
+                    return;
+                }
+
+                MuxStream? stream;
+                try { stream = await OpenVisitorStreamAsync(channel.Path, NewTarget(port), logConnectionPath, token); }
+                catch (Exception ex) when (ex is IOException or InvalidOperationException && !token.IsCancellationRequested)
+                {
+                    await PeerSocks5.WriteRefusedAsync(local, token);
+                    return;
+                }
+
+                if (stream == null)
+                {
+                    await PeerSocks5.WriteRefusedAsync(local, token);
+                    return;
+                }
+
+                await PeerSocks5.WriteSuccessAsync(local, token);
+                await using (stream)
+                    await BridgeAsync(local, stream, token);
+            }
+            catch (Exception ex) { logger.LogDebug(ex, "P2P SOCKS5 连接结束"); }
+            finally { permits.Release(); }
         }
     }
 
@@ -424,34 +528,45 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
         {
             try
             {
-                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
-                timeout.CancelAfter(TimeSpan.FromSeconds(5));
-                var routes = await path.GetAsync(timeout.Token);
-                for (var i = 0; i < routes.Length; i++)
-                {
-                    var route = routes[i];
-                    using var open = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token);
-                    if (i < routes.Length - 1)
-                        open.CancelAfter(TimeSpan.FromMilliseconds(750));
-
-                    MuxStream stream;
-                    try { stream = await route.Session.OpenStreamAsync(target, open.Token); }
-                    catch (Exception ex) when (i < routes.Length - 1 && !timeout.IsCancellationRequested
-                        && ex is IOException or OperationCanceledException or InvalidOperationException)
-                    {
-                        continue;
-                    }
-
-                    logger.Log(logConnectionPath ? LogLevel.Information : LogLevel.Debug,
-                        "P2P TCP 连接使用 {Path}", route.Transport);
-                    await using (stream)
-                        await BridgeAsync(local, stream, token);
+                var stream = await OpenVisitorStreamAsync(path, target, logConnectionPath, token);
+                if (stream == null)
                     return;
-                }
+                await using (stream)
+                    await BridgeAsync(local, stream, token);
             }
             catch (Exception ex) { logger.LogDebug(ex, "P2P 访客 TCP 连接结束"); }
             finally { permits.Release(); }
         }
+    }
+
+    /// <summary>按 UDP 直连 → TCP/TLS 直连 → WSS 中继的顺序开一条流；一条都开不出时返回 null。</summary>
+    private async Task<MuxStream?> OpenVisitorStreamAsync(PeerPath path, SwapRequest target,
+        bool logConnectionPath, CancellationToken token)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+        timeout.CancelAfter(TimeSpan.FromSeconds(5));
+        var routes = await path.GetAsync(timeout.Token);
+        for (var i = 0; i < routes.Length; i++)
+        {
+            var route = routes[i];
+            using var open = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token);
+            if (i < routes.Length - 1)
+                open.CancelAfter(TimeSpan.FromMilliseconds(750));
+
+            MuxStream stream;
+            try { stream = await route.Session.OpenStreamAsync(target, open.Token); }
+            catch (Exception ex) when (i < routes.Length - 1 && !timeout.IsCancellationRequested
+                && ex is IOException or OperationCanceledException or InvalidOperationException)
+            {
+                continue;
+            }
+
+            logger.Log(logConnectionPath ? LogLevel.Information : LogLevel.Debug,
+                "P2P TCP 连接使用 {Path}", route.Transport);
+            return stream;
+        }
+
+        return null;
     }
 
     internal static async Task BridgeAsync(Socket socket, MuxStream stream, CancellationToken token)
@@ -483,6 +598,17 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
             await stream.Input.CopyToAsync(network, lifetime.Token);
             socket.Shutdown(SocketShutdown.Send);
         }
+    }
+
+    /// <summary>到「提供端/服务」的一条通道：连接器维护 PeerPath，本机监听端口与 SOCKS5 出口共用它。</summary>
+    private sealed class PeerChannel(string provider, string service, int servers)
+    {
+        internal string Provider { get; } = provider;
+        internal string Service { get; } = service;
+        internal PeerPath Path { get; } = new(servers);
+        internal string Name => Key(Provider, Service);
+
+        internal static string Key(string provider, string service) => provider + "/" + service;
     }
 
     private sealed class PeerPath(int count)
