@@ -6,6 +6,13 @@ namespace FastTunnel.Core.P2P;
 internal static class PeerProtocol
 {
     internal const string Path = "/p2p/v1";
+
+    /// <summary>L3 组网目录：GET，用与 P2P 信令相同的 Token 请求头鉴权。</summary>
+    internal const string NetworkPath = "/p2p/v1/network";
+
+    /// <summary>承载虚拟网卡流量的保留服务名，成员之间不用为它写配置。</summary>
+    internal const string IpService = "ip";
+
     internal const string Service = "FT_P2P_SERVICE";
     internal const string Provider = "FT_P2P_PROVIDER";
     internal const string Visitors = "FT_P2P_VISITORS";

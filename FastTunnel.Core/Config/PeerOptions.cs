@@ -54,8 +54,13 @@ public sealed class PeerOptions
     /// <summary>SOCKS5 出口可用的「提供端ID/服务名」列表；留空表示复用 Visitors/Connect 里的全部通道。</summary>
     public string[] Socks5Via { get; set; } = [];
 
+    /// <summary>启用 L3 组网：向服务端领取虚拟 IP，创建虚拟网卡，把网段内的流量直接走 P2P。
+    /// 默认关闭——只用 Web / TCP 穿透时无需虚拟网卡，也不用以管理员运行。
+    /// 开启需要服务端同时配置 <c>FastTunnel:P2PNetwork:Enabled=true</c>，且设备是通过入网码入网的。</summary>
+    public bool EnableL3 { get; set; }
+
     internal bool HasEndpoints => Services.Length != 0 || Visitors.Length != 0 || Share.Count != 0
-        || Connect.Count != 0 || Socks5 != 0;
+        || Connect.Count != 0 || Socks5 != 0 || EnableL3;
 
     internal PeerServiceOptions[] GetServices() => Services.Concat(Share.Select(entry =>
     {

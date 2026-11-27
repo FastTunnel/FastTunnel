@@ -56,6 +56,12 @@ public class FastTunnelClientHandler
     {
         try
         {
+            if (context.Request.Path == PeerProtocol.NetworkPath)
+            {
+                await WriteNetworkRosterAsync(context);
+                return;
+            }
+
             if (context.Request.Path == PeerProtocol.Path && context.WebSockets.IsWebSocketRequest
                 && context.Request.Headers.ContainsKey(ProtocolConst.FASTTUNNEL_VERSION))
             {
@@ -253,6 +259,74 @@ public class FastTunnelClientHandler
         return directory?.TryFind(identity.Token, out var current) == true
             && current is { IsLegacy: false }
             && string.Equals(current.Id, identity.Id, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// L3 组网目录。默认关闭：没开 <c>FastTunnel:P2PNetwork:Enabled</c> 时这里就是 404，
+    /// 客户端只会记一条日志，不会创建虚拟网卡。开启用后按入网台账发放虚拟 IP。
+    /// </summary>
+    private async Task WriteNetworkRosterAsync(HttpContext context)
+    {
+        var options = fastTunnelServer.ServerOption.CurrentValue;
+        var network = options.P2PNetwork;
+        if (!options.EnableP2P || network is not { Enabled: true } || registry == null)
+        {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+
+        // 目录里是内网拓扑，只走 TLS，与 P2P 信令同一门槛
+        if (!context.Request.IsHttps && context.Features.Get<TunnelTlsFeature>() == null)
+        {
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            return;
+        }
+
+        if (!checkToken(context, out _, out var credential) || credential is not { IsLegacy: false })
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return;
+        }
+
+        var cidr = PeerNetworkCidr.Parse(network.Cidr);
+        if (cidr == null)
+        {
+            logger.LogWarning("FastTunnel:P2PNetwork:Cidr「{Cidr}」不是可分配的 IPv4 私有网段，组网目录不可用", network.Cidr);
+            context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+            return;
+        }
+
+        registry.RefreshFromDisk();
+        IReadOnlyList<PeerAddress> members;
+        try
+        {
+            members = registry.RefreshNetwork(cidr);
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning(ex, "组网目录发放地址失败");
+            context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+            return;
+        }
+
+        if (!members.Any(x => string.Equals(x.Id, credential.Id, StringComparison.OrdinalIgnoreCase)))
+        {
+            logger.LogWarning("主体 {Id} 不在入网台账里，无法领取虚拟地址", credential.Id);
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return;
+        }
+
+        var roster = new PeerNetworkRoster
+        {
+            Cidr = cidr.Text,
+            Self = credential.Id,
+            Peers = [.. members.Select(x => new PeerNetworkEntry { Id = x.Id, Name = x.Name, Ip = x.Ip })],
+        };
+
+        context.Response.ContentType = "application/json; charset=utf-8";
+        context.Response.Headers.CacheControl = $"private, max-age={Math.Clamp(network.DirectorySeconds, 10, 3600)}";
+        await System.Text.Json.JsonSerializer.SerializeAsync(
+            context.Response.Body, roster, AppJsonContext.Default.PeerNetworkRoster, context.RequestAborted);
     }
 
     private static async Task AwaitQuietlyAsync(params Task[] tasks)

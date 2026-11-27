@@ -9,6 +9,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using FastTunnel.Core.Models;
 using FastTunnel.Core.Models.Massage;
+using FastTunnel.Core.P2P;
 using FastTunnel.Core.Security;
 
 namespace FastTunnel.Core.Protocol;
@@ -28,6 +29,9 @@ namespace FastTunnel.Core.Protocol;
 [JsonSerializable(typeof(PeerRegistryFile))]
 [JsonSerializable(typeof(PeerRecord))]
 [JsonSerializable(typeof(EnrollTicket))]
+[JsonSerializable(typeof(PeerNetworkRoster))]
+[JsonSerializable(typeof(PeerNetworkEntry))]
+[JsonSerializable(typeof(PeerNetworkEntry[]))]
 [JsonSerializable(typeof(List<PeerRecord>))]
 [JsonSerializable(typeof(List<EnrollTicket>))]
 [JsonSerializable(typeof(List<BanRecord>))]

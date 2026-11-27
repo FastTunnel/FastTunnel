@@ -43,6 +43,27 @@ public class DefaultServerConfig : IServerConfig
     /// <summary>设备入网台账：一次性入网码兑换出的长期凭据。</summary>
     public P2PEnrollmentOptions P2PEnrollment { get; set; } = new();
 
+    /// <summary>
+    /// L3 组网（虚拟网卡 + 虚拟 IP）。默认关闭：只做 Web / TCP 穿透的部署无需开启，
+    /// 关闭时服务端不分配虚拟 IP，也不提供组网目录，客户端即使配置了 <c>P2P:EnableL3</c> 也拿不到网段。
+    /// </summary>
+    public P2PNetworkOptions P2PNetwork { get; set; } = new();
+
+    public class P2PNetworkOptions
+    {
+        /// <summary>是否为入网设备分配虚拟 IP 并下发组网目录。开启即允许客户端创建虚拟网卡。</summary>
+        public bool Enabled { get; set; }
+
+        /// <summary>
+        /// 虚拟网段（IPv4 CIDR），例如 <c>"100.64.0.0/16"</c>。建议用 100.64.0.0/10、
+        /// 10.0.0.0/8 这类与自己内网不重叠的私有段；网络地址和广播地址不参与分配。
+        /// </summary>
+        public string Cidr { get; set; } = "100.64.0.0/16";
+
+        /// <summary>组网目录的缓存秒数，客户端按此周期刷新成员表。取值 10–3600。</summary>
+        public int DirectorySeconds { get; set; } = 60;
+    }
+
     public class P2PEnrollmentOptions
     {
         /// <summary>

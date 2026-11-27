@@ -182,6 +182,54 @@ public sealed class PeerRegistry
     public DateTimeOffset? LastSeenOf(string? id)
         => Normalize(id) is { Length: > 0 } key && lastSeen.TryGetValue(key, out var value) ? value : null;
 
+    /// <summary>
+    /// L3 组网目录：给还没有虚拟 IP、或旧 IP 已落在新网段之外的设备补发地址，返回成员表。
+    /// 入网早的拿小地址，结果稳定；只在客户端拉目录时调用，认证热路径不碰磁盘。
+    /// </summary>
+    internal IReadOnlyList<PeerAddress> RefreshNetwork(PeerNetworkCidr cidr)
+    {
+        lock (gate)
+        {
+            var taken = new HashSet<uint>();
+            foreach (var peer in snapshot.Peers)
+                if (cidr.TryAddress(peer.VirtualIp, out var held))
+                    taken.Add(held);
+
+            var next = cidr.FirstAddress;
+            var changed = false;
+            foreach (var peer in snapshot.Peers.OrderBy(x => x.EnrolledAt).ThenBy(x => x.Id, StringComparer.Ordinal))
+            {
+                if (cidr.TryAddress(peer.VirtualIp, out var current))
+                {
+                    taken.Add(current);
+                    continue;
+                }
+
+                while (next <= cidr.LastAddress && !taken.Add(next))
+                    next++;
+
+                if (next > cidr.LastAddress)
+                    throw new InvalidOperationException($"网段 {cidr.Text} 已分完，请扩大 FastTunnel:P2PNetwork:Cidr 或撤销闲置设备");
+
+                // PeerRecord 是快照里的同一个实例，只补地址不改主键，无需重建快照。
+                peer.VirtualIp = PeerNetworkCidr.ToAddress(next).ToString();
+                changed = true;
+            }
+
+            if (changed)
+                Save();
+
+            return
+            [
+                .. snapshot.Peers
+                    .Where(x => x.Enabled && cidr.TryAddress(x.VirtualIp, out _))
+                    // 按地址排序返回，客户端拿到的是稳定的网段顺序，与入网先后无关
+                    .OrderBy(x => PeerNetworkCidr.ToUInt32(System.Net.IPAddress.Parse(x.VirtualIp!)))
+                    .Select(x => new PeerAddress(x.Id, x.Name, x.VirtualIp!)),
+            ];
+        }
+    }
+
     /// <summary>待用入网码列表（不含明文码，明文只在签发时返回一次）。</summary>
     public IReadOnlyList<EnrollTicket> PendingTickets()
     {
@@ -365,6 +413,9 @@ public sealed record IssuedTicket(Guid Id, string Code, DateTimeOffset Expires);
 /// <summary>兑换成功后返回给客户端的凭据，明文 token 的唯一副本。</summary>
 public sealed record PeerCredential(string Id, string Name, string Token);
 
+/// <summary>组网目录里的一条成员：主体编号、设备名与分配的虚拟 IP。</summary>
+public sealed record PeerAddress(string Id, string Name, string Ip);
+
 /// <summary>入网设备记录。台账只保存 token 指纹，不保存明文。</summary>
 public sealed class PeerRecord
 {
@@ -379,6 +430,9 @@ public sealed class PeerRecord
     public DateTimeOffset LastSeen { get; set; }
 
     public bool Enabled { get; set; } = true;
+
+    /// <summary>L3 组网分配的虚拟 IPv4；未启用组网或尚未分配时为空。旧台账文件里没有这个字段，读入后按需补发。</summary>
+    public string? VirtualIp { get; set; }
 }
 
 /// <summary>待用入网码。只存码指纹，明文码不落台账也不落文件。</summary>
