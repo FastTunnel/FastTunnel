@@ -68,14 +68,26 @@ public class FastTunnelClientHandler
                     return;
                 }
 
-                if (!checkToken(context, out _, out var credential) || credential is not { IsLegacy: false }
-                    || !IsPeerAuthorized(credential))
+                var supplied = context.Request.Headers[ProtocolConst.FASTTUNNEL_TOKEN].ToString();
+                PeerIdentity? identity = null;
+                if (PeerInvites.IsInvite(supplied))
+                {
+                    var key = fastTunnelServer.ServerOption.CurrentValue.P2PInviteKey;
+                    if (PeerInvites.Verify(supplied, key, DateTimeOffset.UtcNow) is { } invite)
+                        identity = new PeerIdentity(invite.Id, supplied, invite);
+                }
+                else if (checkToken(context, out _, out var credential) && credential is { IsLegacy: false })
+                {
+                    identity = new PeerIdentity(credential.Id, credential.Token);
+                }
+
+                if (identity == null || !IsPeerAuthorized(identity))
                 {
                     context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                     return;
                 }
 
-                await peers.RunAsync(context, credential, IsPeerAuthorized);
+                await peers.RunAsync(context, identity, IsPeerAuthorized);
                 return;
             }
 
@@ -228,13 +240,17 @@ public class FastTunnelClientHandler
         }
     }
 
-    private bool IsPeerAuthorized(ClientCredential credential)
-        => fastTunnelServer.ServerOption.CurrentValue.EnableP2P
-           && directory?.TryFind(credential.Token, out var current) == true
-           && current is { IsLegacy: false }
-           && string.Equals(current.Id, credential.Id, StringComparison.OrdinalIgnoreCase)
-           && bans?.IsTokenBanned(credential.Token) != true
-           && bans?.IsAccountBanned(credential.Id) != true;
+    private bool IsPeerAuthorized(PeerIdentity identity)
+    {
+        var options = fastTunnelServer.ServerOption.CurrentValue;
+        if (!options.EnableP2P || bans?.IsTokenBanned(identity.Token) == true || bans?.IsAccountBanned(identity.Id) == true)
+            return false;
+        if (identity.Invite is { } invite)
+            return PeerInvites.Verify(identity.Token, options.P2PInviteKey, DateTimeOffset.UtcNow) == invite;
+        return directory?.TryFind(identity.Token, out var current) == true
+            && current is { IsLegacy: false }
+            && string.Equals(current.Id, identity.Id, StringComparison.OrdinalIgnoreCase);
+    }
 
     private static async Task AwaitQuietlyAsync(params Task[] tasks)
     {
@@ -263,6 +279,8 @@ public class FastTunnelClientHandler
     {
         matched = null;
         credential = null;
+        if (PeerInvites.IsInvite(context.Request.Headers[ProtocolConst.FASTTUNNEL_TOKEN].ToString()))
+            return false;
 
         if (directory != null)
         {

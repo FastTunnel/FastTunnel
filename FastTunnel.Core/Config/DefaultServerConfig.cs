@@ -37,6 +37,9 @@ public class DefaultServerConfig : IServerConfig
     /// <summary>启用私有 P2P 信令和 WSS 中继。要求独立的 Clients 凭据。</summary>
     public bool EnableP2P { get; set; }
 
+    /// <summary>启用 P2P 测试邀请的 32 字节十六进制签名密钥。不设置时停用邀请。</summary>
+    public string? P2PInviteKey { get; set; }
+
     /// <summary>公共隧道监听端口，也是默认的 P2P UDP 地址发现端口。</summary>
     public int BinPort { get; set; } = 1270;
 

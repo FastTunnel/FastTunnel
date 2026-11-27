@@ -21,6 +21,38 @@ namespace FastTunnel.Core.Tests;
 public class PeerTests
 {
     [Fact]
+    public void ManualPairingCodesCheckDirectionAndExpiration()
+    {
+        var offer = new PeerManualPair.PairCode("offer", Guid.NewGuid(), Guid.Empty,
+            DateTimeOffset.FromUnixTimeSeconds(DateTimeOffset.UtcNow.ToUnixTimeSeconds() + 60),
+            [1, 2, 3], [new(IPAddress.IPv6Loopback, 43210), new(IPAddress.Loopback, 34567)]);
+        var text = offer.Encode();
+        Assert.Equal(text, PeerManualPair.PairCode.Decode("  " + text + "  ", "offer").Encode());
+        Assert.Throws<IOException>(() => PeerManualPair.PairCode.Decode(text, "answer"));
+        Assert.Throws<IOException>(() => PeerManualPair.PairCode.Decode(
+            (offer with { Expires = DateTimeOffset.UtcNow.AddSeconds(-5) }).Encode(), "offer"));
+    }
+
+    [Fact]
+    public void InviteTokensAreSignedRoleBoundAndExpire()
+    {
+        var key = new string('A', 64);
+        var pair = PeerInvites.Create(key, "rdp.test", 30);
+        var now = DateTimeOffset.UtcNow;
+        var provider = PeerInvites.Verify(pair.ProviderToken, key, now)!.Value;
+        var visitor = PeerInvites.Verify(pair.VisitorToken, key, now)!.Value;
+        Assert.True(provider.Provider);
+        Assert.False(visitor.Provider);
+        Assert.Equal(provider.Pair, visitor.Pair);
+        Assert.Equal("rdp.test", provider.Service);
+        Assert.Equal(pair.ProviderId, provider.Id);
+        Assert.Equal(pair.VisitorId, visitor.Id);
+        Assert.Null(PeerInvites.Verify(pair.ProviderToken, new string('B', 64), now));
+        Assert.Null(PeerInvites.Verify(pair.ProviderToken.Replace(".p.", ".v."), key, now));
+        Assert.Null(PeerInvites.Verify(pair.VisitorToken, key, pair.Expires));
+    }
+
+    [Fact]
     public void ShorthandBindsLoopbackAndPreservesDetailedEntries()
     {
         using var config = new ConfigurationManager();
@@ -90,6 +122,7 @@ public class PeerTests
         {
             EnableP2P = true,
             P2PDiscoveryPort = 0,
+            P2PInviteKey = new string('A', 64),
             Clients = [
                 new() { Id = "home", Token = "provider-token" },
                 new() { Id = "allowed", Token = "visitor-token" },
@@ -128,6 +161,18 @@ public class PeerTests
         Assert.True(result.EndOfMessage);
         Assert.Equal(payload, received);
 
+        var invite = PeerInvites.Create(config.P2PInviteKey, "rdp", 1);
+        await Assert.ThrowsAsync<WebSocketException>(() => ConnectAsync(invite.ProviderToken, false,
+            service: "ssh", allowedId: invite.VisitorId));
+        await Assert.ThrowsAsync<WebSocketException>(() => ConnectAsync(invite.VisitorToken, true,
+            service: "rdp", providerId: "home"));
+        await Assert.ThrowsAsync<WebSocketException>(() => ConnectAsync(invite.ProviderToken, false,
+            service: "rdp", allowedId: "allowed"));
+        using var testHost = await ConnectAsync(invite.ProviderToken, false, service: "rdp", allowedId: invite.VisitorId);
+        using var testGuest = await ConnectAsync(invite.VisitorToken, true, service: "rdp", providerId: invite.ProviderId);
+        Assert.Equal("relay", await PeerProtocol.ReceiveTextAsync(testGuest, timeout.Token));
+        Assert.Equal("relay", await PeerProtocol.ReceiveTextAsync(testHost, timeout.Token));
+
         config.EnableP2P = false;
         var closed = await Task.WhenAll(PeerProtocol.ReceiveTextAsync(provider, timeout.Token),
             PeerProtocol.ReceiveTextAsync(visitor, timeout.Token));
@@ -136,7 +181,8 @@ public class PeerTests
         Assert.Equal(WebSocketCloseStatus.PolicyViolation, visitor.CloseStatus);
         await app.StopAsync(timeout.Token);
 
-        async Task<ClientWebSocket> ConnectAsync(string token, bool provider)
+        async Task<ClientWebSocket> ConnectAsync(string token, bool provider,
+            string service = "ssh", string providerId = "home", string allowedId = "allowed")
         {
             var socket = new ClientWebSocket();
             socket.Options.RemoteCertificateValidationCallback = (_, remote, _, _) =>
@@ -144,13 +190,13 @@ public class PeerTests
                 == certificate.GetCertHashString(System.Security.Cryptography.HashAlgorithmName.SHA256);
             socket.Options.SetRequestHeader(ProtocolConst.FASTTUNNEL_VERSION, "3.0");
             socket.Options.SetRequestHeader(ProtocolConst.FASTTUNNEL_TOKEN, token);
-            socket.Options.SetRequestHeader(PeerProtocol.Service, "ssh");
+            socket.Options.SetRequestHeader(PeerProtocol.Service, service);
             // Mixed wire versions must still pair using the shared WSS protocol.
             socket.Options.SetRequestHeader(PeerProtocol.Direct, provider ? "2" : PeerProtocol.DirectVersion);
             if (provider)
-                socket.Options.SetRequestHeader(PeerProtocol.Provider, "home");
+                socket.Options.SetRequestHeader(PeerProtocol.Provider, providerId);
             else
-                socket.Options.SetRequestHeader(PeerProtocol.Visitors, "allowed");
+                socket.Options.SetRequestHeader(PeerProtocol.Visitors, allowedId);
             try { await socket.ConnectAsync(uri, timeout.Token); return socket; }
             catch { socket.Dispose(); throw; }
         }

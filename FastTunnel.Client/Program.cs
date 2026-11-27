@@ -5,8 +5,10 @@
 // Copyright (c) 2019 Gui.H
 
 using System;
+using System.Globalization;
 using FastTunnel.Core.Configuration;
 using FastTunnel.Core.Extensions;
+using FastTunnel.Core.P2P;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Hosting;
 using Serilog;
@@ -15,8 +17,18 @@ namespace FastTunnel.Client;
 
 class Program
 {
+    private const string DefaultStun = "stun:stun.cloudflare.com:3478";
+
     public static int Main(string[] args)
     {
+        if (args is ["p2p-pair", ..])
+            return RunManualPair(args);
+        if (args is ["--help"] or ["-h"])
+        {
+            PrintPairHelp();
+            return 0;
+        }
+
         // The initial "bootstrap" logger is able to log errors during start-up. It's completely replaced by the
         // logger configured in `UseSerilog()` below, once configuration and dependency-injection have both been
         // set up successfully.
@@ -25,6 +37,8 @@ class Program
             .CreateBootstrapLogger();
 
         Log.Information("Starting up!");
+        if (args.Length == 0 && Environment.UserInteractive && !Console.IsInputRedirected)
+            Log.Information("没有 FastTunnel 服务端时，可用 p2p-pair 打开手动配对向导。");
 
         try
         {
@@ -43,6 +57,120 @@ class Program
             Log.CloseAndFlush();
         }
     }
+
+    private static int RunManualPair(string[] args)
+    {
+        if (args is ["p2p-pair", "--help" or "-h"])
+        {
+            PrintPairHelp();
+            return 0;
+        }
+
+        using var stop = new CancellationTokenSource();
+        Console.CancelKeyPress += Cancel;
+        try
+        {
+            bool visitor;
+            int port;
+            string? stun;
+            if (args.Length == 1)
+            {
+                (visitor, port, stun) = ReadPairSettingsAsync(stop.Token).GetAwaiter().GetResult();
+            }
+            else if (args.Length is 3 or 4 && args[1] is ("share" or "connect") && TryPort(args[2], out port))
+            {
+                visitor = args[1] == "connect";
+                stun = args.Length == 4 ? args[3] : null;
+            }
+            else
+            {
+                Console.Error.WriteLine("无法识别配对命令，请检查角色和端口。");
+                PrintPairHelp();
+                return 2;
+            }
+
+            PeerManualPair.RunAsync(visitor, port, stun, Console.In, Console.Out, stop.Token).GetAwaiter().GetResult();
+            return 0;
+        }
+        catch (Exception) when (stop.IsCancellationRequested) { return 0; }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"P2P 手动配对结束: {ex.Message}");
+            return 1;
+        }
+        finally { Console.CancelKeyPress -= Cancel; }
+
+        void Cancel(object? sender, ConsoleCancelEventArgs eventArgs)
+        {
+            eventArgs.Cancel = true;
+            stop.Cancel();
+        }
+    }
+
+    private static void PrintPairHelp()
+    {
+        Console.WriteLine("FastTunnel P2P 手动配对，无需 FastTunnel 服务端。");
+        Console.WriteLine("p2p-pair                                    打开交互向导");
+        Console.WriteLine("p2p-pair share <服务端口> [stun:主机:端口]     提供端生成邀请");
+        Console.WriteLine("p2p-pair connect <监听端口> [stun:主机:端口]  访客粘贴邀请并生成应答");
+        Console.WriteLine("远程桌面示例：提供端端口 3389，访客监听 13389。");
+    }
+
+    private static async Task<(bool Visitor, int Port, string? Stun)> ReadPairSettingsAsync(CancellationToken token)
+    {
+        Console.WriteLine("FastTunnel 手动配对");
+        Console.WriteLine("两端都运行 p2p-pair，各选一种角色。配对信息通过聊天互相复制。");
+        Console.WriteLine("1  提供端，共享这台电脑上的服务");
+        Console.WriteLine("2  访客端，访问另一台电脑上的服务");
+        string role;
+        while (true)
+        {
+            role = await ReadAsync("请选择 1 或 2：", token);
+            if (role is "1" or "2")
+                break;
+            Console.WriteLine("请输入 1 或 2。");
+        }
+
+        var visitor = role == "2";
+        var defaultPort = visitor ? 13389 : 3389;
+        var description = visitor ? "本机监听端口" : "此电脑上的服务端口";
+        int port;
+        while (true)
+        {
+            var value = await ReadAsync($"{description} [{defaultPort}]，回车用括号内的远程桌面示例端口：", token);
+            if (value.Length == 0)
+            {
+                port = defaultPort;
+                break;
+            }
+            if (TryPort(value, out port))
+                break;
+            Console.WriteLine("端口应在 1–65535 之间。");
+        }
+
+        while (true)
+        {
+            var value = await ReadAsync($"STUN 地址 [{DefaultStun}]，回车使用公共节点，纯局域网输入 - 跳过：", token);
+            if (value.Length == 0)
+                return (visitor, port, DefaultStun);
+            if (value == "-")
+                return (visitor, port, null);
+            var address = value.StartsWith("stun:", StringComparison.OrdinalIgnoreCase) ? value : "stun:" + value;
+            if (PeerManualPair.IsStunAddress(address))
+                return (visitor, port, address);
+            Console.WriteLine("地址格式无效，例如 stun:stun.cloudflare.com:3478。");
+        }
+    }
+
+    private static async Task<string> ReadAsync(string prompt, CancellationToken token)
+    {
+        Console.WriteLine(prompt);
+        var line = await Task.Run(Console.ReadLine, CancellationToken.None).WaitAsync(token);
+        return line?.Trim() ?? throw new IOException("输入已关闭，请在终端运行 p2p-pair。");
+    }
+
+    private static bool TryPort(string value, out int port)
+        => int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out port) && port is >= 1 and <= 65535;
 
     public static IHostBuilder CreateHostBuilder(string[] args) =>
         Host.CreateDefaultBuilder(args)

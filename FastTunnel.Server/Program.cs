@@ -13,6 +13,12 @@ public class Program
 {
     public static int Main(string[] args)
     {
+        if (args is ["p2p-invite-key"])
+        {
+            Console.WriteLine(Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32)));
+            return 0;
+        }
+
         // The initial "bootstrap" logger is able to log errors during start-up. It's completely replaced by the
         // logger configured in `UseSerilog()` below, once configuration and dependency-injection have both been
         // set up successfully.
@@ -24,6 +30,8 @@ public class Program
 
         try
         {
+            if (args is ["p2p-invite", ..])
+                return PeerInviteCommand.Run(args);
             CreateHostBuilder(args).Build().Run();
 
             Log.Information("Stopped cleanly");

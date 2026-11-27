@@ -16,7 +16,7 @@ namespace FastTunnel.Core.P2P;
 internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, ILogger<PeerClient> logger)
     : BackgroundService
 {
-    private static readonly SwapRequest PrivateStream = new() { Id = "p2p", Host = "private", Port = 1 };
+    internal static readonly SwapRequest PrivateStream = new() { Id = "p2p", Host = "private", Port = 1 };
     private static readonly TimeSpan DirectDisconnectGrace = TimeSpan.FromSeconds(5);
     private readonly SemaphoreSlim providerSessions = new(96);
     private PeerUdpHub? udp;
@@ -31,6 +31,18 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
         var peer = config.P2P;
         if (peer is not { HasEndpoints: true })
             return;
+
+        using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(token);
+        if (PeerInvites.IsInvite(config.Token))
+        {
+            var remaining = PeerInvites.ReadExpiry(config.Token) - DateTimeOffset.UtcNow;
+            if (remaining is not { } duration || duration <= TimeSpan.Zero || duration > TimeSpan.FromMinutes(PeerInvites.MaxMinutes + 1))
+            {
+                logger.LogWarning("P2P 测试邀请无效或已过期");
+                return;
+            }
+            lifetime.CancelAfter(duration);
+        }
 
         var services = peer.GetServices();
         var visitors = peer.GetVisitors();
@@ -55,12 +67,16 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
             gateway = new PeerGatewayMapper(udp.Port, logger, token);
         await using var gatewayLifetime = gateway;
 
-        using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(token);
         var tasks = servers.SelectMany((server, index) => services.Select(service =>
                 RunProviderAsync(config, server, service, direct, index, lifetime.Token)))
             .Concat(visitors.Select(visitor => RunVisitorAsync(config, servers, visitor, direct, lifetime.Token)))
             .ToArray();
         try { await await Task.WhenAny(tasks); }
+        catch (OperationCanceledException) when (lifetime.IsCancellationRequested)
+        {
+            if (!token.IsCancellationRequested)
+                logger.LogInformation("P2P 测试邀请已过期，已停止测试隧道");
+        }
         finally
         {
             lifetime.Cancel();
@@ -183,7 +199,7 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
                 try { local = await listener.AcceptAsync(lifetime.Token); }
                 catch { permits.Release(); throw; }
                 active.RemoveWhere(task => task.IsCompleted);
-                active.Add(ForwardVisitorAsync(local, path, permits, lifetime.Token));
+                active.Add(ForwardVisitorAsync(local, path, permits, config.P2P.LogConnectionPath, lifetime.Token));
             }
         }
         finally
@@ -253,7 +269,7 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
         using var transport = new PeerWebSocket(socket);
         var udpControl = direct && udp != null ? new PeerDirectControl(visitor: service == null) : null;
         var tcpControl = direct && tcp != null ? new PeerDirectControl(visitor: service == null) : null;
-        var relay = CreateMux(transport.Pipe, service);
+        var relay = CreateMux(transport.Pipe, service, logger);
         var relayIo = transport.RunAsync(message =>
         {
             if (message.StartsWith('T'))
@@ -343,7 +359,7 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
         async Task UseTransportAsync(PeerPipe pipe, Task wire)
         {
             connected = true;
-            var mux = CreateMux(pipe, service);
+            var mux = CreateMux(pipe, service, logger);
             var loop = mux.RunAsync();
             path?.SetDirect(index, useTcp, mux);
             logger.LogInformation("P2P {Transport} 直连已就绪，新 TCP 连接使用直连", transport);
@@ -357,7 +373,7 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
         }
     }
 
-    private MuxSession CreateMux(PeerPipe transport, PeerServiceOptions? service)
+    internal static MuxSession CreateMux(PeerPipe transport, PeerServiceOptions? service, ILogger logger)
         => service == null
             ? new MuxSession(transport, isServer: true, logger)
             : new MuxSession(transport, isServer: false, logger, async (stream, _) =>
@@ -369,7 +385,8 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
                 await BridgeAsync(socket, stream, stream.ConnectionClosed);
             });
 
-    private async Task ForwardVisitorAsync(Socket local, PeerPath path, SemaphoreSlim permits, CancellationToken token)
+    private async Task ForwardVisitorAsync(Socket local, PeerPath path, SemaphoreSlim permits,
+        bool logConnectionPath, CancellationToken token)
     {
         using (local)
         {
@@ -393,7 +410,8 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
                         continue;
                     }
 
-                    logger.LogDebug("P2P TCP 连接使用 {Path}", route.Transport);
+                    logger.Log(logConnectionPath ? LogLevel.Information : LogLevel.Debug,
+                        "P2P TCP 连接使用 {Path}", route.Transport);
                     await using (stream)
                         await BridgeAsync(local, stream, token);
                     return;
@@ -404,7 +422,7 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
         }
     }
 
-    private static async Task BridgeAsync(Socket socket, MuxStream stream, CancellationToken token)
+    internal static async Task BridgeAsync(Socket socket, MuxStream stream, CancellationToken token)
     {
         socket.NoDelay = true;
         using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(token, stream.ConnectionClosed);

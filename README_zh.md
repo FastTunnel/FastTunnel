@@ -114,6 +114,42 @@ FastTunnel 与 frp `type=tcp` 在 10 000 RPS 以内都零错误达成；frp 的 
 
 ## 私有 TCP P2P
 
+### 无 FastTunnel 服务端时手动配对
+
+两端只需启动新版客户端。以 Windows 远程桌面为例，提供端运行下面第一条命令，访客端运行第二条。
+示例使用 Cloudflare 的公共 STUN，也可以填自己的 STUN 地址。
+
+```powershell
+.\FastTunnel.Client.exe p2p-pair share 3389 stun:stun.cloudflare.com:3478
+.\FastTunnel.Client.exe p2p-pair connect 13389 stun:stun.cloudflare.com:3478
+```
+
+1. 提供端将命令打印的一行**邀请**通过可信聊天发送给访客。
+2. 访客粘贴邀请并回车，将打印的一行**应答**发回提供端。
+3. 提供端粘贴应答并回车。两端显示直连就绪后，访客连接本机 `127.0.0.1:13389`。
+
+邀请有效期为 5 分钟，操作时两端保持客户端运行。手动模式通过 UDP 直连，打洞失败会结束，
+没有配置中继。局域网内可省略 STUN 参数，仅探测本机接口地址。
+
+### 用已有协调节点发放短期测试邀请
+
+测试者只需运行 FastTunnel 客户端。节点管理员在服务端目录运行
+`FastTunnel.Server p2p-invite-key` 生成签名密钥，将其放入服务端的
+`FastTunnel:P2PInviteKey`，并开启 `FastTunnel:EnableP2P`。签名密钥仅保存在协调节点。
+
+以 Windows 远程桌面为例，在节点上运行：
+
+```powershell
+.\FastTunnel.Server.exe p2p-invite wss://node.example.net:443 rdp 3389 13389 30
+```
+
+命令生成提供端和访客端各自的 `appsettings.json`。把文件分别交给两端，放在各自的客户端工作目录，
+再启动客户端。访客在本机连接 `127.0.0.1:13389`，客户端日志会显示实际走 UDP 直连、TCP/TLS 直连或 WSS 中继。
+邀请默认有效 30 分钟，可配置为 1–120 分钟，只允许这一对客户端访问指定的 P2P 服务。
+协调节点使用自签证书时，在有效分钟数后附上其 SHA-256 指纹。更换签名密钥会使该节点签发的旧邀请失效。
+
+### 手动配置
+
 两端都运行 FastTunnel 客户端。服务端在 `FastTunnel` 下启用 `"EnableP2P": true`，
 并在 `Clients` 中给提供端和访客分配独立凭据，例如主体 `home` 和 `laptop`。
 两端的 `FastTunnel:Server` 使用 WSS，分别填写各自的 `FastTunnel:Token`。

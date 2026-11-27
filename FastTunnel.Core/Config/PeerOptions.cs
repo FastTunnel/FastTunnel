@@ -8,6 +8,9 @@ public sealed class PeerOptions
     /// <summary>尝试 UDP 直连，失败时由 WSS 中继承载连接。</summary>
     public bool EnableDirect { get; set; } = true;
 
+    /// <summary>以 Information 级别记录每条访客连接使用的直连或中继路径。</summary>
+    public bool LogConnectionPath { get; set; }
+
     /// <summary>允许 UDP 直连。关闭时仍可尝试 TCP/TLS 直连。</summary>
     public bool EnableUdpDirect { get; set; } = true;
 

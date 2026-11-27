@@ -1,6 +1,5 @@
 using System.Buffers;
 using System.Net.WebSockets;
-using FastTunnel.Core.Security;
 using Microsoft.AspNetCore.Http;
 
 namespace FastTunnel.Core.P2P;
@@ -8,11 +7,11 @@ namespace FastTunnel.Core.P2P;
 internal sealed class PeerBroker
 {
     private readonly object gate = new();
-    private readonly Dictionary<(string Owner, string Service), List<Slot>> waiting = new();
-    private readonly Dictionary<string, int> open = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<(string Owner, string Service, bool Test), List<Slot>> waiting = new();
+    private readonly Dictionary<(string Id, bool Test), int> open = new();
     private int total;
 
-    internal async Task RunAsync(HttpContext context, ClientCredential credential, Func<ClientCredential, bool> authorized)
+    internal async Task RunAsync(HttpContext context, PeerIdentity credential, Func<PeerIdentity, bool> authorized)
     {
         var service = context.Request.Headers[PeerProtocol.Service].ToString();
         var provider = context.Request.Headers[PeerProtocol.Provider].ToString();
@@ -25,11 +24,21 @@ internal sealed class PeerBroker
             return;
         }
 
-        var owner = credential.Id.ToUpperInvariant();
+        var allowed = visitors.Split(',', StringSplitOptions.RemoveEmptyEntries);
+        if (credential.Invite is { } invite
+            && (service != invite.Service || (invite.Provider
+                ? provider.Length != 0 || allowed.Length != 1 || !Matches(allowed[0], invite.VisitorId)
+                : !Matches(provider, invite.ProviderId))))
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return;
+        }
+
+        var owner = (Id: credential.Id.ToUpperInvariant(), Test: credential.Invite != null);
         lock (gate)
         {
             var count = open.GetValueOrDefault(owner);
-            if (total >= 4096 || count >= 128)
+            if (total >= 4096 || count >= (owner.Test ? 8 : 128))
             {
                 context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
                 return;
@@ -43,15 +52,14 @@ internal sealed class PeerBroker
             using var socket = await context.WebSockets.AcceptWebSocketAsync();
             if (provider.Length == 0)
             {
-                var allowed = visitors.Split(',', StringSplitOptions.RemoveEmptyEntries);
                 if (allowed.Length == 0 || !allowed.All(PeerProtocol.IsName))
                     return;
 
-                await PublishAsync((owner, service), new Slot(socket, credential, allowed, direct), context.RequestAborted);
+                await PublishAsync((owner.Id, service, owner.Test), new Slot(socket, credential, allowed, direct), context.RequestAborted);
             }
             else
             {
-                await VisitAsync((provider.ToUpperInvariant(), service), socket, credential, direct,
+                await VisitAsync((provider.ToUpperInvariant(), service, owner.Test), socket, credential, direct,
                     authorized, context.RequestAborted);
             }
         }
@@ -73,7 +81,9 @@ internal sealed class PeerBroker
         }
     }
 
-    private async Task PublishAsync((string, string) key, Slot slot, CancellationToken token)
+    private static bool Matches(string left, string right) => string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+
+    private async Task PublishAsync((string, string, bool) key, Slot slot, CancellationToken token)
     {
         // The provider sends nothing until it is paired. Start reading now so a dead
         // socket is removed immediately. The visitor handler takes over this read.
@@ -89,7 +99,7 @@ internal sealed class PeerBroker
         }
         try
         {
-            var idle = Task.Delay(TimeSpan.FromMinutes(3), lifetime.Token);
+            var idle = Task.Delay(CheckInterval(slot.Credential, TimeSpan.FromMinutes(3)), lifetime.Token);
             var next = await Task.WhenAny(slot.Claimed.Task, slot.FirstRead, idle);
             lock (gate)
             {
@@ -113,8 +123,8 @@ internal sealed class PeerBroker
         }
     }
 
-    private async Task VisitAsync((string, string) key, WebSocket visitor, ClientCredential credential,
-        string direct, Func<ClientCredential, bool> authorized, CancellationToken token)
+    private async Task VisitAsync((string, string, bool) key, WebSocket visitor, PeerIdentity credential,
+        string direct, Func<PeerIdentity, bool> authorized, CancellationToken token)
     {
         Slot? slot;
         lock (gate)
@@ -156,6 +166,10 @@ internal sealed class PeerBroker
                     await Task.WhenAll(CloseRevokedAsync(visitor, visitorWrite, revoke.Token),
                         CloseRevokedAsync(slot.Socket, providerWrite, revoke.Token))
                         .ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+                    // Give the close frames time to reach the peers before canceling a
+                    // pending receive, which can reset the underlying TCP connection.
+                    await Task.WhenAll(uplink, downlink).WaitAsync(revoke.Token)
+                        .ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
                 }
             }
             finally
@@ -174,13 +188,22 @@ internal sealed class PeerBroker
         finally { sendGate.Release(); }
     }
 
-    private static async Task MonitorAsync(ClientCredential provider, ClientCredential visitor,
-        Func<ClientCredential, bool> authorized, CancellationToken token)
+    private static async Task MonitorAsync(PeerIdentity provider, PeerIdentity visitor,
+        Func<PeerIdentity, bool> authorized, CancellationToken token)
     {
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(10));
-        while (await timer.WaitForNextTickAsync(token))
-            if (!authorized(provider) || !authorized(visitor))
-                return;
+        while (authorized(provider) && authorized(visitor))
+        {
+            var interval = CheckInterval(visitor, CheckInterval(provider, TimeSpan.FromSeconds(10)));
+            await Task.Delay(interval, token);
+        }
+    }
+
+    private static TimeSpan CheckInterval(PeerIdentity peer, TimeSpan maximum)
+    {
+        if (peer.Invite is not { } invite)
+            return maximum;
+        var remaining = invite.Expires - DateTimeOffset.UtcNow;
+        return remaining < maximum ? TimeSpan.FromMilliseconds(Math.Max(1, remaining.TotalMilliseconds)) : maximum;
     }
 
     private static async Task CopyAsync(WebSocket from, WebSocket to, SemaphoreSlim sendGate,
@@ -209,10 +232,10 @@ internal sealed class PeerBroker
         }
     }
 
-    private sealed class Slot(WebSocket socket, ClientCredential credential, string[] allowed, string direct)
+    private sealed class Slot(WebSocket socket, PeerIdentity credential, string[] allowed, string direct)
     {
         internal WebSocket Socket { get; } = socket;
-        internal ClientCredential Credential { get; } = credential;
+        internal PeerIdentity Credential { get; } = credential;
         internal string[] Allowed { get; } = allowed;
         internal string Direct { get; } = direct;
         internal TaskCompletionSource Claimed { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
