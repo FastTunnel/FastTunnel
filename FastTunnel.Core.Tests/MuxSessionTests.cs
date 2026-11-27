@@ -20,6 +20,7 @@ using FastTunnel.Core.Protocol;
 using FastTunnel.Core.Tests.Support;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
+using SessionPair = FastTunnel.Core.Tests.Support.TestMuxPair;
 
 namespace FastTunnel.Core.Tests;
 
@@ -33,43 +34,6 @@ public class MuxSessionTests
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(15);
 
     private static CancellationToken TestToken() => new CancellationTokenSource(Timeout).Token;
-
-    private sealed class SessionPair : IAsyncDisposable
-    {
-        public SessionPair(Func<MuxStream, SwapRequest, Task>? onAccept = null)
-        {
-            var (serverPipe, clientPipe) = TestPipes.CreatePair();
-
-            ServerSide = serverPipe;
-            ClientSide = clientPipe;
-
-            Server = new MuxSession(serverPipe, isServer: true, NullLogger.Instance);
-            Client = new MuxSession(clientPipe, isServer: false, NullLogger.Instance, onAccept);
-
-            ServerRun = Server.RunAsync();
-            ClientRun = Client.RunAsync();
-        }
-
-        public IDuplexPipe ServerSide { get; }
-
-        public IDuplexPipe ClientSide { get; }
-
-        public MuxSession Server { get; }
-
-        public MuxSession Client { get; }
-
-        public Task ServerRun { get; }
-
-        public Task ClientRun { get; }
-
-        public async ValueTask DisposeAsync()
-        {
-            await Server.DisposeAsync();
-            await Client.DisposeAsync();
-
-            await Task.WhenAny(Task.WhenAll(ServerRun, ClientRun), Task.Delay(TimeSpan.FromSeconds(5)));
-        }
-    }
 
     [Fact]
     public async Task Syn携带目标地址_客户端按地址开流()

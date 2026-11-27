@@ -13,6 +13,10 @@ internal static class PeerProtocol
     /// <summary>承载虚拟网卡流量的保留服务名，成员之间不用为它写配置。</summary>
     internal const string IpService = "ip";
 
+    /// <summary>私有通道上 MUX 流的保留标识，访客与提供端都靠它区分普通转发与 P2P。
+    /// </summary>
+    internal const string PrivateId = "p2p";
+
     internal const string Service = "FT_P2P_SERVICE";
     internal const string Provider = "FT_P2P_PROVIDER";
     internal const string Visitors = "FT_P2P_VISITORS";

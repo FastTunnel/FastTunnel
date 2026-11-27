@@ -16,7 +16,7 @@ namespace FastTunnel.Core.P2P;
 internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, ILogger<PeerClient> logger)
     : BackgroundService
 {
-    internal static readonly SwapRequest PrivateStream = new() { Id = "p2p", Host = "private", Port = 1 };
+    internal static readonly SwapRequest PrivateStream = new() { Id = PeerProtocol.PrivateId, Host = "private", Port = 1 };
     private static readonly TimeSpan DirectDisconnectGrace = TimeSpan.FromSeconds(5);
     private readonly SemaphoreSlim providerSessions = new(96);
     private PeerUdpHub? udp;

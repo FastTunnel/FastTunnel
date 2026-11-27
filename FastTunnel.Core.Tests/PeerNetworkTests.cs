@@ -1,5 +1,5 @@
-using System.Buffers.Binary;
 using System.Net;
+using System.Security.Cryptography.X509Certificates;
 using System.Net.Http.Json;
 using FastTunnel.Core.Config;
 using FastTunnel.Core.Extensions;
@@ -141,7 +141,7 @@ public class PeerNetworkTests
     [Fact]
     public void IpPacketParsesRoutingRelevantFields()
     {
-        var tcp = Packet(PeerIpPacket.ProtocolTcp, "100.64.0.1", "100.64.0.2",
+        var tcp = TestPackets.Ipv4(PeerIpPacket.ProtocolTcp, "100.64.0.1", "100.64.0.2",
             [0x04, 0xB0, 0x01, 0xBB, 0x00, 0x00, 0x00, 0x00, 0x60, 0x02, 0x20, 0x00]);
         Assert.True(PeerIpPacket.TryParse(tcp, out var packet));
         Assert.Equal("100.64.0.1", packet.Source.ToString());
@@ -155,10 +155,10 @@ public class PeerNetworkTests
         Assert.Equal(tcp.Length - 20, packet.Payload.Length);
 
         // 带选项的首部（IHL=6）：载荷从第 24 字节开始，前 4 字节算首部选项而不是端口
-        var options = Packet(PeerIpPacket.ProtocolUdp, "10.0.0.1", "10.0.0.2",
+        var options = TestPackets.Ipv4(PeerIpPacket.ProtocolUdp, "10.0.0.1", "10.0.0.2",
             [0, 0, 0, 0, 0x00, 0x50, 0x00, 0x35, 0x00, 0x08]);
         options[0] = 0x46;
-        SignHeader(options);
+        TestPackets.Sign(options);
         Assert.True(PeerIpPacket.TryParse(options, out var wide));
         Assert.Equal(24, wide.HeaderLength);
         Assert.Equal(6, wide.Payload.Length);
@@ -167,9 +167,9 @@ public class PeerNetworkTests
         Assert.Equal(53, dnsTarget);
 
         // 分片包（MF=1）没有可依赖的端口
-        var fragment = Packet(PeerIpPacket.ProtocolTcp, "10.0.0.1", "10.0.0.2", [0x04, 0xB8, 0x01, 0xBB]);
+        var fragment = TestPackets.Ipv4(PeerIpPacket.ProtocolTcp, "10.0.0.1", "10.0.0.2", [0x04, 0xB8, 0x01, 0xBB]);
         fragment[6] = 0x20;
-        SignHeader(fragment);
+        TestPackets.Sign(fragment);
         Assert.True(PeerIpPacket.TryParse(fragment, out var piece));
         Assert.True(piece.IsFragment);
     }
@@ -177,7 +177,7 @@ public class PeerNetworkTests
     [Fact]
     public void IpPacketRejectsGarbageInsteadOfTrustingPeer()
     {
-        var tcp = Packet(PeerIpPacket.ProtocolTcp, "100.64.0.1", "100.64.0.2", [0x04, 0xB8, 0x01, 0xBB]);
+        var tcp = TestPackets.Ipv4(PeerIpPacket.ProtocolTcp, "100.64.0.1", "100.64.0.2", [0x04, 0xB8, 0x01, 0xBB]);
 
         // 非 IPv4
         var ipv6 = (byte[])tcp.Clone();
@@ -188,7 +188,7 @@ public class PeerNetworkTests
         // IHL 小于 20
         var tiny = (byte[])tcp.Clone();
         tiny[0] = 0x44;
-        SignHeader(tiny);
+        TestPackets.Sign(tiny);
         Assert.False(PeerIpPacket.TryParse(tiny, out _));
         // 以太网填充不影响解析，但总长度越界必须拒绝
         var padded = new byte[tcp.Length + 3];
@@ -198,14 +198,14 @@ public class PeerNetworkTests
         var shorted = (byte[])tcp.Clone();
         shorted[2] = 0;
         shorted[3] = 200;
-        SignHeader(shorted);
+        TestPackets.Sign(shorted);
         Assert.False(PeerIpPacket.TryParse(shorted, out _));
         // 校验和被改坏
         var broken = (byte[])tcp.Clone();
         broken[10] ^= 0xFF;
         Assert.False(PeerIpPacket.TryParse(broken, out _));
         // ICMP 不暴露端口
-        var icmp = Packet(1, "100.64.0.1", "100.64.0.2", [0x08, 0x00, 0x00, 0x00]);
+        var icmp = TestPackets.Ipv4(1, "100.64.0.1", "100.64.0.2", [0x08, 0x00, 0x00, 0x00]);
         Assert.True(PeerIpPacket.TryParse(icmp, out var ping));
         Assert.False(ping.TryPorts(out _, out _));
     }
@@ -213,100 +213,148 @@ public class PeerNetworkTests
     [Fact]
     public async Task RosterEndpointStaysInvisibleUntilServerEnablesL3()
     {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-        using var directory = new TempDirectory();
-        var builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions { ContentRootPath = directory.Path });
-        builder.Logging.ClearProviders();
-        var config = new DefaultServerConfig
-        {
-            EnableP2P = true,
-            P2PDiscoveryPort = 0,
-            P2PInviteKey = new string('A', 64),
-            P2PEnrollment = { StateFile = Path.Combine(directory.Path, "peers.json") },
-            Clients = [new() { Id = "laptop", Token = "device-token" }, new() { Id = "outsider", Token = "other-token" }],
-        };
-        var monitor = new TestOptionsMonitor<DefaultServerConfig>(config);
-        var certificates = new ServerCertificateProvider(monitor, new TestHostEnvironment(directory.Path),
-            NullLogger<ServerCertificateProvider>.Instance);
-        using var certificate = certificates.GetCertificate();
-        builder.WebHost.ConfigureKestrel(options => options.Listen(IPAddress.Loopback, 0,
-            listen => listen.UseHttps(certificate)));
-        builder.Services.AddFastTunnelServer(builder.Configuration.GetSection("FastTunnel"));
-        builder.Services.AddSingleton<IOptionsMonitor<DefaultServerConfig>>(monitor);
-        await using var app = builder.Build();
-        app.UseFastTunnelServer();
-        await app.StartAsync(timeout.Token);
-
-        var rosterUrl = new Uri(new Uri(app.Urls.Single()), PeerProtocol.NetworkPath);
-        using var http = new HttpClient(new HttpClientHandler
-        {
-            ServerCertificateCustomValidationCallback = (_, remote, _, _) => remote != null
-                && remote.GetCertHashString(System.Security.Cryptography.HashAlgorithmName.SHA256)
-                == certificate.GetCertHashString(System.Security.Cryptography.HashAlgorithmName.SHA256),
-        })
-        { Timeout = TimeSpan.FromSeconds(15) };
-        // HttpRequestMessage 是一次性的，每次请求都要新建
-        HttpRequestMessage Roster(string token = "device-token")
-        {
-            var message = new HttpRequestMessage(HttpMethod.Get, rosterUrl);
-            message.Headers.Add(ProtocolConst.FASTTUNNEL_TOKEN, token);
-            return message;
-        }
+        using var server = await RosterServer.StartAsync(enableL3: false);
 
         // 没开 L3 的部署：这个地址根本不存在，客户端只会看到一条停用日志
-        Assert.Equal(HttpStatusCode.NotFound, (await http.SendAsync(Roster(), timeout.Token)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await server.SendAsync("device-token")).StatusCode);
 
-        config.P2PNetwork.Enabled = true;
-        var peers = app.Services.GetRequiredService<PeerRegistry>();
-        var ticket = peers.CreateTicket(config.P2PInviteKey, null, 5);
-        Assert.NotNull(peers.Redeem(config.P2PInviteKey, ticket.Code, "laptop"));
+        server.Config.P2PNetwork.Enabled = true;
+        var peers = server.Peers;
+        server.Enroll("laptop", server.Config.P2PInviteKey);
 
-        var answer = await http.SendAsync(Roster(), timeout.Token);
+        var answer = await server.SendAsync("device-token");
         Assert.Equal(HttpStatusCode.OK, answer.StatusCode);
         Assert.Equal("application/json", answer.Content.Headers.ContentType?.MediaType);
         var roster = await answer.Content.ReadFromJsonAsync(
-            AppJsonContext.Default.PeerNetworkRoster, timeout.Token);
+            AppJsonContext.Default.PeerNetworkRoster, server.Timeout.Token);
         Assert.Equal("100.64.0.0/16", roster!.Cidr);
         Assert.Equal("laptop", roster.Self);
         Assert.Equal("100.64.0.1", Assert.Single(roster.Peers).Ip);
         Assert.Equal("laptop", roster.Peers[0].Name);
 
         // 手工配置但没入网的凭据进不了组网目录
-        Assert.Equal(HttpStatusCode.Forbidden, (await http.SendAsync(Roster("other-token"), timeout.Token)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await server.SendAsync("other-token")).StatusCode);
 
         // 没有凭据就是 401，不泄露成员表
-        Assert.Equal(HttpStatusCode.Unauthorized,
-            (await http.SendAsync(Roster(""), timeout.Token)).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await server.SendAsync("")).StatusCode);
 
         // 设备被吊销后领不到地址：目录直接 403，客户端只会留下一条日志
         peers.Revoke("laptop");
-        config.P2PNetwork.Cidr = "10.0.0.0/24";
-        Assert.Equal(HttpStatusCode.Forbidden, (await http.SendAsync(Roster(), timeout.Token)).StatusCode);
-        await app.StopAsync(timeout.Token);
+        server.Config.P2PNetwork.Cidr = "10.0.0.0/24";
+        Assert.Equal(HttpStatusCode.Forbidden, (await server.SendAsync("device-token")).StatusCode);
     }
 
-    private static byte[] Packet(byte protocol, string source, string destination, byte[] payload)
+    /// <summary>
+    /// 跑着真实 Kestrel（自签 TLS）的组网目录端点，路径、证书、Token 头都与客户端一致。
+    /// </summary>
+    internal sealed class RosterServer : IDisposable
     {
-        var packet = new byte[20 + payload.Length];
-        packet[0] = 0x45;
-        packet[2] = (byte)(packet.Length >> 8);
-        packet[3] = (byte)packet.Length;
-        packet[8] = 64;
-        packet[9] = protocol;
-        IPAddress.Parse(source).GetAddressBytes().CopyTo(packet, 12);
-        IPAddress.Parse(destination).GetAddressBytes().CopyTo(packet, 16);
-        payload.CopyTo(packet, 20);
-        return SignHeader(packet);
-    }
+        private RosterServer(WebApplication app, DefaultServerConfig config, HttpClient http,
+            TempDirectory directory, X509Certificate2 certificate, string fingerprint)
+        {
+            App = app;
+            Config = config;
+            Http = http;
+            Directory = directory;
+            Certificate = certificate;
+            Fingerprint = fingerprint;
+            Url = new Uri(new Uri(app.Urls.Single()), PeerProtocol.NetworkPath);
+            Peers = app.Services.GetRequiredService<PeerRegistry>();
+        }
 
-    /// <summary>清零校验和字段后重新计算，写回大端两字节。</summary>
-    private static byte[] SignHeader(byte[] packet)
-    {
-        packet[10] = 0;
-        packet[11] = 0;
-        var checksum = PeerIpPacket.Checksum(packet.AsSpan(0, (packet[0] & 0x0F) * 4));
-        BinaryPrimitives.WriteUInt16BigEndian(packet.AsSpan(10, 2), checksum);
-        return packet;
+        internal WebApplication App { get; }
+
+        internal DefaultServerConfig Config { get; }
+
+        internal PeerRegistry Peers { get; }
+
+        internal Uri Url { get; }
+
+        /// <summary>服务端自签证书的 SHA-256 指纹，客户端用它固定身份。</summary>
+        internal string Fingerprint { get; }
+
+        internal CancellationTokenSource Timeout { get; } = new(TimeSpan.FromSeconds(30));
+
+        private HttpClient Http { get; }
+
+        private TempDirectory Directory { get; }
+
+        /// <summary>Kestrel 用的自签证书必须活到服务停止，否则握手会拿到已释放的句柄。</summary>
+        private X509Certificate2 Certificate { get; }
+
+        internal static async Task<RosterServer> StartAsync(bool enableL3 = true, string cidr = "100.64.0.0/16")
+        {
+            using var certificateDirectory = new TempDirectory();
+            var builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions { ContentRootPath = certificateDirectory.Path });
+            builder.Logging.ClearProviders();
+            var config = new DefaultServerConfig
+            {
+                EnableP2P = true,
+                P2PDiscoveryPort = 0,
+                P2PInviteKey = new string('A', 64),
+                P2PEnrollment = { StateFile = Path.Combine(certificateDirectory.Path, "peers.json") },
+                P2PNetwork = { Enabled = enableL3, Cidr = cidr },
+                Clients = [new() { Id = "laptop", Token = "device-token" }, new() { Id = "outsider", Token = "other-token" }],
+            };
+            var monitor = new TestOptionsMonitor<DefaultServerConfig>(config);
+            var certificates = new ServerCertificateProvider(monitor, new TestHostEnvironment(certificateDirectory.Path),
+                NullLogger<ServerCertificateProvider>.Instance);
+            var certificate = certificates.GetCertificate();
+            var fingerprint = TunnelCertificate.GetFingerprint(certificate);
+            builder.WebHost.ConfigureKestrel(options => options.Listen(IPAddress.Loopback, 0,
+                listen => listen.UseHttps(certificate)));
+            builder.Services.AddFastTunnelServer(builder.Configuration.GetSection("FastTunnel"));
+            builder.Services.AddSingleton<IOptionsMonitor<DefaultServerConfig>>(monitor);
+            var app = builder.Build();
+            app.UseFastTunnelServer();
+            using (var start = new CancellationTokenSource(TimeSpan.FromSeconds(30)))
+            {
+                await app.StartAsync(start.Token);
+            }
+
+            return new RosterServer(app, config, new HttpClient(new HttpClientHandler
+            {
+                ServerCertificateCustomValidationCallback = (_, remote, _, _) => remote != null
+                    && TunnelCertificate.GetFingerprint(remote) == fingerprint,
+            })
+            { Timeout = TimeSpan.FromSeconds(15) }, certificateDirectory, certificate, fingerprint);
+        }
+
+        /// <summary>指向本节点的客户端配置，Protocol=wss 让目录走 https。</summary>
+        internal SuiDaoServer Node()
+            => new()
+            {
+                ServerAddr = Url.Host,
+                ServerPort = Url.Port,
+                Protocol = "wss",
+                CertificateFingerprint = Fingerprint,
+            };
+
+        internal async Task<HttpResponseMessage> SendAsync(string token)
+        {
+            // HttpRequestMessage 是一次性的，每次请求都要新建
+            using var request = new HttpRequestMessage(HttpMethod.Get, Url);
+            request.Headers.Add(ProtocolConst.FASTTUNNEL_TOKEN, token);
+            return await Http.SendAsync(request, Timeout.Token);
+        }
+
+        /// <summary>用入网码把一台设备登记进台账，它才有资格领虚拟地址。</summary>
+        internal void Enroll(string hostname, string key)
+        {
+            var ticket = Peers.CreateTicket(key, null, 5);
+            Assert.NotNull(Peers.Redeem(key, ticket.Code, hostname));
+        }
+
+        public void Dispose()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            App.StopAsync(timeout.Token).GetAwaiter().GetResult();
+            App.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            Timeout.Dispose();
+            Http.Dispose();
+            Certificate.Dispose();
+            Directory.Dispose();
+        }
     }
 
     private static PeerRegistry NewRegistry(string? file)

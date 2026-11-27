@@ -12,10 +12,13 @@ using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
 using FastTunnel.Core.Config;
+using FastTunnel.Core.Mux;
+using FastTunnel.Core.Protocol;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace FastTunnel.Core.Tests.Support;
@@ -231,5 +234,46 @@ public sealed class TempDirectory : IDisposable
         {
             // Windows 上证书句柄可能还没释放，残留一个临时目录不影响测试结论
         }
+    }
+}
+
+/// <summary>
+/// 两端各一个 <see cref="FastTunnel.Core.Mux.MuxSession"/>，中间用一对内存 Pipe 代替 TCP：
+/// 不需要端口、互不干扰，可以在同一进程里同时驱动「发起方」和「接受方」。
+/// </summary>
+public sealed class TestMuxPair : IAsyncDisposable
+{
+    public TestMuxPair(Func<MuxStream, SwapRequest, Task>? onAccept = null)
+    {
+        var (serverPipe, clientPipe) = TestPipes.CreatePair();
+
+        ServerSide = serverPipe;
+        ClientSide = clientPipe;
+
+        Server = new MuxSession(serverPipe, isServer: true, NullLogger.Instance);
+        Client = new MuxSession(clientPipe, isServer: false, NullLogger.Instance, onAccept);
+
+        ServerRun = Server.RunAsync();
+        ClientRun = Client.RunAsync();
+    }
+
+    public IDuplexPipe ServerSide { get; }
+
+    public IDuplexPipe ClientSide { get; }
+
+    public MuxSession Server { get; }
+
+    public MuxSession Client { get; }
+
+    public Task ServerRun { get; }
+
+    public Task ClientRun { get; }
+
+    public async ValueTask DisposeAsync()
+    {
+        await Server.DisposeAsync();
+        await Client.DisposeAsync();
+
+        await Task.WhenAny(Task.WhenAll(ServerRun, ClientRun), Task.Delay(TimeSpan.FromSeconds(5)));
     }
 }
