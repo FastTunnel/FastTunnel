@@ -32,6 +32,8 @@ public class Program
         {
             if (args is ["p2p-invite", ..])
                 return PeerInviteCommand.Run(args);
+            if (args is ["p2p-enroll", ..])
+                return PeerEnrollCommand.Run(args);
             CreateHostBuilder(args).Build().Run();
 
             Log.Information("Stopped cleanly");

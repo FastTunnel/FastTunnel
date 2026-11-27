@@ -10,6 +10,7 @@ using FastTunnel.Core.Configuration;
 using FastTunnel.Core.Extensions;
 using FastTunnel.Core.P2P;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Serilog;
 
@@ -38,10 +39,15 @@ class Program
 
         Log.Information("Starting up!");
         if (args.Length == 0 && Environment.UserInteractive && !Console.IsInputRedirected)
-            Log.Information("没有 FastTunnel 服务端时，可用 p2p-pair 打开手动配对向导。");
+        {
+            Log.Information("有服务端时用 p2p-enroll 兑换入网码；没有服务端时可用 p2p-pair 打开手动配对向导。");
+        }
 
         try
         {
+            if (args is ["p2p-enroll", ..])
+                return PeerEnrollCommand.RunAsync(args).GetAwaiter().GetResult();
+
             CreateHostBuilder(args).Build().Run();
 
             Log.Information("Stopped cleanly");
@@ -185,6 +191,19 @@ class Program
                 if (loaded.Count > 0)
                 {
                     Log.Information("已加载扩展格式配置文件：{Files}", string.Join(", ", loaded));
+                }
+
+                // 入网凭据是本机状态，插在配置源最前面（优先级最低）：
+                // 手工写的 appsettings 里若有 FastTunnel:Token，仍然以它为准。
+                var enrolled = PeerEnrollCommand.ReadCredential(out var credentialFile);
+                if (enrolled != null)
+                {
+                    var added = config.Sources.Count;
+                    config.AddInMemoryCollection(enrolled);
+                    var source = config.Sources[added];
+                    config.Sources.RemoveAt(added);
+                    config.Sources.Insert(0, source);
+                    Log.Information("已载入入网凭据：{File}", credentialFile);
                 }
             })
             .UseSerilog((context, configuration) =>

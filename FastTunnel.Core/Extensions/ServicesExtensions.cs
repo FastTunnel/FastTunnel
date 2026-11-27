@@ -52,6 +52,7 @@ public static class ServicesExtensions
             .AddSingleton<FastTunnelClientHandler>()
             .AddSingleton<ServerCertificateProvider>()
             .AddSingleton<BanRegistry>()
+            .AddSingleton<PeerRegistry>()
             .AddSingleton<AuditLog>()
             .AddSingleton<BanService>()
             .AddSingleton<ClientTokenDirectory>()

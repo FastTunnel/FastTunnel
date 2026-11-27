@@ -34,17 +34,20 @@ public class FastTunnelClientHandler
     private readonly ILoginHandler loginHandler;
     private readonly BanRegistry? bans;
     private readonly ClientTokenDirectory? directory;
+    private readonly PeerRegistry? registry;
     private readonly PeerBroker peers = new();
 
     public FastTunnelClientHandler(
         ILogger<FastTunnelClientHandler> logger, FastTunnelServer fastTunnelServer,
-        ILoginHandler loginHandler, BanRegistry? bans = null, ClientTokenDirectory? directory = null)
+        ILoginHandler loginHandler, BanRegistry? bans = null, ClientTokenDirectory? directory = null,
+        PeerRegistry? registry = null)
     {
         this.logger = logger;
         this.fastTunnelServer = fastTunnelServer;
         this.loginHandler = loginHandler;
         this.bans = bans;
         this.directory = directory;
+        this.registry = registry;
 
         serverVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
     }
@@ -306,6 +309,8 @@ public class FastTunnelClientHandler
             return false;
         }
 
+        // 入网设备的最后上线时间只在内存里累加，随台账下一次结构性变更一起落盘
+        registry?.Touch(credential?.Id);
         return true;
     }
 }

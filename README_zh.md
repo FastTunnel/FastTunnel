@@ -99,7 +99,7 @@ FastTunnel 与 frp `type=tcp` 在 10 000 RPS 以内都零错误达成；frp 的 
       客户端支持程序目录下的同名变体；后加载覆盖先加载，全部支持热重载（示例见
       `FastTunnel.Server/config/appsettings.sample.ini`；INI 无原生数组，列表用节名下标）
 - [ ] 内容检测（旁路送审、主动巡检）：需先完成用户协议授权，尚未实施
-- [x] 私有 TCP P2P：托管 UDP 直连与 WSS 中继自动选路；无服务端时可 `p2p-pair` 手动配对
+- [x] 私有 TCP P2P：托管 UDP 直连与 WSS 中继自动选路；`p2p-enroll` 入网码让设备免配置接入；无服务端时可 `p2p-pair` 手动配对
 - [ ] Dashboard / Admin UI（指标已有 `/metrics`、健康检查已有 `/healthz`）
 
 > 两个「白名单」别混淆：旧文档打勾的「域名白名单限制」从未实现，那个
@@ -113,6 +113,43 @@ FastTunnel 与 frp `type=tcp` 在 10 000 RPS 以内都零错误达成；frp 的 
 > `/healthz`、`/metrics` 的配置说明见 [FastTunnel.Core/README_zh.md](FastTunnel.Core/README_zh.md)。
 
 ## 私有 TCP P2P
+
+### 设备入网：服务端维护一次，客户端装到哪都能用
+
+不想每台设备都发一份 `appsettings.json`，就让管理员在节点上签一枚一次性入网码，
+设备自己兑换属于自己的长期凭据。入网后的主体与 `Clients` 里手写的条目完全等价。
+
+节点侧开启 `FastTunnel:EnableP2P` 与 `FastTunnel:P2PInviteKey`（`p2p-invite-key` 可生成），
+在**服务端工作目录**运行：
+
+```powershell
+.\FastTunnel.Server.exe p2p-enroll laptop 30
+```
+
+命令打印入网码、服务端证书指纹和对应的客户端命令。设备侧执行：
+
+```powershell
+.\FastTunnel.Client.exe p2p-enroll https://node.example.net:443 fte1.xxxx.1780000000.AABB <证书指纹>
+```
+
+成功后客户端工作目录出现 `fasttunnel-peer.json`（权限 `0600`），此后直接启动
+`FastTunnel.Client` 即可接入，换网络、换机器都不用再改配置。该文件的优先级低于
+`appsettings.json`：显式写了 `FastTunnel:Token` 时仍以它为准。入网码默认有效 15 分钟
+（`FastTunnel:P2PEnrollment:EnrollMinutes`，最长 60），**只能用一次**，泄露了也已被兑换。
+
+服务端在 `FastTunnel:P2PEnrollment:StateFile`（默认 `config/peers.json`）记录设备台账，
+只保存凭据的 SHA-256 指纹，明文 token 全链路只在兑换响应里出现一次。管理接口：
+
+| 接口 | 鉴权 | 作用 |
+| --- | --- | --- |
+| `POST /api/Peers/Create` | JWT | 签加入网码 |
+| `POST /api/Peers/Enroll` | 入网码 | 设备兑换凭据 |
+| `GET /api/Peers/List` | JWT | 列出设备、最后上线时间 |
+| `POST /api/Peers/Revoke` / `Restore` | JWT | 吊销 / 恢复，吊销后进行中的会话在下一次复检即断开 |
+| `POST /api/Peers/Remove` | JWT | 删除记录，需重新入网 |
+
+设备数上限由 `FastTunnel:P2PEnrollment:MaxPeers` 控制（默认 512）。台账是单进程状态文件，
+多实例部署需要共享存储，生产环境按**一副本 + 持久卷**挂载 `config/` 运行。
 
 ### 无 FastTunnel 服务端时手动配对
 

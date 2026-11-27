@@ -37,8 +37,26 @@ public class DefaultServerConfig : IServerConfig
     /// <summary>启用私有 P2P 信令和 WSS 中继。要求独立的 Clients 凭据。</summary>
     public bool EnableP2P { get; set; }
 
-    /// <summary>启用 P2P 测试邀请的 32 字节十六进制签名密钥。不设置时停用邀请。</summary>
+    /// <summary>P2P 测试邀请与设备入网码共用的 32 字节十六进制签名密钥。不设置时两者都停用。</summary>
     public string? P2PInviteKey { get; set; }
+
+    /// <summary>设备入网台账：一次性入网码兑换出的长期凭据。</summary>
+    public P2PEnrollmentOptions P2PEnrollment { get; set; } = new();
+
+    public class P2PEnrollmentOptions
+    {
+        /// <summary>
+        /// 入网台账文件（相对进程工作目录）。留空则只存内存，
+        /// 进程重启后已入网设备的凭据全部失效，生产环境不建议留空。
+        /// </summary>
+        public string StateFile { get; set; } = "config/peers.json";
+
+        /// <summary>可入网设备数上限，达到上限后拒绝兑换新码。</summary>
+        public int MaxPeers { get; set; } = 512;
+
+        /// <summary>入网码默认有效分钟数，取值 1–60。</summary>
+        public int EnrollMinutes { get; set; } = 15;
+    }
 
     /// <summary>公共隧道监听端口，也是默认的 P2P UDP 地址发现端口。</summary>
     public int BinPort { get; set; } = 1270;

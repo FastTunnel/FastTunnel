@@ -81,7 +81,7 @@ public static class PeerInvites
         return true;
     }
 
-    private static bool ReadKey(string? key, Span<byte> secret)
+    internal static bool ReadKey(string? key, Span<byte> secret)
         => key is { Length: 64 } && Convert.FromHexString(key.AsSpan(), secret, out _, out var size) == OperationStatus.Done
             && size == 32;
 

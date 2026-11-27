@@ -30,18 +30,23 @@ public sealed class ClientTokenDirectory
 {
     private readonly IOptionsMonitor<DefaultServerConfig> options;
     private readonly ILogger<ClientTokenDirectory> logger;
+    private readonly PeerRegistry? peers;
     private readonly object gate = new();
 
     private DefaultServerConfig? cachedConfig;
+    private PeerSnapshot cachedPeers;
     private Snapshot cachedSnapshot;
 
     public ClientTokenDirectory(
-        ILogger<ClientTokenDirectory> logger, IOptionsMonitor<DefaultServerConfig> options)
+        ILogger<ClientTokenDirectory> logger, IOptionsMonitor<DefaultServerConfig> options,
+        PeerRegistry? peers = null)
     {
         this.logger = logger;
         this.options = options;
+        this.peers = peers;
         cachedConfig = options.CurrentValue;
-        cachedSnapshot = Build(cachedConfig, logger);
+        cachedPeers = peers?.Current ?? PeerSnapshot.Empty;
+        cachedSnapshot = Build(cachedConfig, logger, cachedPeers);
     }
 
     public IReadOnlyList<ClientCredential> Credentials => Current().Credentials;
@@ -50,24 +55,29 @@ public sealed class ClientTokenDirectory
 
     public IReadOnlyList<string> Diagnostics => Current().Diagnostics;
 
-    public bool HasNamedClients => Current().Credentials.Count > 0;
+    public bool HasNamedClients
+    {
+        get
+        {
+            var snapshot = Current();
+            return snapshot.Credentials.Count > 0 || snapshot.Enrolled.ById.Count > 0;
+        }
+    }
 
     /// <summary>从控制面请求里解析凭据。未配置任何 token 时保持旧的「不校验」行为。</summary>
     public bool TryResolve(HttpContext context, out ClientCredential? credential)
     {
         credential = null;
         var snapshot = Current();
-        if (!snapshot.RequireToken)
-        {
+        var supplied = context.Request.Headers.TryGetValue(ProtocolConst.FASTTUNNEL_TOKEN, out var header)
+            ? header.ToString() : null;
+
+        // 认得出主体就带上，认不出也不改变旧行为：没配置凭据时依旧放行匿名客户端
+        if (supplied != null && TryFind(supplied, out credential))
             return true;
-        }
 
-        if (!context.Request.Headers.TryGetValue(ProtocolConst.FASTTUNNEL_TOKEN, out var supplied))
-        {
-            return false;
-        }
-
-        return TryFind(supplied.ToString(), out credential);
+        credential = null;
+        return !snapshot.RequireToken;
     }
 
     /// <summary>按 token 查找主体。所有比较都是定长的，避免按字符短路造成的时序泄漏。</summary>
@@ -98,25 +108,33 @@ public sealed class ClientTokenDirectory
             }
         }
 
+        if (snapshot.Enrolled.TryFind(token, out var enrolledId))
+        {
+            credential = ClientCredential.Enrolled(enrolledId, token);
+            return true;
+        }
+
         return false;
     }
 
     private Snapshot Current()
     {
         var current = options.CurrentValue;
+        var enrolled = peers?.Current ?? PeerSnapshot.Empty;
         var cached = Volatile.Read(ref cachedSnapshot);
-        if (ReferenceEquals(Volatile.Read(ref cachedConfig), current))
+        if (ReferenceEquals(Volatile.Read(ref cachedConfig), current) && ReferenceEquals(Volatile.Read(ref cachedPeers), enrolled))
         {
             return cached;
         }
 
         lock (gate)
         {
-            if (!ReferenceEquals(cachedConfig, current))
+            if (!ReferenceEquals(cachedConfig, current) || !ReferenceEquals(cachedPeers, enrolled))
             {
-                var rebuilt = Build(current, logger);
+                var rebuilt = Build(current, logger, enrolled);
                 Volatile.Write(ref cachedSnapshot, rebuilt);
                 cachedConfig = current;
+                cachedPeers = enrolled;
                 cached = rebuilt;
             }
             else
@@ -128,7 +146,7 @@ public sealed class ClientTokenDirectory
         return cached;
     }
 
-    private static Snapshot Build(DefaultServerConfig? config, ILogger logger)
+    private static Snapshot Build(DefaultServerConfig? config, ILogger logger, PeerSnapshot enrolled)
     {
         var credentials = new List<ClientCredential>();
         var legacy = new List<string>();
@@ -197,7 +215,7 @@ public sealed class ClientTokenDirectory
         }
 
         return new Snapshot(
-            credentials, legacy, diagnostics,
+            credentials, legacy, diagnostics, enrolled,
             hasNamedEntries || credentials.Count > 0 || legacy.Count > 0);
     }
 
@@ -209,11 +227,12 @@ public sealed class ClientTokenDirectory
     {
         public Snapshot(
             IReadOnlyList<ClientCredential> credentials, IReadOnlyList<string> legacyTokens,
-            IReadOnlyList<string> diagnostics, bool requireToken)
+            IReadOnlyList<string> diagnostics, PeerSnapshot enrolled, bool requireToken)
         {
             Credentials = credentials;
             LegacyTokens = legacyTokens;
             Diagnostics = diagnostics;
+            Enrolled = enrolled;
             RequireToken = requireToken;
         }
 
@@ -222,6 +241,8 @@ public sealed class ClientTokenDirectory
         public IReadOnlyList<string> LegacyTokens { get; }
 
         public IReadOnlyList<string> Diagnostics { get; }
+
+        public PeerSnapshot Enrolled { get; }
 
         public bool RequireToken { get; }
     }

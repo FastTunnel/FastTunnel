@@ -109,6 +109,13 @@ public sealed class ClientCredential
     }
 
     /// <summary>
+    /// 入网设备凭据。台账只保存 token 指纹，明文由请求侧带回来，
+    /// 让封禁、审计与带宽统计拿到和配置文件条目一样的主体。
+    /// </summary>
+    public static ClientCredential Enrolled(string id, string token)
+        => new(id, token, isLegacy: false, null, Array.Empty<string>(), null);
+
+    /// <summary>
     /// 兼容旧版共享 Tokens：无法区分人，只能把 token 指纹当主体。
     /// 保留这条路径是为了不中断既有部署，但按 token 封禁仍会误伤所有共用者。
     /// </summary>

@@ -60,4 +60,33 @@ public class ServiceRegistrationTests
         Assert.NotNull(loginHandler);
         Assert.NotNull(clientHandler);
     }
+
+    /// <summary>入网台账也是可选构造的单例，必须能在真实容器里解析并复用同一实例。</summary>
+    [Fact]
+    public void 入网台账可解析且始终同一个实例()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["FastTunnel:WebDomain"] = "test.cc",
+                ["FastTunnel:Abuse:Ban:StateFile"] = "",
+                ["FastTunnel:Abuse:Audit:FilePath"] = "",
+                ["FastTunnel:P2PEnrollment:StateFile"] = "",
+            })
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddFastTunnelServer(configuration.GetSection("FastTunnel"));
+
+        using var provider = services.BuildServiceProvider();
+
+        var peers = provider.GetRequiredService<PeerRegistry>();
+        Assert.Same(peers, provider.GetRequiredService<PeerRegistry>());
+        Assert.NotNull(provider.GetRequiredService<ClientTokenDirectory>());
+        Assert.NotNull(provider.GetRequiredService<FastTunnelClientHandler>());
+
+        // StateFile 为空表示只存内存，测试不应在工作目录留下台账
+        Assert.Null(peers.StateFilePath);
+    }
 }
