@@ -7,7 +7,7 @@
          A/B 实测：代码体积 -33%，分配回落到 net10 水平；.NET 11 BCL 已用此模式编译，
          应用侧保持关闭会导致两套异步模型混用（分配最差），故全解决方案统一开启。 -->
     <Features>runtime-async=on</Features>
-    <Version>3.6.1</Version>
+    <Version>3.7.0</Version>
     <Copyright>FastTunnel</Copyright>
     <Description>expose a local server behind a NAT or firewall to the internet like ngrok and frp</Description>
     <Authors>Gui.H</Authors>

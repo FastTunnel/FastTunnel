@@ -18,6 +18,8 @@ public class DefaultClientConfig : IClientConfig
     public IEnumerable<WebConfig> Webs { get; set; }
 
     public IEnumerable<ForwardConfig> Forwards { get; set; }
+    /// <summary>私有点对点服务与访客配置。</summary>
+    public PeerOptions P2P { get; set; } = new();
 
     /// <summary>
     /// 是否启用多路复用（默认开启）。开启后只与服务端建立一条长连接，

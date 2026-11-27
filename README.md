@@ -102,7 +102,7 @@ Method, raw data and reproducible scripts: [FastTunnel/fasttunnel-bench](https:/
       earlier ones, all hot-reloadable (sample: `FastTunnel.Server/config/appsettings.sample.ini`;
       INI has no native arrays — use indexed sections for lists)
 - [ ] Content inspection (out-of-band review, active crawling): requires user-agreement consent first
-- [ ] P2P / STCP / XTCP
+- [x] Private TCP P2P with managed UDP direct connections and WSS relay fallback ([setup](README_zh.md#私有-tcp-p2p))
 - [ ] Dashboard / Admin UI (metrics via `/metrics`, health via `/healthz` are already available)
 
 > Two different "whitelists": the "domain name whitelist" claimed by older docs was never

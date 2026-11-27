@@ -69,7 +69,7 @@ Gitee: [FastTunnel](https://gitee.com/Hgui/FastTunnel)
       under `config/`, the client the same variants in its app directory; later files override
       earlier ones, all hot-reloadable
 - [ ] Content inspection (out-of-band review, active crawling): requires user-agreement consent first
-- [ ] P2P / STCP / XTCP
+- [x] Private TCP P2P with managed UDP direct connections and WSS relay fallback
 - [ ] Dashboard / Admin UI (metrics via `/metrics`, health via `/healthz` are already available)
 
 > Two different "whitelists": the "domain name whitelist" claimed by older docs was never

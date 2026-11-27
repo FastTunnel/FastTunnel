@@ -10,10 +10,12 @@ using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
 using FastTunnel.Core.Extensions;
+using FastTunnel.Core.Forwarder.Kestrel.MiddleWare;
 using FastTunnel.Core.Forwarder.Streams;
 using FastTunnel.Core.Models;
 using FastTunnel.Core.Models.Massage;
 using FastTunnel.Core.Mux;
+using FastTunnel.Core.P2P;
 using FastTunnel.Core.Protocol;
 using FastTunnel.Core.Security;
 using FastTunnel.Core.Server;
@@ -32,6 +34,7 @@ public class FastTunnelClientHandler
     private readonly ILoginHandler loginHandler;
     private readonly BanRegistry? bans;
     private readonly ClientTokenDirectory? directory;
+    private readonly PeerBroker peers = new();
 
     public FastTunnelClientHandler(
         ILogger<FastTunnelClientHandler> logger, FastTunnelServer fastTunnelServer,
@@ -50,6 +53,32 @@ public class FastTunnelClientHandler
     {
         try
         {
+            if (context.Request.Path == PeerProtocol.Path && context.WebSockets.IsWebSocketRequest
+                && context.Request.Headers.ContainsKey(ProtocolConst.FASTTUNNEL_VERSION))
+            {
+                if (!fastTunnelServer.ServerOption.CurrentValue.EnableP2P)
+                {
+                    context.Response.StatusCode = StatusCodes.Status404NotFound;
+                    return;
+                }
+
+                if (!context.Request.IsHttps && context.Features.Get<TunnelTlsFeature>() == null)
+                {
+                    context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                    return;
+                }
+
+                if (!checkToken(context, out _, out var credential) || credential is not { IsLegacy: false }
+                    || !IsPeerAuthorized(credential))
+                {
+                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    return;
+                }
+
+                await peers.RunAsync(context, credential, IsPeerAuthorized);
+                return;
+            }
+
             if (!context.WebSockets.IsWebSocketRequest
                 || !context.Request.Headers.TryGetValue(ProtocolConst.FASTTUNNEL_VERSION, out var version))
             {
@@ -198,6 +227,14 @@ public class FastTunnelClientHandler
             }
         }
     }
+
+    private bool IsPeerAuthorized(ClientCredential credential)
+        => fastTunnelServer.ServerOption.CurrentValue.EnableP2P
+           && directory?.TryFind(credential.Token, out var current) == true
+           && current is { IsLegacy: false }
+           && string.Equals(current.Id, credential.Id, StringComparison.OrdinalIgnoreCase)
+           && bans?.IsTokenBanned(credential.Token) != true
+           && bans?.IsAccountBanned(credential.Id) != true;
 
     private static async Task AwaitQuietlyAsync(params Task[] tasks)
     {

@@ -63,6 +63,7 @@ public sealed class MuxStream : Stream, IDuplexPipe, IDatagramWriter
     private int _finSent;
 
     public uint Id { get; }
+    internal CancellationToken ConnectionClosed => _session.Closed;
 
     public MuxStream(MuxSession session, uint id, ILogger logger)
     {

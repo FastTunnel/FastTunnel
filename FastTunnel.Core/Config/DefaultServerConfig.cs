@@ -34,6 +34,14 @@ public class DefaultServerConfig : IServerConfig
     public string[] TrustedProxyIps { get; set; } = Array.Empty<string>();
 
     public bool EnableForward { get; set; }
+    /// <summary>启用私有 P2P 信令和 WSS 中继。要求独立的 Clients 凭据。</summary>
+    public bool EnableP2P { get; set; }
+
+    /// <summary>公共隧道监听端口，也是默认的 P2P UDP 地址发现端口。</summary>
+    public int BinPort { get; set; } = 1270;
+
+    /// <summary>P2P 地址发现使用的 UDP 端口。省略时使用 BinPort，0 表示关闭。</summary>
+    public int? P2PDiscoveryPort { get; set; }
 
     /// <summary>
     /// TCP/UDP 转发的服务端端口白名单。条目 <c>{ Single }</c> 放行单端口，

@@ -99,7 +99,7 @@ FastTunnel 与 frp `type=tcp` 在 10 000 RPS 以内都零错误达成；frp 的 
       客户端支持程序目录下的同名变体；后加载覆盖先加载，全部支持热重载（示例见
       `FastTunnel.Server/config/appsettings.sample.ini`；INI 无原生数组，列表用节名下标）
 - [ ] 内容检测（旁路送审、主动巡检）：需先完成用户协议授权，尚未实施
-- [ ] P2P 穿透（STCP / XTCP）
+- [x] 私有 TCP P2P：托管 UDP 直连与 WSS 中继自动选路
 - [ ] Dashboard / Admin UI（指标已有 `/metrics`、健康检查已有 `/healthz`）
 
 > 两个「白名单」别混淆：旧文档打勾的「域名白名单限制」从未实现，那个
@@ -111,6 +111,87 @@ FastTunnel 与 frp `type=tcp` 在 10 000 RPS 以内都零错误达成；frp 的 
 
 > 一户一 token（`FastTunnel:Clients`）、带宽限速（`FastTunnel:Bandwidth`）与
 > `/healthz`、`/metrics` 的配置说明见 [FastTunnel.Core/README_zh.md](FastTunnel.Core/README_zh.md)。
+
+## 私有 TCP P2P
+
+两端都运行 FastTunnel 客户端。服务端在 `FastTunnel` 下启用 `"EnableP2P": true`，
+并在 `Clients` 中给提供端和访客分配独立凭据，例如主体 `home` 和 `laptop`。
+两端的 `FastTunnel:Server` 使用 WSS，分别填写各自的 `FastTunnel:Token`。
+使用自签证书时，填写服务端启动日志提供的 `CertificateFingerprint`。
+
+在提供端的 `FastTunnel` 下加入一行，将本机 SSH 端口授权给 `laptop`。
+
+```json
+"P2P": { "Share": { "ssh": "22@laptop" } }
+```
+
+在访客端的 `FastTunnel` 下加入一行，将本机 `2222` 接到 `home` 的 SSH 服务。
+
+```json
+"P2P": { "Connect": { "home/ssh": 2222 } }
+```
+
+两端的地址默认是 `127.0.0.1`。向多个访客授权时，可填写 `"22@laptop,desktop"`。
+需要自定义地址时，可以使用下面的 `Services` 和 `Visitors` 写法。
+
+提供端的 `FastTunnel:P2P` 配置如下。
+
+```json
+{
+  "Services": [
+    { "Name": "ssh", "LocalHost": "127.0.0.1", "LocalPort": 22, "AllowVisitors": ["laptop"] }
+  ]
+}
+```
+
+访客端的 `FastTunnel:P2P` 配置如下。
+
+```json
+{
+  "Visitors": [
+    { "Provider": "home", "Service": "ssh", "ListenPort": 2222 }
+  ]
+}
+```
+
+访客访问本机 `127.0.0.1:2222`。提供端的 SSH 端口无需对公网开放。
+服务名区分大小写，主体 ID 和服务名使用字母、数字、点、下划线或连字符。
+修改 P2P 客户端配置后重启客户端。
+
+UDP 直连使用 .NET 自带的网络和加密 API，无需安装额外的库。启用 P2P 后，
+FastTunnel 服务端默认在与 `BinPort` 相同的 **UDP** 端口提供地址发现。
+在服务端防火墙、容器或云安全组放行该 UDP 端口后，仅使用上面的两行简写也能获取公网映射候选。
+如需单独的发现端口，可修改服务端的 `FastTunnel:P2PDiscoveryPort`，并在两端的
+`FastTunnel:Server:P2PDiscoveryPort` 填写对应的公网 UDP 端口。服务端填 `0` 可停用监听，客户端填 `0` 可停用查询。
+客户端会并行查询主节点、备用节点以及各域名的多个 IPv4/IPv6 地址。两端也可配置
+`P2P:StunServers`，例如 `["stun:stun.example.net:3478"]`，以增加独立的发现路径。
+
+可设置 `P2P:DirectUdpPort` 固定直连端口。填写 `"AutoMapPort": true` 可让客户端通过 PCP 或
+NAT-PMP 向 IPv4 默认网关申请临时 UDP 映射。两者均不可用时会尝试 UPnP IGD。
+发现和映射得到的地址都要通过对端探测才能用于直连。
+
+若任一端的 TCP 端口可从对端访问，可在该端的 `P2P` 下设置 `"DirectTcpPort": 7443`。
+客户端会通过信令公布本机的监听地址。如果用网关转发或外部端口不同，再设置
+`"DirectTcpEndpoint": "203.0.113.10:7443"`，替换为实际公网地址和端口。
+两端可同时尝试 UDP 和 TCP/TLS。新连接优先使用已就绪的 UDP 直连，其次是 TCP/TLS，最后是 WSS。
+`P2P:EnableUdpDirect=false` 可单独关闭 UDP 直连，`P2P:EnableDirect=false` 可强制使用中继。
+
+应用可在 WSS 中继就绪后立即连接。日志出现「P2P UDP 直连已就绪」后，新 TCP 连接走直连，
+已有连接继续使用建立时的路径。直连中断后，新连接回落到可用中继，客户端在后台重试直连。
+协调连接意外中断时，仍健康的直连最多继续承载已有 TCP 流 5 秒。客户端收到撤销授权通知后立即关闭直连。
+可在两端的 `P2P:AdditionalRelays` 填写备用 WSS 节点列表，字段与 `FastTunnel:Server`
+相同。每个节点都启用 P2P 并配置相同的主体和 Token，客户端会并行预连这些节点。
+使用反代和 443 端口时，请透传 WebSocket Upgrade，并对 `/p2p/v1` 使用 TLS 回源。
+UDP 地址发现需要独立放行或转发，特别是反代已在 UDP/443 提供 HTTP/3 时。
+直连通过 WSS 信令交换临时 ECDH 公钥，随后用 AES-GCM 保护 UDP 数据。
+中继数据在两段 WSS 上加密，中继服务器可以接触数据。两端都升级后可使用新版直连协议，
+旧客户端仍可使用 WSS 中继。
+
+直连失败时，客户端会记录尝试次数、角色、阶段、耗时和候选计数。常见原因包括
+`no_remote_candidates`（缺少对端候选）、`no_probe_response`（发送探测但未收到回应）、
+`selection_timeout`（已收到对端探测流量，但候选未完成确认）、`commit_timeout`（最终确认超时）、
+`tcp_connect_failed`（TCP 连接失败）和 `tcp_tls_failed`（TLS 握手或会话绑定失败）。
+失败日志默认省略候选 IP、Token 和密钥。若已有可用备用候选，最终确认失败时会在同一轮快速重选。
 
 ## 感谢以下贡献者
 <a href = "https://github.com/FastTunnel/FastTunnel/graphs/contributors">

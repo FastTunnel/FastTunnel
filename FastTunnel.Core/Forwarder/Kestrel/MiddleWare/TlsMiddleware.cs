@@ -121,6 +121,7 @@ internal class TlsMiddleware
         // 之后的中间件（协议识别、MUX、Kestrel HTTP）看到的是解密后的字节流
         var plaintext = context.Transport;
         context.Transport = pipe;
+        context.Features.Set<TunnelTlsFeature>(TunnelTlsFeature.Instance);
 
         try
         {
@@ -128,6 +129,7 @@ internal class TlsMiddleware
         }
         finally
         {
+            context.Features.Set<TunnelTlsFeature>(null);
             context.Transport = plaintext;
         }
     }
@@ -144,4 +146,10 @@ internal class TlsMiddleware
             // 连接可能已被对端关闭
         }
     }
+}
+
+internal sealed class TunnelTlsFeature
+{
+    internal static TunnelTlsFeature Instance { get; } = new();
+    private TunnelTlsFeature() { }
 }

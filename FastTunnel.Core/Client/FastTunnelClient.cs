@@ -76,6 +76,10 @@ public class FastTunnelClient : IFastTunnelClient
     /// </summary>
     public virtual async Task StartAsync(CancellationToken cancellationToken)
     {
+        if (ClientConfig.P2P is { HasEndpoints: true }
+            && ClientConfig.Webs?.Any() != true && ClientConfig.Forwards?.Any() != true)
+            return;
+
         _logger.LogInformation("===== FastTunnel Client Start =====");
 
         while (!cancellationToken.IsCancellationRequested)

@@ -329,7 +329,8 @@ public sealed class MuxSession : IAsyncDisposable
             }
         }
 
-        if (target == null || string.IsNullOrEmpty(target.Host) || target.Port <= 0)
+        if (target == null || string.IsNullOrEmpty(target.Host) || target.Port <= 0
+            || _streams.Count >= MuxFrame.MaxStreamCount)
         {
             await WriteFrameAsync(MuxFrameType.Rst, streamId, ReadOnlyMemory<byte>.Empty, Closed);
             return;

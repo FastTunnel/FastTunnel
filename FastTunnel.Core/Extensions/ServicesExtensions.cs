@@ -9,6 +9,7 @@ using FastTunnel.Core.Config;
 using FastTunnel.Core.Handlers.Client;
 using FastTunnel.Core.Handlers.Server;
 using FastTunnel.Core.Metrics;
+using FastTunnel.Core.P2P;
 using FastTunnel.Core.Security;
 using FastTunnel.Core.Server;
 using FastTunnel.Core.Tls;
@@ -37,6 +38,7 @@ public static class ServicesExtensions
             .AddSingleton<SwapHandler>();
 
         services.AddHostedService<ServiceFastTunnelClient>();
+        services.AddHostedService<PeerClient>();
     }
 
     /// <summary>
@@ -55,6 +57,7 @@ public static class ServicesExtensions
             .AddSingleton<ClientTokenDirectory>()
             .AddSingleton<TrafficMeter>()
             .AddSingleton<FastTunnelServer>();
+        services.AddHostedService<PeerDiscoveryService>();
     }
 
     /// <summary>

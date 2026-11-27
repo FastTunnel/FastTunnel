@@ -30,6 +30,9 @@ public class SuiDaoServer
 
     public int ServerPort { get; set; }
 
+    /// <summary>此协调节点对外提供地址发现的 UDP 端口。省略时使用 ServerPort，0 表示不查询此节点。</summary>
+    public int? P2PDiscoveryPort { get; set; }
+
     /// <summary>
     /// 服务端证书的 SHA-256 指纹（十六进制，分隔符可有可无）。
     /// 配置后只信任该证书，比信任系统 CA 更适合自签场景。

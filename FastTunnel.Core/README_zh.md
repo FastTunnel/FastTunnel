@@ -58,7 +58,7 @@ Gitee: [FastTunnel](https://gitee.com/Hgui/FastTunnel)
 - [x] 多格式配置文件：服务端支持 `config/` 下的 `appsettings.json` / `appsettings.ini`，
       客户端支持程序目录下的同名变体；后加载覆盖先加载，全部支持热重载
 - [ ] 内容检测（旁路送审、主动巡检）：需先完成用户协议授权，尚未实施
-- [ ] P2P 穿透（STCP / XTCP）
+- [x] 私有 TCP P2P：托管 UDP 直连与 WSS 中继自动选路
 - [ ] Dashboard / Admin UI（指标已有 `/metrics`、健康检查已有 `/healthz`）
 
 > 两个「白名单」别混淆：旧文档打勾的「域名白名单限制」从未实现，那个
