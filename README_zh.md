@@ -99,7 +99,7 @@ FastTunnel 与 frp `type=tcp` 在 10 000 RPS 以内都零错误达成；frp 的 
       客户端支持程序目录下的同名变体；后加载覆盖先加载，全部支持热重载（示例见
       `FastTunnel.Server/config/appsettings.sample.ini`；INI 无原生数组，列表用节名下标）
 - [ ] 内容检测（旁路送审、主动巡检）：需先完成用户协议授权，尚未实施
-- [x] 私有 TCP P2P：托管 UDP 直连与 WSS 中继自动选路
+- [x] 私有 TCP P2P：托管 UDP 直连与 WSS 中继自动选路；无服务端时可 `p2p-pair` 手动配对
 - [ ] Dashboard / Admin UI（指标已有 `/metrics`、健康检查已有 `/healthz`）
 
 > 两个「白名单」别混淆：旧文档打勾的「域名白名单限制」从未实现，那个
@@ -200,7 +200,8 @@ FastTunnel 服务端默认在与 `BinPort` 相同的 **UDP** 端口提供地址�
 如需单独的发现端口，可修改服务端的 `FastTunnel:P2PDiscoveryPort`，并在两端的
 `FastTunnel:Server:P2PDiscoveryPort` 填写对应的公网 UDP 端口。服务端填 `0` 可停用监听，客户端填 `0` 可停用查询。
 客户端会并行查询主节点、备用节点以及各域名的多个 IPv4/IPv6 地址。两端也可配置
-`P2P:StunServers`，例如 `["stun:stun.example.net:3478"]`，以增加独立的发现路径。
+`P2P:StunServers`（最多 8 个），例如
+`["stun:stun.cloudflare.com:3478", "stun.l.google.com:19302"]`，以增加独立的发现路径。
 
 可设置 `P2P:DirectUdpPort` 固定直连端口。填写 `"AutoMapPort": true` 可让客户端通过 PCP 或
 NAT-PMP 向 IPv4 默认网关申请临时 UDP 映射。两者均不可用时会尝试 UPnP IGD。
@@ -228,6 +229,25 @@ UDP 地址发现需要独立放行或转发，特别是反代已在 UDP/443 提�
 `selection_timeout`（已收到对端探测流量，但候选未完成确认）、`commit_timeout`（最终确认超时）、
 `tcp_connect_failed`（TCP 连接失败）和 `tcp_tls_failed`（TLS 握手或会话绑定失败）。
 失败日志默认省略候选 IP、Token 和密钥。若已有可用备用候选，最终确认失败时会在同一轮快速重选。
+
+### 打洞排障
+
+手动配对的两端都会打印「本地候选 N，STUN 公网映射 M」；托管模式的直连失败日志带有同样的
+候选计数。先看这一行判断卡在哪一步。
+
+- `M` 为 0：STUN 没有返回可用地址。公共节点并非全部可达，换一个再试。实测多数网络可用的是
+  Cloudflare 和 Google 的节点；查询无响应时，先确认本机 UDP 出网未被防火墙拦截。
+- `M` 大于 0 仍失败：对端候选没有送达，通常是某端在对称 NAT 后或运营商未放行 UDP 入站。
+  托管模式会自动回落到 WSS 中继，手动模式没有中继，需要换一个 STUN 或改用托管模式。
+- 两端都有可互通的 IPv6 时，IPv6 候选不经过 NAT，通常最稳。
+
+映射到的地址不是自己的公网出口时，是虚拟网卡接管了路由，而不是 STUN 出错。用
+`curl myip.ipip.net` 取真实出口 IP，与日志里的候选对比：候选中出现 `100.64.0.0/10`、
+`169.254.0.0/16`、`198.18.0.0/15`，或出口 IP 与候选完全不同，说明 VPN/TUN 在转发探测流量。
+退出 VPN 后重新生成邀请。仅开启 HTTP/SOCKS 代理不影响打洞，代理不接管 UDP 默认路由。
+
+其他容易忽略的前提：手动配对要求两端系统时间相差在 30 秒内，否则会报「已过期或两端时间不同步」；
+提供端收到应答后只有约 25 秒打洞窗口，超时请重新走一遍配对；两端都要保持命令窗口开启，关闭即拆除映射。
 
 ## 感谢以下贡献者
 <a href = "https://github.com/FastTunnel/FastTunnel/graphs/contributors">
