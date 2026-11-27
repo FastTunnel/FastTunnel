@@ -140,7 +140,38 @@ internal sealed class WindowsTun : ITunDevice
             }
         }
 
+        if (setup.Dns)
+        {
+            ConfigureDns(setup, logger);
+        }
+
         return true;
+    }
+
+    /// <summary>
+    /// 把这块网卡的解析指向本端虚拟地址，并声明它只负责 <c>.ft</c> 后缀，其余域名照旧走原来的网卡；
+    /// <c>register=disabled</c> 不让虚拟地址参与动态域名注册，<c>validate=disabled</c> 关掉 DNSSEC，
+    /// 否则我们现造的应答会被判成伪造。配不上只影响域名，不影响转发，所以不否决这块网卡。
+    /// </summary>
+    private static void ConfigureDns(TunSetup setup, ILogger logger)
+    {
+        var suffix = PeerSocks5.Suffix.TrimStart('.');
+        foreach (var args in new[]
+        {
+            new[] { "interface", "ip", "add", "dns", $"interface={setup.Name}", setup.Address, "index=1", "register=disabled", "validate=disabled" },
+            new[] { "interface", "ip", "add", "dnssuffix", $"interface={setup.Name}", suffix, "index=1" },
+        })
+        {
+            var (code, error) = TunProcess.Run("netsh", args);
+            if (code != 0)
+            {
+                logger.LogWarning("执行 netsh {Command} 失败（退出码 {Code}）：{Error}；组网内仍可直接用虚拟 IP，域名解析请手工配置",
+                    string.Join(' ', args), code, error.Length == 0 ? "无输出" : error);
+                return;
+            }
+        }
+
+        logger.LogInformation("组网域名已生效：查 *.{Suffix} 走 {Name} 上的 {Address}", suffix, setup.Name, setup.Address);
     }
 
     public ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken token) => ReadCoreAsync(buffer, token);

@@ -102,7 +102,10 @@ Method, raw data and reproducible scripts: [FastTunnel/fasttunnel-bench](https:/
       earlier ones, all hot-reloadable (sample: `FastTunnel.Server/config/appsettings.sample.ini`;
       INI has no native arrays — use indexed sections for lists)
 - [ ] Content inspection (out-of-band review, active crawling): requires user-agreement consent first
-- [x] Private TCP P2P with managed UDP direct connections and WSS relay fallback ([setup](README_zh.md#私有-tcp-p2p))
+- [x] Private TCP P2P with managed UDP direct connections and WSS relay fallback; `p2p-enroll` codes let a
+      device join with one command; a visitor-side SOCKS5 exit reaches any authorized port via
+      `service.provider.ft:port`; `P2P:EnableL3` turns the group into a real virtual network (TUN + virtual IP +
+      `.ft` names) for any protocol ([setup](README_zh.md#私有-tcp-p2p))
 - [ ] Dashboard / Admin UI (metrics via `/metrics`, health via `/healthz` are already available)
 
 > Two different "whitelists": the "domain name whitelist" claimed by older docs was never

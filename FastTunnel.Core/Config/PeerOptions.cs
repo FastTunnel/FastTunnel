@@ -66,6 +66,10 @@ public sealed class PeerOptions
     /// <summary>虚拟网卡 MTU，0 表示使用 1400（为直连封装留出余量）；超出 576-1500 的配置会被收敛到边界。</summary>
     public int L3Mtu { get; set; }
 
+    /// <summary>接管 <c>.ft</c> 域名的解析：占住本端虚拟地址的 53 端口，查 <c>成员ID.ft</c> 直接得到
+    /// 它的虚拟地址，其余域名转给系统原本在用的 DNS。关闭后组网照样能通，只是要自己写 hosts。</summary>
+    public bool L3Dns { get; set; } = true;
+
     internal bool HasEndpoints => Services.Length != 0 || Visitors.Length != 0 || Share.Count != 0
         || Connect.Count != 0 || Socks5 != 0 || EnableL3;
 

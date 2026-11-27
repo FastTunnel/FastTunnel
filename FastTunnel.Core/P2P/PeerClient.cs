@@ -296,6 +296,8 @@ internal sealed class PeerClient(IOptionsMonitor<DefaultClientConfig> options, I
 
         await using var tun = device;
         await using var network = new PeerNetwork(roster, device, logger);
+        // 网卡上已有本端地址才占得住它的 53 端口；关掉 L3Dns 时网卡只搬 IP 包，完全不碰解析
+        await using var dns = config.P2P.L3Dns ? PeerDns.Start(roster, network.VirtualIp, logger) : null;
         using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(token);
         var changed = new TaskCompletionSource<PeerNetworkRoster>(TaskCreationOptions.RunContinuationsAsynchronously);
         var members = network.Peers;

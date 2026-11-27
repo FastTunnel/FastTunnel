@@ -2,8 +2,12 @@ using System.Diagnostics;
 
 namespace FastTunnel.Core.P2P;
 
-/// <summary>创建虚拟网卡需要的参数，全部来自服务端组网目录和客户端配置。</summary>
-internal readonly record struct TunSetup(string Name, string Address, string NetMask, int PrefixLength, int Mtu);
+/// <summary>
+/// 创建虚拟网卡需要的参数，全部来自服务端组网目录和客户端配置。
+/// <paramref name="Dns"/> 为真时，平台实现还要把这块网卡的解析指向 <paramref name="Address"/>，
+/// 让 <c>.ft</c> 域名能直接查到成员的虚拟地址。
+/// </summary>
+internal readonly record struct TunSetup(string Name, string Address, string NetMask, int PrefixLength, int Mtu, bool Dns);
 
 /// <summary>
 /// 调系统命令配置网卡。参数一律走 <see cref="ProcessStartInfo.ArgumentList"/>，

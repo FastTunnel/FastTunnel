@@ -1,3 +1,4 @@
+using System.Net;
 using System.Threading.Channels;
 using FastTunnel.Core.Forwarder.Streams;
 using FastTunnel.Core.Mux;

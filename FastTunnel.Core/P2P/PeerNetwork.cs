@@ -12,6 +12,7 @@ namespace FastTunnel.Core.P2P;
 /// L3 组网泵。本机虚拟网卡上发往网段的 IP 包按目的地址投给对应成员，成员送来的包再交回网卡；
 /// TCP / UDP 状态仍由两端内核负责，这里只搬运完整的 IPv4 包。
 /// 通道没就绪时直接丢包，让内核重传，避免为不在线的设备积压数据。
+/// 发给自己的包（含组网 DNS）由内核就地处理，不经这里。
 /// </summary>
 internal sealed class PeerNetwork(PeerNetworkRoster roster, ITunDevice device, ILogger logger)
 {

@@ -38,7 +38,7 @@ internal static class PeerTun
         }
 
         var setup = new TunSetup(requested, own.Ip, cidr.NetMask().ToString(), cidr.PrefixLength,
-            options.L3Mtu is > 0 ? Math.Clamp(options.L3Mtu, 576, 1500) : DefaultMtu);
+            Mtu(options), options.L3Dns);
         if (OperatingSystem.IsLinux())
         {
             return LinuxTun.TryCreate(setup, logger);
@@ -52,6 +52,9 @@ internal static class PeerTun
         logger.LogWarning("当前系统还没有虚拟网卡实现，L3 组网未启用；任意端口访问请改用 P2P:Socks5 出口");
         return null;
     }
+
+    /// <summary>实际生效的链路 MTU：未配置用默认值，配置值收敛到 576-1500。</summary>
+    internal static int Mtu(PeerOptions options) => options.L3Mtu is > 0 ? Math.Clamp(options.L3Mtu, 576, 1500) : DefaultMtu;
 
     private static bool IsInterfaceName(string name)
         => name is { Length: > 0 and <= 15 }

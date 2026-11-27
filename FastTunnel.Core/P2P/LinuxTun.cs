@@ -75,7 +75,7 @@ internal sealed class LinuxTun : ITunDevice
         return tun;
     }
 
-    /// <summary>依次设置 MTU、启用接口、写入虚拟地址；任何一步失败都放弃这块网卡。</summary>
+    /// <summary>依次设置 MTU、启用接口、写入虚拟地址；任何一步失败都放弃这块网卡。地址配好后再尝试接管解析。</summary>
     private bool Configure(TunSetup setup, ILogger logger)
     {
         if (Native.FindIp() is not { } ip)
@@ -101,16 +101,43 @@ internal sealed class LinuxTun : ITunDevice
             }
         }
 
+        if (setup.Dns)
+        {
+            ConfigureResolved(setup, logger);
+        }
+
         return true;
+    }
+
+    /// <summary>
+    /// 用 systemd-resolved 做分流解析：只把 <c>.ft</c> 后缀交给这块网卡，正常上网的域名照旧走原有 DNS。
+    /// 机器上没有 resolvectl 时只提示，绝不去改 <c>/etc/resolv.conf</c>。
+    /// </summary>
+    private static void ConfigureResolved(TunSetup setup, ILogger logger)
+    {
+        var suffix = PeerSocks5.Suffix.TrimStart('.');
+        if (TunProcess.Run("resolvectl", ["dns", setup.Name, setup.Address]).Code != 0)
+        {
+            logger.LogWarning("这台机器没有 systemd-resolved，无法把 {Name} 的解析指向 {Address}。" +
+                "要用组网域名请自行配置解析，或关闭 FastTunnel:P2P:L3Dns", setup.Name, setup.Address);
+            return;
+        }
+
+        var (code, error) = TunProcess.Run("resolvectl", ["domain", setup.Name, "~" + suffix]);
+        if (code != 0)
+        {
+            logger.LogWarning("执行 resolvectl domain {Name} 失败：{Error}", setup.Name, error.Length == 0 ? "无输出" : error);
+            return;
+        }
+
+        logger.LogInformation("组网域名已生效：查 *.{Suffix} 走 {Name} 上的 {Address}", suffix, setup.Name, setup.Address);
     }
 
     public ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken token) => ReadCoreAsync(buffer, token);
 
-    public async ValueTask WriteAsync(ReadOnlyMemory<byte> packet, CancellationToken token)
-    {
-        await device.WriteAsync(packet, token);
-        await device.FlushAsync(token);
-    }
+    /// <summary>写进 /dev/net/tun 就是交给内核队列，没有可缓冲的尾部数据，因此不需要 flush。</summary>
+    public ValueTask WriteAsync(ReadOnlyMemory<byte> packet, CancellationToken token)
+        => device.WriteAsync(packet, token);
 
     private async ValueTask<int> ReadCoreAsync(Memory<byte> buffer, CancellationToken token)
         => await packets.Reader.WaitToReadAsync(token) && packets.Reader.TryRead(out var packet)
