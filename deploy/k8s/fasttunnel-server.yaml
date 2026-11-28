@@ -14,6 +14,14 @@
 #     --from-literal=FastTunnel__Clients__0__Id=owner \
 #     --from-literal=FastTunnel__Clients__0__Token="$(openssl rand -hex 24)"
 #
+# 私有 registry 需要拉取凭据，否则 ImagePullBackOff：
+#   kubectl -n fasttunnel create secret docker-registry acr-pull \
+#     --docker-server=crpi-gr7j2r1czfy1t1uu.cn-hangzhou.personal.cr.aliyuncs.com \
+#     --docker-username=<ACR账号> --docker-password=<ACR密码>
+# 另注：CI 只有在仓库配了 ACR_USERNAME/ACR_PASSWORD 时才推 ACR，否则只出 Docker Hub，
+# 需要在本机把 CI 镜像转推一次：docker pull springhgui/fasttunnel:<sha> &&
+# docker tag ... <ACR地址>/springhgui/fasttunnel:{<sha>,<日期>,latest} && docker push。
+
 # Clients 只放一条 owner 凭据即可让服务端从第一次启动就强制校验 token：
 # 未配置任何凭据时 FastTunnel 沿用「不校验」旧行为，公网节点上等于开放代理。
 # 设备入网走 `kubectl -n fasttunnel exec deploy/fasttunnel-server -- \
@@ -115,6 +123,8 @@ spec:
       # hostNetwork 下仍要能解析集群内服务名
       dnsPolicy: ClusterFirstWithHostNet
       terminationGracePeriodSeconds: 20
+      imagePullSecrets:
+        - name: acr-pull
       containers:
         - name: server
           # 镜像由 .github/workflows/dotnetcore.yml 在 push 到 v3 时推送：
