@@ -66,12 +66,19 @@ jobs:
           docker push $IMAGE_ID:latest
 
       - name: Push image to ACR
-        if: ${{ secrets.ACR_USERNAME != '' && secrets.ACR_PASSWORD != '' }}
+        env:
+          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+          ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
         run: |
           set -euo pipefail
+          # secrets 在 step 的 if 里不可用，改成运行时判空：没配凭据就跳过这一步，
+          # 不让 Docker Hub 那条链路被境内自建部署的凭据缺失拖红
+          if [ -z "$ACR_USERNAME" ] || [ -z "$ACR_PASSWORD" ]; then
+            echo "::notice::未配置 ACR_USERNAME / ACR_PASSWORD，跳过阿里云镜像推送"
+            exit 0
+          fi
           IMAGE_ID="$ACR_REGISTRY/$ACR_NAMESPACE/$IMAGE_NAME"
-          echo "${{ secrets.ACR_PASSWORD }}" | docker login "$ACR_REGISTRY" \
-            -u "${{ secrets.ACR_USERNAME }}" --password-stdin
+          echo "$ACR_PASSWORD" | docker login "$ACR_REGISTRY" -u "$ACR_USERNAME" --password-stdin
           for tag in "$ACR_VERSION" "$ACR_SHA_TAG" latest; do
             echo [tag+push] "$IMAGE_ID:$tag"
             docker tag "$IMAGE_NAME" "$IMAGE_ID:$tag"
