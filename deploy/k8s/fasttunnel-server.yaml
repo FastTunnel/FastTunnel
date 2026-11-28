@@ -140,13 +140,14 @@ spec:
             - secretRef:
                 name: fasttunnel-secret
           env:
-            # 访客 Web 与运维端点走 8081：1270 是隧道端口，80/443 留给节点上的 ingress
-            - name: ASPNETCORE_URLS
-              value: "http://0.0.0.0:8081"
+            # 不要指望 ASPNETCORE_URLS 另开一个 web 端口：服务端只用
+            # FastTunnel:BinPort 建唯一监听（FastTunnel.Server/AotServiceRegistration.cs），
+            # 其余地址会被 Kestrel 端点覆盖掉，/healthz、/metrics、访客 HTTP
+            # 全部走 1270 的首字节分流。另开端口需要改代码，不是配置项。
             - name: DOTNET_EnableDiagnostics
               value: "0"
           ports:
-            # 客户端控制面：同一端口按首字节分流 TLS / 明文 / WebSocket / MUX
+            # 客户端控制面 + 运维端点：同一端口按首字节分流 TLS / 明文 / WebSocket / MUX
             - name: tunnel
               containerPort: 1270
               protocol: TCP
@@ -154,9 +155,6 @@ spec:
             - name: discovery
               containerPort: 1270
               protocol: UDP
-            - name: web
-              containerPort: 8081
-              protocol: TCP
           volumeMounts:
             # 自签证书、peers.json、bans.json、audit.jsonl 都落在 config/ 下，
             # 必须跨重启保留：证书换了客户端的指纹校验就会失败
@@ -176,13 +174,13 @@ spec:
           readinessProbe:
             httpGet:
               path: /healthz
-              port: web
+              port: tunnel
             periodSeconds: 10
             failureThreshold: 3
           livenessProbe:
             httpGet:
               path: /healthz
-              port: web
+              port: tunnel
             initialDelaySeconds: 30
             periodSeconds: 20
             failureThreshold: 5
@@ -208,11 +206,11 @@ spec:
   selector:
     app: fasttunnel-server
   ports:
-    - name: web
-      port: 8081
-      targetPort: web
-      protocol: TCP
     - name: tunnel
       port: 1270
       targetPort: tunnel
       protocol: TCP
+    - name: discovery
+      port: 1270
+      targetPort: discovery
+      protocol: UDP
