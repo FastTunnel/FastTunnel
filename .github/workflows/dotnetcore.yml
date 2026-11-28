@@ -3,6 +3,12 @@ name: Build
 # 只负责 docker 镜像的持续推送（push 到 v3 即出 latest）。
 # 单元测试在 ci.yml，nuget 与各平台产物在 release.yml（tag 触发），
 # 这里不再重复发包——旧的那几个 publish-nuget job 已经删掉。
+#
+# 镜像同时推两个仓库，因为同一份产物要服务两类用户：
+#   - Docker Hub（springhgui/fasttunnel）：面向公网用户，是文档里的默认地址。
+#   - 阿里云 ACR（个人版）：境内节点直连不到 Docker Hub，自建部署从这里拉。
+# ACR 这一步只在仓库配好 ACR_USERNAME / ACR_PASSWORD 两个 secret 时才跑，
+# 没配就跳过，不影响 Docker Hub 那条链路。
 
 on:
   push:
@@ -12,12 +18,16 @@ on:
 env:
   # 设置 docker 镜像名
   IMAGE_NAME: fasttunnel
+  ACR_REGISTRY: crpi-gr7j2r1czfy1t1uu.cn-hangzhou.personal.cr.aliyuncs.com
+  ACR_NAMESPACE: springhgui
 
 jobs:
   docker:
     name: publish-docker
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
         # 构建镜像，指定镜像名
@@ -32,18 +42,38 @@ jobs:
           IMAGE_ID=springhgui/$IMAGE_NAME
           IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
           VERSION=$(date "+%Y.%m.%d")
+          # 日期 tag 同一天多次 push 会互相覆盖，部署侧要钉住某次构建时用 sha tag
+          SHA_TAG="${GITHUB_SHA:0:7}"
 
           echo IMAGE_ID=$IMAGE_ID
           echo VERSION=$VERSION
+          echo "ACR_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "ACR_SHA_TAG=$SHA_TAG" >> "$GITHUB_ENV"
           # 设置镜像 id 和版本号
           echo [tag] $IMAGE_NAME $IMAGE_ID:$VERSION
           docker tag $IMAGE_NAME $IMAGE_ID:$VERSION
           # 进行 push
           echo [push] $IMAGE_ID:$VERSION
           docker push $IMAGE_ID:$VERSION
+          echo [push] $IMAGE_ID:$SHA_TAG
+          docker tag $IMAGE_NAME $IMAGE_ID:$SHA_TAG
+          docker push $IMAGE_ID:$SHA_TAG
           # 再上传一份覆盖latest
           echo [tag] $IMAGE_ID:$VERSION $IMAGE_ID:latest
           docker tag $IMAGE_ID:$VERSION $IMAGE_ID:latest
 
           echo [push] $IMAGE_ID:latest
           docker push $IMAGE_ID:latest
+
+      - name: Push image to ACR
+        if: ${{ secrets.ACR_USERNAME != '' && secrets.ACR_PASSWORD != '' }}
+        run: |
+          set -euo pipefail
+          IMAGE_ID="$ACR_REGISTRY/$ACR_NAMESPACE/$IMAGE_NAME"
+          echo "${{ secrets.ACR_PASSWORD }}" | docker login "$ACR_REGISTRY" \
+            -u "${{ secrets.ACR_USERNAME }}" --password-stdin
+          for tag in "$ACR_VERSION" "$ACR_SHA_TAG" latest; do
+            echo [tag+push] "$IMAGE_ID:$tag"
+            docker tag "$IMAGE_NAME" "$IMAGE_ID:$tag"
+            docker push "$IMAGE_ID:$tag"
+          done

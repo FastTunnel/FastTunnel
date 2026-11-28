@@ -1,0 +1,208 @@
+# FastTunnel 服务端（内网穿透 / 私有 P2P 协调节点）的 Kubernetes 部署清单。
+#
+# 适用形态：单节点集群 + hostNetwork。选 hostNetwork 而不是 NodePort 有两条硬理由：
+#   1) 隧道服务端必须看到访客的真实源 IP（审计、封禁、WebAllowAccessIps 都靠它），
+#      NodePort 的 SNAT 会把所有访客变成节点地址；
+#   2) 端口转发（EnableForward）会在运行期动态占用任意 RemotePort，NodePort 的固定
+#      端口映射覆盖不了这种「进程自己决定监听端口」的形态。
+# 多副本请先读 FastTunnel.Core/README_zh.md：peers.json / bans.json / audit.jsonl
+# 与自签证书都是单进程状态，多副本需要共享存储 + 会话粘滞，本清单按一副本设计。
+#
+# 部署前先创建凭据 Secret（口令与签名密钥都留在节点上，不入库）：
+#   kubectl -n fasttunnel create secret generic fasttunnel-secret \
+#     --from-literal=FastTunnel__P2PInviteKey="$(openssl rand -hex 32)" \
+#     --from-literal=FastTunnel__Clients__0__Id=owner \
+#     --from-literal=FastTunnel__Clients__0__Token="$(openssl rand -hex 24)"
+#
+# Clients 只放一条 owner 凭据即可让服务端从第一次启动就强制校验 token：
+# 未配置任何凭据时 FastTunnel 沿用「不校验」旧行为，公网节点上等于开放代理。
+# 设备入网走 `kubectl -n fasttunnel exec deploy/fasttunnel-server -- \
+#   dotnet FastTunnel.Server.dll p2p-enroll <设备名> [分钟]`。
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fasttunnel
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fasttunnel-config
+  namespace: fasttunnel
+data:
+  appsettings.json: |
+    {
+      "Serilog": {
+        "MinimumLevel": {
+          "Default": "Information",
+          "Override": {
+            "Microsoft": "Warning",
+            "Microsoft.Hosting.Lifetime": "Information"
+          }
+        }
+      },
+      "EnableFileLog": false,
+      "FastTunnel": {
+        "BinPort": 1270,
+        "EnableMux": true,
+        "EnforceSingleSession": true,
+        "EnableForward": false,
+        "EnableP2P": true,
+        "Tls": {
+          "Enabled": true,
+          "AutoGenerate": true
+        },
+        "P2PEnrollment": {
+          "StateFile": "config/peers.json",
+          "MaxPeers": 512,
+          "EnrollMinutes": 15
+        },
+        "P2PNetwork": {
+          "Enabled": true,
+          "Cidr": "10.128.0.0/16",
+          "DirectorySeconds": 60
+        },
+        "Abuse": {
+          "Ban": {
+            "StateFile": "config/bans.json"
+          },
+          "Audit": {
+            "FilePath": "config/audit.jsonl",
+            "MemoryCapacity": 10000
+          }
+        },
+        "Ops": {
+          "PublicEndpoints": true,
+          "IncludeClientLabels": false
+        }
+      }
+    }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fasttunnel-config-state
+  namespace: fasttunnel
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: local-path
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fasttunnel-server
+  namespace: fasttunnel
+  labels:
+    app: fasttunnel-server
+spec:
+  replicas: 1
+  # PVC 是 ReadWriteOnce，滚动更新会让新副本卡在卷上；直接先杀后起
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: fasttunnel-server
+  template:
+    metadata:
+      labels:
+        app: fasttunnel-server
+    spec:
+      hostNetwork: true
+      # hostNetwork 下仍要能解析集群内服务名
+      dnsPolicy: ClusterFirstWithHostNet
+      terminationGracePeriodSeconds: 20
+      containers:
+        - name: server
+          # 镜像由 .github/workflows/dotnetcore.yml 在 push 到 v3 时推送：
+          # 日期 tag（同一天多次构建）+ 短 sha tag（钉住某次构建）+ latest。
+          image: crpi-gr7j2r1czfy1t1uu.cn-hangzhou.personal.cr.aliyuncs.com/springhgui/fasttunnel:latest
+          # 跟住可变 tag：升级 = 推新镜像后 kubectl -n fasttunnel rollout restart deploy/fasttunnel-server
+          # 要钉住某次构建就把 tag 换成日期或短 sha，此时可改回 IfNotPresent
+          imagePullPolicy: Always
+          # 绕开镜像里的 start.sh：它把镜像内置 config 覆盖到 /app/config，
+          # 而这里 /app/config 是持久卷 + ConfigMap，覆盖会抹掉挂载进来的配置。
+          command: ["dotnet", "FastTunnel.Server.dll"]
+          envFrom:
+            - secretRef:
+                name: fasttunnel-secret
+          env:
+            # 访客 Web 与运维端点走 8081：1270 是隧道端口，80/443 留给节点上的 ingress
+            - name: ASPNETCORE_URLS
+              value: "http://0.0.0.0:8081"
+            - name: DOTNET_EnableDiagnostics
+              value: "0"
+          ports:
+            # 客户端控制面：同一端口按首字节分流 TLS / 明文 / WebSocket / MUX
+            - name: tunnel
+              containerPort: 1270
+              protocol: TCP
+            # P2P 地址发现（FastTunnel:P2PDiscoveryPort 省略时等于 BinPort）
+            - name: discovery
+              containerPort: 1270
+              protocol: UDP
+            - name: web
+              containerPort: 8081
+              protocol: TCP
+          volumeMounts:
+            # 自签证书、peers.json、bans.json、audit.jsonl 都落在 config/ 下，
+            # 必须跨重启保留：证书换了客户端的指纹校验就会失败
+            - name: state
+              mountPath: /app/config
+            - name: settings
+              mountPath: /app/config/appsettings.json
+              subPath: appsettings.json
+              readOnly: true
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: "2"
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: web
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: web
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 5
+      volumes:
+        - name: state
+          persistentVolumeClaim:
+            claimName: fasttunnel-config-state
+        - name: settings
+          configMap:
+            name: fasttunnel-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fasttunnel
+  namespace: fasttunnel
+  labels:
+    app: fasttunnel-server
+spec:
+  # 公网入口是 hostNetwork 直接占用的节点端口，这个 Service 只给集群内部
+  # （Prometheus 抓 /metrics、其它服务调 api/）用一个稳定地址
+  type: ClusterIP
+  selector:
+    app: fasttunnel-server
+  ports:
+    - name: web
+      port: 8081
+      targetPort: web
+      protocol: TCP
+    - name: tunnel
+      port: 1270
+      targetPort: tunnel
+      protocol: TCP
